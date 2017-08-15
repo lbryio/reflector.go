@@ -12,7 +12,7 @@ const (
 	BlobSize = 2 * 1024 * 1024
 
 	protocolVersion1 = 1
-	protocolVersion2 = 2 // not implemented
+	protocolVersion2 = 2
 )
 
 var ErrBlobExists = fmt.Errorf("Blob exists on server")
@@ -26,16 +26,27 @@ type handshakeRequestResponse struct {
 }
 
 type sendBlobRequest struct {
-	BlobHash string `json:"blob_hash"`
-	BlobSize int    `json:"blob_size"`
+	BlobHash   string `json:"blob_hash,omitempty"`
+	BlobSize   int    `json:"blob_size,omitempty"`
+	SdBlobHash string `json:"sd_blob_hash,omitempty"`
+	SdBlobSize int    `json:"sd_blob_size,omitempty"`
 }
 
 type sendBlobResponse struct {
 	SendBlob bool `json:"send_blob"`
 }
 
+type sendSdBlobResponse struct {
+	SendSdBlob  bool     `json:"send_sd_blob"`
+	NeededBlobs []string `json:"needed_blobs,omitempty"`
+}
+
 type blobTransferResponse struct {
 	ReceivedBlob bool `json:"received_blob"`
+}
+
+type sdBlobTransferResponse struct {
+	ReceivedSdBlob bool `json:"received_sd_blob"`
 }
 
 func getBlobHash(blob []byte) string {

@@ -87,18 +87,20 @@ func (s *Server) doError(conn net.Conn, e error) error {
 }
 
 func (s *Server) receiveBlob(conn net.Conn) error {
-	blobSize, blobHash, err := s.readBlobRequest(conn)
+	blobSize, blobHash, isSdBlob, err := s.readBlobRequest(conn)
 	if err != nil {
 		return err
 	}
 
 	blobExists := false
 	blobPath := path.Join(s.BlobDir, blobHash)
-	if _, err := os.Stat(blobPath); !os.IsNotExist(err) {
-		blobExists = true
+	if !isSdBlob { // we have to say sd blobs are missing because if we say we have it, they wont try to send any content blobs
+		if _, err := os.Stat(blobPath); !os.IsNotExist(err) {
+			blobExists = true
+		}
 	}
 
-	err = s.sendBlobResponse(conn, blobExists)
+	err = s.sendBlobResponse(conn, blobExists, isSdBlob)
 	if err != nil {
 		return err
 	}
@@ -116,6 +118,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	receivedBlobHash := getBlobHash(blob)
 	if blobHash != receivedBlobHash {
 		return fmt.Errorf("Hash of received blob data does not match hash from send request")
+		// this can also happen if the blob size is wrong, because the server will read the wrong number of bytes from the stream
 	}
 	log.Println("Got blob " + blobHash[:8])
 
@@ -124,7 +127,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 		return err
 	}
 
-	return s.sendTransferResponse(conn, true)
+	return s.sendTransferResponse(conn, true, isSdBlob)
 }
 
 func (s *Server) doHandshake(conn net.Conn) error {
@@ -133,8 +136,8 @@ func (s *Server) doHandshake(conn net.Conn) error {
 	err := dec.Decode(&handshake)
 	if err != nil {
 		return err
-	} else if handshake.Version != protocolVersion1 {
-		return fmt.Errorf("This server only supports protocol version 1")
+	} else if handshake.Version != protocolVersion1 && handshake.Version != protocolVersion2 {
+		return fmt.Errorf("Protocol version not supported")
 	}
 
 	resp, err := json.Marshal(handshakeRequestResponse{Version: handshake.Version})
@@ -150,36 +153,74 @@ func (s *Server) doHandshake(conn net.Conn) error {
 	return nil
 }
 
-func (s *Server) readBlobRequest(conn net.Conn) (int, string, error) {
+func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 	var sendRequest sendBlobRequest
 	dec := json.NewDecoder(conn)
 	err := dec.Decode(&sendRequest)
 	if err != nil {
-		return 0, "", err
-	} else if sendRequest.BlobSize > BlobSize {
-		return 0, "", fmt.Errorf("Blob size cannot be greater than " + strconv.Itoa(BlobSize) + " bytes")
+		return 0, "", false, err
 	}
-	return sendRequest.BlobSize, sendRequest.BlobHash, nil
+
+	if sendRequest.SdBlobHash != "" && sendRequest.BlobHash != "" {
+		return 0, "", false, fmt.Errorf("Invalid request")
+	}
+
+	var blobHash string
+	var blobSize int
+	isSdBlob := sendRequest.SdBlobHash != ""
+
+	if isSdBlob {
+		blobSize = sendRequest.SdBlobSize
+		blobHash = sendRequest.SdBlobHash
+		if blobSize > BlobSize {
+			return 0, "", isSdBlob, fmt.Errorf("SD blob cannot be more than " + strconv.Itoa(BlobSize) + " bytes")
+		}
+	} else {
+		blobSize = sendRequest.BlobSize
+		blobHash = sendRequest.BlobHash
+		if blobSize != BlobSize {
+			return 0, "", isSdBlob, fmt.Errorf("Blob must be exactly " + strconv.Itoa(BlobSize) + " bytes")
+		}
+	}
+
+	return blobSize, blobHash, isSdBlob, nil
 }
 
-func (s *Server) sendBlobResponse(conn net.Conn, blobExists bool) error {
-	sendResponse, err := json.Marshal(sendBlobResponse{SendBlob: !blobExists})
+func (s *Server) sendBlobResponse(conn net.Conn, blobExists, isSdBlob bool) error {
+	var response []byte
+	var err error
+
+	if isSdBlob {
+		response, err = json.Marshal(sendSdBlobResponse{SendSdBlob: !blobExists})
+	} else {
+		response, err = json.Marshal(sendBlobResponse{SendBlob: !blobExists})
+	}
 	if err != nil {
 		return err
 	}
-	_, err = conn.Write(sendResponse)
+
+	_, err = conn.Write(response)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob bool) error {
-	transferResponse, err := json.Marshal(blobTransferResponse{ReceivedBlob: receivedBlob})
+func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob, isSdBlob bool) error {
+	var response []byte
+	var err error
+
+	if isSdBlob {
+		response, err = json.Marshal(sdBlobTransferResponse{ReceivedSdBlob: receivedBlob})
+
+	} else {
+		response, err = json.Marshal(blobTransferResponse{ReceivedBlob: receivedBlob})
+	}
 	if err != nil {
 		return err
 	}
-	_, err = conn.Write(transferResponse)
+
+	_, err = conn.Write(response)
 	if err != nil {
 		return err
 	}

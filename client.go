@@ -9,7 +9,8 @@ import (
 )
 
 type Client struct {
-	conn net.Conn
+	conn      net.Conn
+	connected bool
 }
 
 func (c *Client) Connect(address string) error {
@@ -18,13 +19,19 @@ func (c *Client) Connect(address string) error {
 	if err != nil {
 		return err
 	}
+	c.connected = true
 	return c.doHandshake(protocolVersion1)
 }
 func (c *Client) Close() error {
+	c.connected = false
 	return c.conn.Close()
 }
 
 func (c *Client) SendBlob(blob []byte) error {
+	if !c.connected {
+		return fmt.Errorf("Not connected")
+	}
+
 	if len(blob) != BlobSize {
 		return fmt.Errorf("Blob must be exactly " + strconv.Itoa(BlobSize) + " bytes")
 	}
@@ -37,7 +44,6 @@ func (c *Client) SendBlob(blob []byte) error {
 	if err != nil {
 		return err
 	}
-
 	_, err = c.conn.Write(sendRequest)
 	if err != nil {
 		return err
@@ -75,6 +81,10 @@ func (c *Client) SendBlob(blob []byte) error {
 }
 
 func (c *Client) doHandshake(version int) error {
+	if !c.connected {
+		return fmt.Errorf("Not connected")
+	}
+
 	handshake, err := json.Marshal(handshakeRequestResponse{Version: version})
 	if err != nil {
 		return err
