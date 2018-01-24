@@ -3,14 +3,16 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"path"
 	"strconv"
+
+	"github.com/lbryio/errors.go"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Server struct {
@@ -63,22 +65,20 @@ func (s *Server) handleConn(conn net.Conn) {
 	for {
 		err = s.receiveBlob(conn)
 		if err != nil {
-			if err == io.EOF {
-				return
+			if err != io.EOF {
+				s.doError(conn, err)
 			}
-			s.doError(conn, err)
 			return
 		}
-
 	}
 }
 
-func (s *Server) doError(conn net.Conn, e error) error {
-	log.Println("Error: " + e.Error())
-	if e2, ok := e.(*json.SyntaxError); ok {
+func (s *Server) doError(conn net.Conn, err error) error {
+	log.Errorln(err)
+	if e2, ok := err.(*json.SyntaxError); ok {
 		log.Printf("syntax error at byte offset %d", e2.Offset)
 	}
-	resp, err := json.Marshal(errorResponse{Error: e.Error()})
+	resp, err := json.Marshal(errorResponse{Error: err.Error()})
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 
 	receivedBlobHash := getBlobHash(blob)
 	if blobHash != receivedBlobHash {
-		return fmt.Errorf("Hash of received blob data does not match hash from send request")
+		return errors.Err("hash of received blob data does not match hash from send request")
 		// this can also happen if the blob size is wrong, because the server will read the wrong number of bytes from the stream
 	}
 	log.Println("Got blob " + blobHash[:8])
@@ -132,12 +132,11 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 
 func (s *Server) doHandshake(conn net.Conn) error {
 	var handshake handshakeRequestResponse
-	dec := json.NewDecoder(conn)
-	err := dec.Decode(&handshake)
+	err := json.NewDecoder(conn).Decode(&handshake)
 	if err != nil {
 		return err
 	} else if handshake.Version != protocolVersion1 && handshake.Version != protocolVersion2 {
-		return fmt.Errorf("Protocol version not supported")
+		return errors.Err("protocol version not supported")
 	}
 
 	resp, err := json.Marshal(handshakeRequestResponse{Version: handshake.Version})
@@ -155,32 +154,29 @@ func (s *Server) doHandshake(conn net.Conn) error {
 
 func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 	var sendRequest sendBlobRequest
-	dec := json.NewDecoder(conn)
-	err := dec.Decode(&sendRequest)
+	err := json.NewDecoder(conn).Decode(&sendRequest)
 	if err != nil {
 		return 0, "", false, err
 	}
 
 	if sendRequest.SdBlobHash != "" && sendRequest.BlobHash != "" {
-		return 0, "", false, fmt.Errorf("Invalid request")
+		return 0, "", false, errors.Err("invalid request")
 	}
 
 	var blobHash string
 	var blobSize int
 	isSdBlob := sendRequest.SdBlobHash != ""
 
+	if blobSize > BlobSize {
+		return 0, "", isSdBlob, errors.Err("blob cannot be more than " + strconv.Itoa(BlobSize) + " bytes")
+	}
+
 	if isSdBlob {
 		blobSize = sendRequest.SdBlobSize
 		blobHash = sendRequest.SdBlobHash
-		if blobSize > BlobSize {
-			return 0, "", isSdBlob, fmt.Errorf("SD blob cannot be more than " + strconv.Itoa(BlobSize) + " bytes")
-		}
 	} else {
 		blobSize = sendRequest.BlobSize
 		blobHash = sendRequest.BlobHash
-		if blobSize != BlobSize {
-			return 0, "", isSdBlob, fmt.Errorf("Blob must be exactly " + strconv.Itoa(BlobSize) + " bytes")
-		}
 	}
 
 	return blobSize, blobHash, isSdBlob, nil
@@ -238,7 +234,7 @@ func (s *Server) ensureBlobDirExists() error {
 			return err
 		}
 	} else if !stat.IsDir() {
-		return fmt.Errorf("blob dir exists but is not a dir")
+		return errors.Err("blob dir exists but is not a dir")
 	}
 	return nil
 }

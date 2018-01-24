@@ -3,7 +3,8 @@ package main
 import (
 	"crypto/sha512"
 	"encoding/hex"
-	"fmt"
+
+	"github.com/lbryio/errors.go"
 )
 
 const (
@@ -11,11 +12,11 @@ const (
 
 	BlobSize = 2 * 1024 * 1024
 
-	protocolVersion1 = 1
-	protocolVersion2 = 2
+	protocolVersion1 = 0
+	protocolVersion2 = 1
 )
 
-var ErrBlobExists = fmt.Errorf("Blob exists on server")
+var ErrBlobExists = errors.Base("blob exists on server")
 
 type errorResponse struct {
 	Error string `json:"error"`
@@ -52,4 +53,19 @@ type sdBlobTransferResponse struct {
 func getBlobHash(blob []byte) string {
 	hashBytes := sha512.Sum384(blob)
 	return hex.EncodeToString(hashBytes[:])
+}
+
+// can be used to read the sd blob and then return a list of blobs that are actually missing
+type sdBlobContents struct {
+	StreamName string `json:"stream_name"`
+	Blobs      []struct {
+		Length   int    `json:"length"`
+		BlobNum  int    `json:"blob_num"`
+		BlobHash string `json:"blob_hash,omitempty"`
+		Iv       string `json:"iv"`
+	} `json:"blobs"`
+	StreamType        string `json:"stream_type"`
+	Key               string `json:"key"`
+	SuggestedFileName string `json:"suggested_file_name"`
+	StreamHash        string `json:"stream_hash"`
 }

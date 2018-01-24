@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net"
 	"strconv"
+
+	"github.com/lbryio/errors.go"
+	log "github.com/sirupsen/logrus"
 )
 
 type Client struct {
@@ -29,11 +30,11 @@ func (c *Client) Close() error {
 
 func (c *Client) SendBlob(blob []byte) error {
 	if !c.connected {
-		return fmt.Errorf("Not connected")
+		return errors.Err("not connected")
 	}
 
 	if len(blob) != BlobSize {
-		return fmt.Errorf("Blob must be exactly " + strconv.Itoa(BlobSize) + " bytes")
+		return errors.Err("blob must be exactly " + strconv.Itoa(BlobSize) + " bytes")
 	}
 
 	blobHash := getBlobHash(blob)
@@ -74,7 +75,7 @@ func (c *Client) SendBlob(blob []byte) error {
 	}
 
 	if !transferResp.ReceivedBlob {
-		return fmt.Errorf("Server did not received blob")
+		return errors.Err("server did not received blob")
 	}
 
 	return nil
@@ -82,7 +83,7 @@ func (c *Client) SendBlob(blob []byte) error {
 
 func (c *Client) doHandshake(version int) error {
 	if !c.connected {
-		return fmt.Errorf("Not connected")
+		return errors.Err("not connected")
 	}
 
 	handshake, err := json.Marshal(handshakeRequestResponse{Version: version})
@@ -101,7 +102,7 @@ func (c *Client) doHandshake(version int) error {
 	if err != nil {
 		return err
 	} else if resp.Version != version {
-		return fmt.Errorf("Handshake version mismatch")
+		return errors.Err("handshake version mismatch")
 	}
 
 	return nil

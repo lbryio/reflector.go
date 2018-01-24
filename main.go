@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
-	"log"
 	"math/rand"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func checkErr(err error) {
@@ -15,11 +16,11 @@ func checkErr(err error) {
 }
 
 func main() {
-	var err error
 	rand.Seed(time.Now().UnixNano())
 
 	port := DefaultPort
-	address := "52.14.109.125:" + strconv.Itoa(port)
+	//address := "52.14.109.125:" + strconv.Itoa(port)
+	address := "localhost:" + strconv.Itoa(port)
 
 	serve := flag.Bool("server", false, "Run server")
 	blobDir := flag.String("blobdir", "", "Where blobs will be saved to")
@@ -33,6 +34,7 @@ func main() {
 		return
 	}
 
+	var err error
 	client := Client{}
 
 	log.Println("Connecting to " + address)
