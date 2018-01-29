@@ -1,14 +1,13 @@
-package main
+package reflector
 
 import (
 	"bufio"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net"
-	"os"
-	"path"
 	"strconv"
+
+	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/errors.go"
 
@@ -16,22 +15,16 @@ import (
 )
 
 type Server struct {
-	BlobDir string
+	store store.BlobStore
 }
 
-func NewServer(blobDir string) *Server {
+func NewServer(store store.BlobStore) *Server {
 	return &Server{
-		BlobDir: blobDir,
+		store: store,
 	}
 }
 
 func (s *Server) ListenAndServe(address string) error {
-	log.Println("Blobs will be saved to " + s.BlobDir)
-	err := s.ensureBlobDirExists()
-	if err != nil {
-		return err
-	}
-
 	log.Println("Listening on " + address)
 	l, err := net.Listen("tcp", address)
 	if err != nil {
@@ -42,10 +35,10 @@ func (s *Server) ListenAndServe(address string) error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			// TODO: dont crash server on error here
-			return err
+			log.Error(err)
+		} else {
+			go s.handleConn(conn)
 		}
-		go s.handleConn(conn)
 	}
 }
 
@@ -93,11 +86,13 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	}
 
 	blobExists := false
-	blobPath := path.Join(s.BlobDir, blobHash)
-	if !isSdBlob { // we have to say sd blobs are missing because if we say we have it, they wont try to send any content blobs
-		if _, err := os.Stat(blobPath); !os.IsNotExist(err) {
-			blobExists = true
+	if !isSdBlob {
+		// we have to say sd blobs are missing because if we say we have it, they wont try to send any content blobs
+		has, err := s.store.Has(blobHash)
+		if err != nil {
+			return err
 		}
+		blobExists = has
 	}
 
 	err = s.sendBlobResponse(conn, blobExists, isSdBlob)
@@ -122,7 +117,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	}
 	log.Println("Got blob " + blobHash[:8])
 
-	err = ioutil.WriteFile(blobPath, blob, 0644)
+	err = s.store.Put(blobHash, blob)
 	if err != nil {
 		return err
 	}
@@ -167,8 +162,8 @@ func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 	var blobSize int
 	isSdBlob := sendRequest.SdBlobHash != ""
 
-	if blobSize > BlobSize {
-		return 0, "", isSdBlob, errors.Err("blob cannot be more than " + strconv.Itoa(BlobSize) + " bytes")
+	if blobSize > maxBlobSize {
+		return 0, "", isSdBlob, errors.Err("blob cannot be more than " + strconv.Itoa(maxBlobSize) + " bytes")
 	}
 
 	if isSdBlob {
@@ -219,22 +214,6 @@ func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob, isSdBlob bool
 	_, err = conn.Write(response)
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-func (s *Server) ensureBlobDirExists() error {
-	if stat, err := os.Stat(s.BlobDir); err != nil {
-		if os.IsNotExist(err) {
-			err2 := os.Mkdir(s.BlobDir, 0755)
-			if err2 != nil {
-				return err2
-			}
-		} else {
-			return err
-		}
-	} else if !stat.IsDir() {
-		return errors.Err("blob dir exists but is not a dir")
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package main
+package reflector
 
 import (
 	"crypto/sha512"
@@ -10,7 +10,7 @@ import (
 const (
 	DefaultPort = 5566
 
-	BlobSize = 2 * 1024 * 1024
+	maxBlobSize = 2 * 1024 * 1024
 
 	protocolVersion1 = 0
 	protocolVersion2 = 1

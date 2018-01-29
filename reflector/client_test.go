@@ -1,4 +1,4 @@
-package main
+package reflector
 
 import (
 	"io/ioutil"

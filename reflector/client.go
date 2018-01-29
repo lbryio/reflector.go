@@ -1,4 +1,4 @@
-package main
+package reflector
 
 import (
 	"encoding/json"
@@ -33,8 +33,8 @@ func (c *Client) SendBlob(blob []byte) error {
 		return errors.Err("not connected")
 	}
 
-	if len(blob) != BlobSize {
-		return errors.Err("blob must be exactly " + strconv.Itoa(BlobSize) + " bytes")
+	if len(blob) != maxBlobSize {
+		return errors.Err("blob must be exactly " + strconv.Itoa(maxBlobSize) + " bytes")
 	}
 
 	blobHash := getBlobHash(blob)
