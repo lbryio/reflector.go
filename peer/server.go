@@ -1,12 +1,16 @@
 package peer
 
 import (
+	"bufio"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net"
+	"strings"
+	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
@@ -39,43 +43,66 @@ func (s *Server) ListenAndServe(address string) error {
 		if err != nil {
 			log.Error(err)
 		} else {
-			go s.handleConn(conn)
+			go s.handleConnection(conn)
 		}
 	}
 }
 
-func (s *Server) handleConn(conn net.Conn) {
-	// TODO: connection should time out eventually
+func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	err := s.doAvailabilityRequest(conn)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	err = s.doPaymentRateNegotiation(conn)
-	if err != nil {
-		log.Error(err)
-		return
-	}
+	timeoutDuration := 5 * time.Second
 
 	for {
-		err = s.doBlobRequest(conn)
+		var request []byte
+		var response []byte
+		var err error
+
+		conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+		request, err = readNextRequest(conn)
 		if err != nil {
 			if err != io.EOF {
-				log.Error(err)
+				log.Errorln(err)
 			}
+			return
+		}
+		conn.SetReadDeadline(time.Time{})
+
+		if strings.Contains(string(request), `"requested_blobs"`) {
+			log.Debugln("received availability request")
+			response, err = s.handleAvailabilityRequest(request)
+		} else if strings.Contains(string(request), `"blob_data_payment_rate"`) {
+			log.Debugln("received rate negotiation request")
+			response, err = s.handlePaymentRateNegotiation(request)
+		} else if strings.Contains(string(request), `"requested_blob"`) {
+			log.Debugln("received blob request")
+			response, err = s.handleBlobRequest(request)
+		} else {
+			log.Errorln("invalid request")
+			spew.Dump(request)
+			return
+		}
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		n, err := conn.Write(response)
+		if err != nil {
+			log.Errorln(err)
+			return
+		} else if n != len(response) {
+			log.Errorln(io.ErrShortWrite)
 			return
 		}
 	}
 }
 
-func (s *Server) doAvailabilityRequest(conn net.Conn) error {
+func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 	var request availabilityRequest
-	err := json.NewDecoder(conn).Decode(&request)
+	err := json.Unmarshal(data, &request)
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
 	address := "bJxKvpD96kaJLriqVajZ7SaQTsWWyrGQct"
@@ -83,31 +110,21 @@ func (s *Server) doAvailabilityRequest(conn net.Conn) error {
 	for _, blobHash := range request.RequestedBlobs {
 		exists, err := s.store.Has(blobHash)
 		if err != nil {
-			return err
+			return []byte{}, err
 		}
 		if exists {
 			availableBlobs = append(availableBlobs, blobHash)
 		}
 	}
 
-	response, err := json.Marshal(availabilityResponse{LbrycrdAddress: address, AvailableBlobs: availableBlobs})
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Write(response)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return json.Marshal(availabilityResponse{LbrycrdAddress: address, AvailableBlobs: availableBlobs})
 }
 
-func (s *Server) doPaymentRateNegotiation(conn net.Conn) error {
+func (s *Server) handlePaymentRateNegotiation(data []byte) ([]byte, error) {
 	var request paymentRateRequest
-	err := json.NewDecoder(conn).Decode(&request)
+	err := json.Unmarshal(data, &request)
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
 	offerReply := paymentRateAccepted
@@ -115,31 +132,21 @@ func (s *Server) doPaymentRateNegotiation(conn net.Conn) error {
 		offerReply = paymentRateTooLow
 	}
 
-	response, err := json.Marshal(paymentRateResponse{BlobDataPaymentRate: offerReply})
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Write(response)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return json.Marshal(paymentRateResponse{BlobDataPaymentRate: offerReply})
 }
 
-func (s *Server) doBlobRequest(conn net.Conn) error {
+func (s *Server) handleBlobRequest(data []byte) ([]byte, error) {
 	var request blobRequest
-	err := json.NewDecoder(conn).Decode(&request)
+	err := json.Unmarshal(data, &request)
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
 	log.Println("Sending blob " + request.RequestedBlob[:8])
 
 	blob, err := s.store.Get(request.RequestedBlob)
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
 	response, err := json.Marshal(blobResponse{IncomingBlob: incomingBlob{
@@ -147,40 +154,63 @@ func (s *Server) doBlobRequest(conn net.Conn) error {
 		Length:   len(blob),
 	}})
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
-	_, err = conn.Write(response)
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Write(blob)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return append(response, blob...), nil
 }
 
-func readAll(conn net.Conn) {
-	buf := make([]byte, 0, 4096) // big buffer
-	tmp := make([]byte, 256)     // using small tmo buffer for demonstrating
+func readNextRequest(conn net.Conn) ([]byte, error) {
+	request := make([]byte, 0)
+	eof := false
+	buf := bufio.NewReader(conn)
+
 	for {
-		n, err := conn.Read(tmp)
+		chunk, err := buf.ReadBytes('}')
 		if err != nil {
 			if err != io.EOF {
-				log.Println("read error:", err)
+				log.Errorln("read error:", err)
+				return request, err
 			}
+			eof = true
+		}
+
+		//log.Debugln("got", len(chunk), "bytes.")
+		//spew.Dump(chunk)
+
+		if len(chunk) > 0 {
+			request = append(request, chunk...)
+
+			if len(request) > maxRequestSize {
+				return request, errRequestTooLarge
+			}
+
+			// yes, this is how the peer protocol knows when the request finishes
+			if isValidJSON(request) {
+				break
+			}
+		}
+
+		if eof {
 			break
 		}
-		log.Println("got", n, "bytes.")
-		buf = append(buf, tmp[:n]...)
 	}
-	log.Println("total size:", len(buf))
-	if len(buf) > 0 {
-		log.Println(string(buf))
+
+	//log.Debugln("total size:", len(request))
+	//if len(request) > 0 {
+	//	spew.Dump(request)
+	//}
+
+	if len(request) == 0 && eof {
+		return []byte{}, io.EOF
 	}
+
+	return request, nil
+}
+
+func isValidJSON(b []byte) bool {
+	var r json.RawMessage
+	return json.Unmarshal(b, &r) == nil
 }
 
 func getBlobHash(blob []byte) string {

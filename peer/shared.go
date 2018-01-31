@@ -1,5 +1,11 @@
 package peer
 
+import "github.com/lbryio/errors.go"
+
+const maxRequestSize = 64 * (2 ^ 10) // 64kb
+
+var errRequestTooLarge = errors.Base("request is too large")
+
 type availabilityRequest struct {
 	LbrycrdAddress bool     `json:"lbrycrd_address"`
 	RequestedBlobs []string `json:"requested_blobs"`

@@ -5,10 +5,13 @@ import (
 	"flag"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"strconv"
 	"time"
 
+	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/peer"
+	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
@@ -22,22 +25,38 @@ func checkErr(err error) {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
+	log.SetLevel(log.DebugLevel)
 
 	confFile := flag.String("conf", "config.json", "Config file")
 	flag.Parse()
 
 	conf := loadConfig(*confFile)
 
-	peerAddress := "localhost:" + strconv.Itoa(peer.DefaultPort)
-	server := peer.NewServer(store.NewS3BlobStore(conf.AwsID, conf.AwsSecret, conf.BucketRegion, conf.BucketName))
-	log.Fatal(server.ListenAndServe(peerAddress))
-	return
+	db := new(db.SQL)
+	err := db.Connect(conf.DBConn)
+	checkErr(err)
 
-	//
-	//address := "52.14.109.125:" + strconv.Itoa(port)
-	//reflectorAddress := "localhost:" + strconv.Itoa(reflector.DefaultPort)
-	//server := reflector.NewServer(store.NewS3BlobStore(conf.awsID, conf.awsSecret, conf.bucketRegion, conf.bucketName))
-	//log.Fatal(server.ListenAndServe(reflectorAddress))
+	s3 := store.NewS3BlobStore(conf.AwsID, conf.AwsSecret, conf.BucketRegion, conf.BucketName)
+
+	combo := store.NewDBBackedS3Store(s3, db)
+
+	serverType := ""
+	if len(os.Args) > 1 {
+		serverType = os.Args[1]
+	}
+
+	switch serverType {
+	case "reflector":
+		reflectorAddress := "localhost:" + strconv.Itoa(reflector.DefaultPort)
+		server := reflector.NewServer(combo)
+		log.Fatal(server.ListenAndServe(reflectorAddress))
+	case "peer":
+		peerAddress := "localhost:" + strconv.Itoa(peer.DefaultPort)
+		server := peer.NewServer(combo)
+		log.Fatal(server.ListenAndServe(peerAddress))
+	default:
+		log.Fatal("invalid server type")
+	}
 
 	//
 	//var err error
@@ -66,6 +85,7 @@ type config struct {
 	AwsSecret    string `json:"aws_secret"`
 	BucketRegion string `json:"bucket_region"`
 	BucketName   string `json:"bucket_name"`
+	DBConn       string `json:"db_conn"`
 }
 
 func loadConfig(path string) config {
