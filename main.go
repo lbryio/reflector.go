@@ -2,17 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"io/ioutil"
 	"math/rand"
-	"os"
-	"strconv"
 	"time"
 
-	"github.com/lbryio/reflector.go/db"
-	"github.com/lbryio/reflector.go/peer"
-	"github.com/lbryio/reflector.go/reflector"
-	"github.com/lbryio/reflector.go/store"
+	"github.com/lbryio/reflector.go/cmd"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -27,36 +21,9 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 
-	confFile := flag.String("conf", "config.json", "Config file")
-	flag.Parse()
+	cmd.GlobalConfig = loadConfig("config.json")
 
-	conf := loadConfig(*confFile)
-
-	db := new(db.SQL)
-	err := db.Connect(conf.DBConn)
-	checkErr(err)
-
-	s3 := store.NewS3BlobStore(conf.AwsID, conf.AwsSecret, conf.BucketRegion, conf.BucketName)
-
-	combo := store.NewDBBackedS3Store(s3, db)
-
-	serverType := ""
-	if len(os.Args) > 1 {
-		serverType = os.Args[1]
-	}
-
-	switch serverType {
-	case "reflector":
-		reflectorAddress := "localhost:" + strconv.Itoa(reflector.DefaultPort)
-		server := reflector.NewServer(combo)
-		log.Fatal(server.ListenAndServe(reflectorAddress))
-	case "peer":
-		peerAddress := "localhost:" + strconv.Itoa(peer.DefaultPort)
-		server := peer.NewServer(combo)
-		log.Fatal(server.ListenAndServe(peerAddress))
-	default:
-		log.Fatal("invalid server type")
-	}
+	cmd.Execute()
 
 	//
 	//var err error
@@ -80,19 +47,11 @@ func main() {
 	//checkErr(err)
 }
 
-type config struct {
-	AwsID        string `json:"aws_id"`
-	AwsSecret    string `json:"aws_secret"`
-	BucketRegion string `json:"bucket_region"`
-	BucketName   string `json:"bucket_name"`
-	DBConn       string `json:"db_conn"`
-}
-
-func loadConfig(path string) config {
+func loadConfig(path string) cmd.Config {
 	raw, err := ioutil.ReadFile(path)
 	checkErr(err)
 
-	var c config
+	var c cmd.Config
 	err = json.Unmarshal(raw, &c)
 	checkErr(err)
 
