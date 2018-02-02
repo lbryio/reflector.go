@@ -105,3 +105,7 @@ func (s *S3BlobStore) Put(hash string, blob []byte) error {
 
 	return err
 }
+
+func (s *S3BlobStore) PutSD(hash string, blob []byte) error {
+	return s.Put(hash, blob)
+}

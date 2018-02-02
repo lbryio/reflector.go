@@ -1,6 +1,12 @@
 package store
 
-import "github.com/lbryio/reflector.go/db"
+import (
+	"encoding/json"
+
+	"github.com/go-errors/errors"
+	"github.com/lbryio/reflector.go/db"
+	"github.com/lbryio/reflector.go/types"
+)
 
 type DBBackedS3Store struct {
 	s3 *S3BlobStore
@@ -25,5 +31,23 @@ func (d *DBBackedS3Store) Put(hash string, blob []byte) error {
 		return err
 	}
 
-	return d.db.AddBlob(hash, len(blob))
+	return d.db.AddBlob(hash, len(blob), true)
+}
+
+func (d *DBBackedS3Store) PutSD(hash string, blob []byte) error {
+	var blobContents types.SdBlob
+	err := json.Unmarshal(blob, &blobContents)
+	if err != nil {
+		return err
+	}
+	if blobContents.StreamHash == "" {
+		return errors.New("sd blob is missing stream hash")
+	}
+
+	err = d.s3.PutSD(hash, blob)
+	if err != nil {
+		return err
+	}
+
+	return d.db.AddSDBlob(hash, len(blob), blobContents)
 }

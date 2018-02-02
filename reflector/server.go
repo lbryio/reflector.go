@@ -115,9 +115,14 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 		return errors.Err("hash of received blob data does not match hash from send request")
 		// this can also happen if the blob size is wrong, because the server will read the wrong number of bytes from the stream
 	}
+
 	log.Println("Got blob " + blobHash[:8])
 
-	err = s.store.Put(blobHash, blob)
+	if isSdBlob {
+		err = s.store.PutSD(blobHash, blob)
+	} else {
+		err = s.store.Put(blobHash, blob)
+	}
 	if err != nil {
 		return err
 	}

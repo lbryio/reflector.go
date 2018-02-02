@@ -54,18 +54,3 @@ func getBlobHash(blob []byte) string {
 	hashBytes := sha512.Sum384(blob)
 	return hex.EncodeToString(hashBytes[:])
 }
-
-// can be used to read the sd blob and then return a list of blobs that are actually missing
-type sdBlobContents struct {
-	StreamName string `json:"stream_name"`
-	Blobs      []struct {
-		Length   int    `json:"length"`
-		BlobNum  int    `json:"blob_num"`
-		BlobHash string `json:"blob_hash,omitempty"`
-		Iv       string `json:"iv"`
-	} `json:"blobs"`
-	StreamType        string `json:"stream_type"`
-	Key               string `json:"key"`
-	SuggestedFileName string `json:"suggested_file_name"`
-	StreamHash        string `json:"stream_hash"`
-}

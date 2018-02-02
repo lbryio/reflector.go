@@ -81,3 +81,7 @@ func (f *FileBlobStore) Put(hash string, blob []byte) error {
 
 	return ioutil.WriteFile(f.path(hash), blob, 0644)
 }
+
+func (f *FileBlobStore) PutSD(hash string, blob []byte) error {
+	return f.Put(hash, blob)
+}
