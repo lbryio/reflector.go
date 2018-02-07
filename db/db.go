@@ -164,7 +164,7 @@ CREATE TABLE stream (
   sd_hash char(96) NOT NULL,
   PRIMARY KEY (hash),
   KEY sd_hash_idx (sd_hash),
-  FOREIGN KEY stream_sd_hash_blob_hash (sd_hash) REFERENCES blob_ (hash) ON DELETE RESTRICT ON UPDATE CASCADE
+  FOREIGN KEY (sd_hash) REFERENCES blob_ (hash) ON DELETE RESTRICT ON UPDATE CASCADE
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE stream_blob (
@@ -172,8 +172,8 @@ CREATE TABLE stream_blob (
   blob_hash char(96) NOT NULL,
   num int NOT NULL,
   PRIMARY KEY (stream_hash, blob_hash),
-  FOREIGN KEY stream_hash_stream_hash (stream_hash) REFERENCES stream (hash) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY blob_hash_blob_hash (blob_hash) REFERENCES blob_ (hash) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (stream_hash) REFERENCES stream (hash) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (blob_hash) REFERENCES blob_ (hash) ON DELETE CASCADE ON UPDATE CASCADE
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 `

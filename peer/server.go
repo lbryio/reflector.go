@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	DefaultPort = 3333
+	DefaultPort    = 3333
+	LbrycrdAddress = "bJxKvpD96kaJLriqVajZ7SaQTsWWyrGQct"
 )
 
 type Server struct {
@@ -105,7 +106,6 @@ func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	address := "bJxKvpD96kaJLriqVajZ7SaQTsWWyrGQct"
 	availableBlobs := []string{}
 	for _, blobHash := range request.RequestedBlobs {
 		exists, err := s.store.Has(blobHash)
@@ -117,7 +117,7 @@ func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 		}
 	}
 
-	return json.Marshal(availabilityResponse{LbrycrdAddress: address, AvailableBlobs: availableBlobs})
+	return json.Marshal(availabilityResponse{LbrycrdAddress: LbrycrdAddress, AvailableBlobs: availableBlobs})
 }
 
 func (s *Server) handlePaymentRateNegotiation(data []byte) ([]byte, error) {

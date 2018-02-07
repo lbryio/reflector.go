@@ -67,6 +67,9 @@ func (f *FileBlobStore) Get(hash string) ([]byte, error) {
 
 	file, err := os.Open(f.path(hash))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return []byte{}, errors.Err(ErrBlobNotFound)
+		}
 		return []byte{}, err
 	}
 

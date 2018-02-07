@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/lbryio/reflector.go/store"
 )
 
 var address = "localhost:" + strconv.Itoa(DefaultPort)
@@ -21,7 +23,8 @@ func TestMain(m *testing.M) {
 	}
 	defer os.RemoveAll(dir)
 
-	s := NewServer(dir)
+	ms := store.MemoryBlobStore{}
+	s := NewServer(&ms)
 	go s.ListenAndServe(address)
 
 	os.Exit(m.Run())

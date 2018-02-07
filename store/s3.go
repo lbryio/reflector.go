@@ -5,7 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lbryio/errors.go"
+
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -74,12 +77,25 @@ func (s *S3BlobStore) Get(hash string) ([]byte, error) {
 		return []byte{}, err
 	}
 
+	log.Debugf("Getting %s from S3", hash[:8])
+	defer func(t time.Time) {
+		log.Debugf("Getting %s took %s", hash[:8], time.Since(t).String())
+	}(time.Now())
+
 	buf := &aws.WriteAtBuffer{}
 	_, err = s3manager.NewDownloader(s.session).Download(buf, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(hash),
 	})
 	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchBucket:
+				return []byte{}, errors.Err("bucket %s does not exist", s.bucket)
+			case s3.ErrCodeNoSuchKey:
+				return []byte{}, errors.Err(ErrBlobNotFound)
+			}
+		}
 		return buf.Bytes(), err
 	}
 
@@ -94,7 +110,7 @@ func (s *S3BlobStore) Put(hash string, blob []byte) error {
 
 	log.Debugf("Uploading %s to S3", hash[:8])
 	defer func(t time.Time) {
-		log.Debugf("Upload took %s", time.Since(t).String())
+		log.Debugf("Uploading %s took %s", hash[:8], time.Since(t).String())
 	}(time.Now())
 
 	_, err = s3manager.NewUploader(s.session).Upload(&s3manager.UploadInput{
