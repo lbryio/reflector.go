@@ -40,3 +40,15 @@ func checkErr(err error) {
 		panic(err)
 	}
 }
+
+func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		for _, f := range funcs {
+			err := f(cmd, args)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}

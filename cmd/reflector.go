@@ -1,23 +1,23 @@
 package cmd
 
 import (
-	"log"
 	"strconv"
 
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	var reflectorCmd = &cobra.Command{
+	var cmd = &cobra.Command{
 		Use:   "reflector",
 		Short: "Run reflector server",
 		Run:   reflectorCmd,
 	}
-	RootCmd.AddCommand(reflectorCmd)
+	RootCmd.AddCommand(cmd)
 }
 
 func reflectorCmd(cmd *cobra.Command, args []string) {

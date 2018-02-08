@@ -1,23 +1,23 @@
 package cmd
 
 import (
-	"log"
 	"strconv"
 
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/store"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	var peerCmd = &cobra.Command{
+	var cmd = &cobra.Command{
 		Use:   "peer",
 		Short: "Run peer server",
 		Run:   peerCmd,
 	}
-	RootCmd.AddCommand(peerCmd)
+	RootCmd.AddCommand(cmd)
 }
 
 func peerCmd(cmd *cobra.Command, args []string) {
