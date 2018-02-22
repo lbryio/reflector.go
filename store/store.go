@@ -1,6 +1,6 @@
 package store
 
-import "github.com/lbryio/errors.go"
+import "github.com/lbryio/lbry.go/errors"
 
 type BlobStore interface {
 	Has(string) (bool, error)

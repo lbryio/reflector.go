@@ -4,7 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 
-	"github.com/lbryio/errors.go"
+	"github.com/lbryio/lbry.go/errors"
 )
 
 const (

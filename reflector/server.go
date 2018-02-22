@@ -9,7 +9,7 @@ import (
 
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/lbryio/errors.go"
+	"github.com/lbryio/lbry.go/errors"
 
 	log "github.com/sirupsen/logrus"
 )

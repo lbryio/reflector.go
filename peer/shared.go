@@ -1,6 +1,6 @@
 package peer
 
-import "github.com/lbryio/errors.go"
+import "github.com/lbryio/lbry.go/errors"
 
 const maxRequestSize = 64 * (2 ^ 10) // 64kb
 

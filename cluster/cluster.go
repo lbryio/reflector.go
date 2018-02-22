@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	"github.com/lbryio/errors.go"
+	"github.com/lbryio/lbry.go/errors"
 
 	"github.com/hashicorp/serf/serf"
 	log "github.com/sirupsen/logrus"

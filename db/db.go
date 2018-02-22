@@ -5,7 +5,7 @@ import (
 
 	"github.com/lbryio/reflector.go/types"
 
-	"github.com/lbryio/errors.go"
+	"github.com/lbryio/lbry.go/errors"
 	qtools "github.com/lbryio/query.go"
 
 	_ "github.com/go-sql-driver/mysql"
