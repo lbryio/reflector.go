@@ -1,6 +1,9 @@
 package cluster
 
 import (
+	"io/ioutil"
+	baselog "log"
+
 	"github.com/lbryio/lbry.go/errors"
 
 	"github.com/hashicorp/serf/serf"
@@ -12,6 +15,9 @@ func Connect(nodeName, addr string, port int) (*serf.Serf, <-chan serf.Event, er
 	conf.MemberlistConfig.BindPort = port
 	conf.MemberlistConfig.AdvertisePort = port
 	conf.NodeName = nodeName
+
+	nullLogger := baselog.New(ioutil.Discard, "", 0)
+	conf.Logger = nullLogger
 
 	eventCh := make(chan serf.Event)
 	conf.EventCh = eventCh

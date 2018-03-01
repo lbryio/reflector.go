@@ -69,8 +69,9 @@ func clusterCmd(cmd *cobra.Command, args []string) {
 					if event.EventType() == serf.EventMemberJoin && len(memberEvent.Members) == 1 && memberEvent.Members[0].Name == nodeName {
 						// ignore event from my own joining of the cluster
 					} else {
-						spew.Dump(c.Members())
-						log.Printf("my hash range is now %d\n", getHashRangeStart(nodeName, getAliveMembers(c.Members())))
+						//spew.Dump(c.Members())
+						alive := getAliveMembers(c.Members())
+						log.Printf("%s: my hash range is now %d of %d\n", nodeName, getHashRangeStart(nodeName, alive), len(alive))
 						// figure out my new hash range based on the start and the number of alive members
 						// get hashes in that range that need announcing
 						// announce them
