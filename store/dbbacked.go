@@ -3,7 +3,7 @@ package store
 import (
 	"encoding/json"
 
-	"github.com/go-errors/errors"
+	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/types"
 )
@@ -41,7 +41,7 @@ func (d *DBBackedS3Store) PutSD(hash string, blob []byte) error {
 		return err
 	}
 	if blobContents.StreamHash == "" {
-		return errors.New("sd blob is missing stream hash")
+		return errors.Err("sd blob is missing stream hash")
 	}
 
 	err = d.s3.PutSD(hash, blob)

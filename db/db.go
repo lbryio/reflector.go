@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/lbryio/lbry.go/errors"
-	qtools "github.com/lbryio/query.go"
+	"github.com/lbryio/lbry.go/querytools"
 	"github.com/lbryio/reflector.go/types"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -23,7 +23,7 @@ type SQL struct {
 }
 
 func logQuery(query string, args ...interface{}) {
-	s, err := qtools.InterpolateParams(query, args...)
+	s, err := querytools.InterpolateParams(query, args...)
 	if err != nil {
 		log.Errorln(err)
 	} else {

@@ -1,0 +1,23 @@
+[[constraint]]
+  name = "github.com/aws/aws-sdk-go"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/go-sql-driver/mysql"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/hashicorp/serf"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/lbryio/lbry.go"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/spf13/cobra"
+  branch = "master"
