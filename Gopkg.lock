@@ -136,6 +136,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/lbryio/errors.go"
+  packages = ["."]
+  revision = "ad03d3cc6a5c27c94bbe3412cf7de0eae1a9bd7c"
+
+[[projects]]
+  branch = "master"
   name = "github.com/lbryio/lbry.go"
   packages = [
     "errors",
@@ -163,6 +169,12 @@
   revision = "f4ee69125072b22721efbe639bd0da9c9d19b8cc"
 
 [[projects]]
+  name = "github.com/spf13/cast"
+  packages = ["."]
+  revision = "8965335b8c7107321228e3e3702cab9832751bac"
+  version = "v1.2.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
@@ -173,6 +185,12 @@
   packages = ["."]
   revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/zeebo/bencode"
+  packages = ["."]
+  revision = "1f43a06f6eb53936bc028b38cdd060f0b5629c6c"
 
 [[projects]]
   branch = "master"
@@ -220,6 +238,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5b78d6f524c5ac93d5346881154fdc97b2740a452a8f9991b603c3e2d130cd68"
+  inputs-digest = "21c8c5a2ce6478383360f22fd1ddf6344167c332cd0d32121b048abd97ca5cac"
   solver-name = "gps-cdcl"
   solver-version = 1
