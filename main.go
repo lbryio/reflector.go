@@ -20,31 +20,8 @@ func checkErr(err error) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
-
 	cmd.GlobalConfig = loadConfig("config.json")
-
 	cmd.Execute()
-
-	//
-	//var err error
-	//client := reflector.Client{}
-	//
-	//log.Println("Connecting to " + reflectorAddress)
-	//err = client.Connect(reflectorAddress)
-	//checkErr(err)
-	//
-	//log.Println("Connected")
-	//
-	//defer func() {
-	//	log.Println("Closing connection")
-	//	client.Close()
-	//}()
-	//
-	//blob := make([]byte, 2*1024*1024)
-	//_, err = rand.Read(blob)
-	//checkErr(err)
-	//err = client.SendBlob(blob)
-	//checkErr(err)
 }
 
 func loadConfig(path string) cmd.Config {
