@@ -190,7 +190,7 @@
   branch = "master"
   name = "github.com/zeebo/bencode"
   packages = ["."]
-  revision = "1f43a06f6eb53936bc028b38cdd060f0b5629c6c"
+  revision = "d522839ac797fc43269dae6a04a1f8be475a915d"
 
 [[projects]]
   branch = "master"
