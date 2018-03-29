@@ -146,9 +146,16 @@
   packages = [
     "errors",
     "null",
-    "querytools"
+    "querytools",
+    "stopOnce"
   ]
-  revision = "fe6bc5bb14af1013b1cabb944d4d06413e7e2c8e"
+  revision = "a5d371ca4780841b033afe486a94f8eb80a94259"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/lyoshenka/bencode"
+  packages = ["."]
+  revision = "d522839ac797fc43269dae6a04a1f8be475a915d"
 
 [[projects]]
   name = "github.com/miekg/dns"
@@ -185,12 +192,6 @@
   packages = ["."]
   revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
   version = "v1.0.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/zeebo/bencode"
-  packages = ["."]
-  revision = "d522839ac797fc43269dae6a04a1f8be475a915d"
 
 [[projects]]
   branch = "master"
@@ -238,6 +239,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "21c8c5a2ce6478383360f22fd1ddf6344167c332cd0d32121b048abd97ca5cac"
+  inputs-digest = "ca9cc627801c67c407d872b78606a706e783135aa0665e0daf3688a69fad3712"
   solver-name = "gps-cdcl"
   solver-version = 1

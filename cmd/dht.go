@@ -26,5 +26,5 @@ func dhtCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	dht.Run()
+	dht.Start()
 }
