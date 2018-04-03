@@ -1,12 +1,11 @@
 package reflector
 
 import (
+	"crypto/rand"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/lbryio/reflector.go/store"
 )
@@ -15,8 +14,6 @@ var address = "localhost:" + strconv.Itoa(DefaultPort)
 var s Server
 
 func TestMain(m *testing.M) {
-	rand.Seed(time.Now().UnixNano())
-
 	dir, err := ioutil.TempDir("", "reflector_client_test")
 	if err != nil {
 		panic(err)

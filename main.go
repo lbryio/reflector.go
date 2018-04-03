@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"math/rand"
-	"time"
 
 	"github.com/lbryio/reflector.go/cmd"
 
@@ -18,7 +16,6 @@ func checkErr(err error) {
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
 	log.SetLevel(log.DebugLevel)
 	cmd.GlobalConfig = loadConfig("config.json")
 	cmd.Execute()

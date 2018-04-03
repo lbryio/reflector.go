@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/reflector.go/cluster"
@@ -39,6 +40,7 @@ func init() {
 }
 
 func clusterCmd(cmd *cobra.Command, args []string) {
+	rand.Seed(time.Now().UnixNano())
 	var c *serf.Serf
 	var eventCh <-chan serf.Event
 	var err error
