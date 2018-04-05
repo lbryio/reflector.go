@@ -24,4 +24,4 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/zeebo/bencode"
+  name = "github.com/lyoshenka/bencode"
