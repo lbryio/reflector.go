@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"time"
+
 	"github.com/lbryio/reflector.go/dht"
 
 	log "github.com/sirupsen/logrus"
@@ -20,7 +22,7 @@ func dhtCmd(cmd *cobra.Command, args []string) {
 	dht, err := dht.New(&dht.Config{
 		Address:    "127.0.0.1:21216",
 		SeedNodes:  []string{"127.0.0.1:21215"},
-		PrintState: true,
+		PrintState: 30 * time.Second,
 	})
 	if err != nil {
 		log.Fatal(err)
