@@ -79,7 +79,7 @@ func (s *S3BlobStore) Get(hash string) ([]byte, error) {
 
 	log.Debugf("Getting %s from S3", hash[:8])
 	defer func(t time.Time) {
-		log.Debugf("Getting %s took %s", hash[:8], time.Since(t).String())
+		log.Debugf("Getting %s from S3 took %s", hash[:8], time.Since(t).String())
 	}(time.Now())
 
 	buf := &aws.WriteAtBuffer{}
