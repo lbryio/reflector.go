@@ -27,6 +27,7 @@
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+    "internal/sdkio",
     "internal/sdkrand",
     "internal/shareddefaults",
     "private/protocol",
@@ -40,7 +41,7 @@
     "service/s3/s3manager",
     "service/sts"
   ]
-  revision = "b3c93653d2e47b82c5f48d721a2db7778f4e33a8"
+  revision = "59a21fcfacca3b32766b385235797649ec791e48"
 
 [[projects]]
   branch = "master"
@@ -57,20 +58,20 @@
 [[projects]]
   name = "github.com/go-errors/errors"
   packages = ["."]
-  revision = "3afebba5a48dbc89b574d890b6b34d9ee10b4785"
-  version = "v1.0.0"
+  revision = "a6af135bd4e28680facf08a3d206b454abc877a4"
+  version = "v1.0.1"
 
 [[projects]]
   name = "github.com/go-ini/ini"
   packages = ["."]
-  revision = "32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a"
-  version = "v1.32.0"
+  revision = "6529cf7c58879c08d927016dde4477f18a0634cb"
+  version = "v1.36.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/go-sql-driver/mysql"
   packages = ["."]
-  revision = "bc14601d1bd56421dd60f561e6052c9ed77f9daf"
+  revision = "3287d94d4c6a48a63e16fffaabf27ab20203af2a"
 
 [[projects]]
   branch = "master"
@@ -100,7 +101,7 @@
   branch = "master"
   name = "github.com/hashicorp/go-sockaddr"
   packages = ["."]
-  revision = "7165ee14aff120ee3642aa2bcf2dea8eebef29c3"
+  revision = "6d291a969b86c4b633730bfc6b8b9d64c3aafed9"
 
 [[projects]]
   branch = "master"
@@ -121,7 +122,7 @@
     "coordinate",
     "serf"
   ]
-  revision = "3b250ce4404edb266330f53fcfc8ad0d0dacfae7"
+  revision = "80ab48778deee28e4ea2dc4ef1ebb2c5f4063996"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -144,13 +145,14 @@
   branch = "master"
   name = "github.com/lbryio/lbry.go"
   packages = [
+    "crypto",
     "errors",
     "null",
     "querytools",
     "stopOnce",
     "util"
   ]
-  revision = "a5d371ca4780841b033afe486a94f8eb80a94259"
+  revision = "a656ad8a1456310d6ca712098826d02950e46e0b"
 
 [[projects]]
   branch = "master"
@@ -161,8 +163,8 @@
 [[projects]]
   name = "github.com/miekg/dns"
   packages = ["."]
-  revision = "5364553f1ee9cddc7ac8b62dce148309c386695b"
-  version = "v1.0.4"
+  revision = "eac804ceef194db2da6ee80c728d7658c8c805ff"
+  version = "v1.0.6"
 
 [[projects]]
   branch = "master"
@@ -174,7 +176,7 @@
   branch = "master"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "f4ee69125072b22721efbe639bd0da9c9d19b8cc"
+  revision = "778f2e774c725116edbc3d039dc0dfc1cc62aae8"
 
 [[projects]]
   name = "github.com/spf13/cast"
@@ -186,13 +188,13 @@
   branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
-  revision = "c6c44e6fdcc30161c7f4480754da7230d01c06e3"
+  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
 
 [[projects]]
   name = "github.com/spf13/pflag"
   packages = ["."]
-  revision = "e57e3eeb33f795204c1ca35f56c44f83227c6e66"
-  version = "v1.0.0"
+  revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -201,9 +203,10 @@
     "ed25519",
     "ed25519/internal/edwards25519",
     "ripemd160",
+    "sha3",
     "ssh/terminal"
   ]
-  revision = "91a49db82a88618983a78a06c1cbd4e00ab749ab"
+  revision = "94e3fad7f1b4eed4ec147751ad6b4c4d33f00611"
 
 [[projects]]
   branch = "master"
@@ -215,7 +218,7 @@
     "ipv4",
     "ipv6"
   ]
-  revision = "22ae77b79946ea320088417e4d50825671d82d57"
+  revision = "2491c5de3490fced2f6cff376127c667efeed857"
 
 [[projects]]
   branch = "master"
@@ -224,7 +227,7 @@
     "unix",
     "windows"
   ]
-  revision = "f6cff0780e542efa0c8e864dc8fa522808f6a598"
+  revision = "d0faeb539838e250bd0a9db4182d48d4a1915181"
 
 [[projects]]
   name = "google.golang.org/appengine"
@@ -241,6 +244,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b0385b092ba0fe2f8bd2174db01fab3ce2dd203c310335459de888be434c4130"
+  inputs-digest = "b3d2f1578da4f4fca9a15d04df16cdb7f76f83c7916bab11fe1e50f65334a2c8"
   solver-name = "gps-cdcl"
   solver-version = 1

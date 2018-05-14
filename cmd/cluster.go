@@ -1,20 +1,16 @@
 package cmd
 
 import (
-	crand "crypto/rand"
-	"math/rand"
 	"os"
 	"os/signal"
 	"sort"
 	"strconv"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/lbryio/lbry.go/errors"
+	"github.com/lbryio/lbry.go/crypto"
 	"github.com/lbryio/reflector.go/cluster"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/serf/serf"
 	log "github.com/sirupsen/logrus"
@@ -40,17 +36,16 @@ func init() {
 }
 
 func clusterCmd(cmd *cobra.Command, args []string) {
-	rand.Seed(time.Now().UnixNano())
 	var c *serf.Serf
 	var eventCh <-chan serf.Event
 	var err error
 
-	nodeName := randString(12)
+	nodeName := crypto.RandString(12)
 	clusterAddr := "127.0.0.1:" + strconv.Itoa(clusterPort)
 	if args[0] == clusterStart {
 		c, eventCh, err = cluster.Connect(nodeName, clusterAddr, clusterPort)
 	} else {
-		c, eventCh, err = cluster.Connect(nodeName, clusterAddr, clusterPort+1+rand.Intn(1000))
+		c, eventCh, err = cluster.Connect(nodeName, clusterAddr, clusterPort+1+int(crypto.RandInt64(1000)))
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -124,20 +119,4 @@ func getAliveMembers(members []serf.Member) []serf.Member {
 		}
 	}
 	return alive
-}
-
-// RandString returns a random alphanumeric string of a given length
-func randString(length int) string {
-	buf := make([]byte, length)
-	_, err := crand.Reader.Read(buf)
-	if err != nil {
-		panic(errors.Err(err))
-	}
-
-	randStr := base58.Encode(buf)[:length]
-	if len(randStr) < length {
-		panic(errors.Err("Could not create random string that is long enough"))
-	}
-
-	return randStr
 }
