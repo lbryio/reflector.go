@@ -80,7 +80,7 @@ func dhtCmd(cmd *cobra.Command, args []string) {
 	//d.WaitUntilJoined()
 
 	nodes := 10
-	_, dhts := dht.TestingCreateDHT(nodes)
+	_, dhts := dht.TestingCreateDHT(nodes, true, false)
 	defer func() {
 		for _, d := range dhts {
 			go d.Shutdown()
