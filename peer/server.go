@@ -150,7 +150,7 @@ func (s *Server) handleBlobRequest(data []byte) ([]byte, error) {
 	}
 
 	response, err := json.Marshal(blobResponse{IncomingBlob: incomingBlob{
-		BlobHash: getBlobHash(blob),
+		BlobHash: GetBlobHash(blob),
 		Length:   len(blob),
 	}})
 	if err != nil {
@@ -213,7 +213,7 @@ func isValidJSON(b []byte) bool {
 	return json.Unmarshal(b, &r) == nil
 }
 
-func getBlobHash(blob []byte) string {
+func GetBlobHash(blob []byte) string {
 	hashBytes := sha512.Sum384(blob)
 	return hex.EncodeToString(hashBytes[:])
 }

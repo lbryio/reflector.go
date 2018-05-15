@@ -93,6 +93,61 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 	return exists, errors.Err(err)
 }
 
+func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
+	if s.conn == nil {
+		return nil, errors.Err("not connected")
+	}
+
+	var hash string
+	exists := make(map[string]bool)
+	maxBatchSize := 100
+	doneIndex := 0
+
+	for len(hashes) > doneIndex {
+		sliceEnd := doneIndex + maxBatchSize
+		if sliceEnd > len(hashes) {
+			sliceEnd = len(hashes)
+		}
+		log.Debugf("getting hashes[%d:%d] of %d", doneIndex, sliceEnd, len(hashes))
+		batch := hashes[doneIndex:sliceEnd]
+
+		query := "SELECT hash FROM blob_ WHERE stored = ? && hash IN (" + querytools.Qs(len(batch)) + ")"
+		args := make([]interface{}, len(batch)+1)
+		args[0] = true
+		for i := range batch {
+			args[i+1] = batch[i]
+		}
+
+		logQuery(query, args...)
+
+		rows, err := s.conn.Query(query, args...)
+		if err != nil {
+			rows.Close()
+			return exists, err
+		}
+
+		for rows.Next() {
+			err := rows.Scan(&hash)
+			if err != nil {
+				rows.Close()
+				return exists, err
+			}
+			exists[hash] = true
+		}
+
+		err = rows.Err()
+		if err != nil {
+			rows.Close()
+			return exists, err
+		}
+
+		rows.Close()
+		doneIndex += len(batch)
+	}
+
+	return exists, nil
+}
+
 func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob types.SdBlob) error {
 	if s.conn == nil {
 		return errors.Err("not connected")

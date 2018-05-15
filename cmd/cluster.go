@@ -95,7 +95,7 @@ func clusterCmd(cmd *cobra.Command, args []string) {
 }
 
 func getHashRangeStart(myName string, members []serf.Member) int {
-	names := []string{}
+	var names []string
 	for _, m := range members {
 		names = append(names, m.Name)
 	}
@@ -112,7 +112,7 @@ func getHashRangeStart(myName string, members []serf.Member) int {
 }
 
 func getAliveMembers(members []serf.Member) []serf.Member {
-	alive := []serf.Member{}
+	var alive []serf.Member
 	for _, m := range members {
 		if m.Status == serf.StatusAlive {
 			alive = append(alive, m)
