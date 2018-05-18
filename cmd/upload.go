@@ -74,11 +74,17 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 
 	sdCount := 0
 	blobCount := 0
+	errCount := 0
 
 	workerWG := &sync.WaitGroup{}
 	filenameChan := make(chan string)
 	counterWG := &sync.WaitGroup{}
-	countChan := make(chan bool)
+	countChan := make(chan int)
+	const (
+		sdInc   = 1
+		blobInc = 2
+		errInc  = 3
+	)
 
 	for i := 0; i < workers; i++ {
 		go func(i int) {
@@ -105,6 +111,10 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 					hash := peer.GetBlobHash(blob)
 					if hash != filename {
 						log.Errorf("worker %d: filename does not match hash (%s != %s), skipping", i, filename, hash)
+						select {
+						case countChan <- errInc:
+						case <-stopper.Chan():
+						}
 						continue
 					}
 
@@ -112,14 +122,14 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 						log.Printf("worker %d: PUTTING SD BLOB %s", i, hash)
 						blobStore.PutSD(hash, blob)
 						select {
-						case countChan <- true:
+						case countChan <- sdInc:
 						case <-stopper.Chan():
 						}
 					} else {
 						log.Printf("worker %d: putting %s", i, hash)
 						blobStore.Put(hash, blob)
 						select {
-						case countChan <- false:
+						case countChan <- blobInc:
 						case <-stopper.Chan():
 						}
 					}
@@ -135,17 +145,21 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 			select {
 			case <-stopper.Chan():
 				return
-			case isSD, ok := <-countChan:
+			case countType, ok := <-countChan:
 				if !ok {
 					return
-				} else if isSD {
+				}
+				switch countType {
+				case sdInc:
 					sdCount++
-				} else {
+				case blobInc:
 					blobCount++
+				case errInc:
+					errCount++
 				}
 			}
 			if (sdCount+blobCount)%50 == 0 {
-				log.Printf("%d of %d done (%s elapsed, %.2fs per blob)", sdCount+blobCount, totalCount-existsCount, time.Now().Sub(startTime).String(), time.Now().Sub(startTime).Seconds()/float64(sdCount+blobCount))
+				log.Printf("%d of %d done (%s elapsed, %.3fs per blob)", sdCount+blobCount, totalCount-existsCount, time.Now().Sub(startTime).String(), time.Now().Sub(startTime).Seconds()/float64(sdCount+blobCount))
 			}
 		}
 	}()
@@ -175,6 +189,7 @@ Upload:
 	log.Printf("%d SD blobs uploaded", sdCount)
 	log.Printf("%d content blobs uploaded", blobCount)
 	log.Printf("%d blobs already stored", existsCount)
+	log.Printf("%d errors encountered", errCount)
 }
 
 func isJSON(data []byte) bool {
