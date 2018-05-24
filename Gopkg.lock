@@ -152,7 +152,7 @@
     "stopOnce",
     "util"
   ]
-  revision = "a656ad8a1456310d6ca712098826d02950e46e0b"
+  revision = "2a6ea528bdd66de4f3c707304e26f69dcf003909"
 
 [[projects]]
   branch = "master"
@@ -171,6 +171,12 @@
   name = "github.com/sean-/seed"
   packages = ["."]
   revision = "e2103e2c35297fb7e17febb81e49b312087a2372"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/sebdah/goldie"
+  packages = ["."]
+  revision = "8784dd1ab561dcf43d141f6678e9e41f3d0dff55"
 
 [[projects]]
   branch = "master"
@@ -244,6 +250,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b3d2f1578da4f4fca9a15d04df16cdb7f76f83c7916bab11fe1e50f65334a2c8"
+  inputs-digest = "bfa7ee41b88f515ef386012a9dd28e045f9108de93c1dcfa66d9361340cf7eec"
   solver-name = "gps-cdcl"
   solver-version = 1

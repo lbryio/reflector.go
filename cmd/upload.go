@@ -98,7 +98,7 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 
 			for {
 				select {
-				case <-stopper.Chan():
+				case <-stopper.Ch():
 					return
 				case filename, ok := <-filenameChan:
 					if !ok {
@@ -113,7 +113,7 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 						log.Errorf("worker %d: filename does not match hash (%s != %s), skipping", i, filename, hash)
 						select {
 						case countChan <- errInc:
-						case <-stopper.Chan():
+						case <-stopper.Ch():
 						}
 						continue
 					}
@@ -123,14 +123,14 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 						blobStore.PutSD(hash, blob)
 						select {
 						case countChan <- sdInc:
-						case <-stopper.Chan():
+						case <-stopper.Ch():
 						}
 					} else {
 						log.Printf("worker %d: putting %s", i, hash)
 						blobStore.Put(hash, blob)
 						select {
 						case countChan <- blobInc:
-						case <-stopper.Chan():
+						case <-stopper.Ch():
 						}
 					}
 				}
@@ -143,7 +143,7 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 		defer counterWG.Done()
 		for {
 			select {
-			case <-stopper.Chan():
+			case <-stopper.Ch():
 				return
 			case countType, ok := <-countChan:
 				if !ok {
@@ -172,7 +172,7 @@ Upload:
 
 		select {
 		case filenameChan <- filename:
-		case <-stopper.Chan():
+		case <-stopper.Ch():
 			log.Warnln("Caught interrupt, quitting at first opportunity...")
 			break Upload
 		}
