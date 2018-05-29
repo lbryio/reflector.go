@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/lbryio/errors.go"
+	"github.com/lbryio/lbry.go/errors"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

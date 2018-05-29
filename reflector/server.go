@@ -15,13 +15,21 @@ import (
 )
 
 type Server struct {
-	store store.BlobStore
+	store  store.BlobStore
+	l      net.Listener
+	closed bool
 }
 
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
 		store: store,
 	}
+}
+
+func (s *Server) Shutdown() {
+	// TODO: need waitgroup so we can finish whatever we're doing before stopping
+	s.closed = true
+	s.l.Close()
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -35,6 +43,9 @@ func (s *Server) ListenAndServe(address string) error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
+			if s.closed {
+				return nil
+			}
 			log.Error(err)
 		} else {
 			go s.handleConn(conn)

@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/reflector.go/store"
 
+	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,13 +23,21 @@ const (
 )
 
 type Server struct {
-	store store.BlobStore
+	store  store.BlobStore
+	l      net.Listener
+	closed bool
 }
 
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
 		store: store,
 	}
+}
+
+func (s *Server) Shutdown() {
+	// TODO: need waitgroup so we can finish whatever we're doing before stopping
+	s.closed = true
+	s.l.Close()
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -42,6 +51,9 @@ func (s *Server) ListenAndServe(address string) error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
+			if s.closed {
+				return nil
+			}
 			log.Error(err)
 		} else {
 			go s.handleConnection(conn)
@@ -216,4 +228,44 @@ func isValidJSON(b []byte) bool {
 func GetBlobHash(blob []byte) string {
 	hashBytes := sha512.Sum384(blob)
 	return hex.EncodeToString(hashBytes[:])
+}
+
+const (
+	maxRequestSize      = 64 * (2 ^ 10) // 64kb
+	paymentRateAccepted = "RATE_ACCEPTED"
+	paymentRateTooLow   = "RATE_TOO_LOW"
+	paymentRateUnset    = "RATE_UNSET"
+)
+
+var errRequestTooLarge = errors.Base("request is too large")
+
+type availabilityRequest struct {
+	LbrycrdAddress bool     `json:"lbrycrd_address"`
+	RequestedBlobs []string `json:"requested_blobs"`
+}
+
+type availabilityResponse struct {
+	LbrycrdAddress string   `json:"lbrycrd_address"`
+	AvailableBlobs []string `json:"available_blobs"`
+}
+
+type paymentRateRequest struct {
+	BlobDataPaymentRate float64 `json:"blob_data_payment_rate"`
+}
+
+type paymentRateResponse struct {
+	BlobDataPaymentRate string `json:"blob_data_payment_rate"`
+}
+
+type blobRequest struct {
+	RequestedBlob string `json:"requested_blob"`
+}
+
+type incomingBlob struct {
+	Error    string `json:"error,omitempty"`
+	BlobHash string `json:"blob_hash"`
+	Length   int    `json:"length"`
+}
+type blobResponse struct {
+	IncomingBlob incomingBlob `json:"incoming_blob"`
 }

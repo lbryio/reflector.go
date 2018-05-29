@@ -3,105 +3,127 @@ package cluster
 import (
 	"io/ioutil"
 	baselog "log"
-	"os"
-	"os/signal"
-	"strconv"
-	"sync"
-	"syscall"
+	"sort"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/lbryio/lbry.go/crypto"
 	"github.com/lbryio/lbry.go/errors"
-	"github.com/lbryio/reflector.go/cluster"
+	"github.com/lbryio/lbry.go/stopOnce"
 
 	"github.com/hashicorp/serf/serf"
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	DefaultClusterPort = 17946
+)
+
 type Cluster struct {
+	name     string
+	port     int
+	seedAddr string
+
 	s       *serf.Serf
-	eventCh <-chan serf.Event
+	eventCh chan serf.Event
+	stop    *stopOnce.Stopper
 }
 
-func New() {
-	c := &Cluster{}
+func New(port int, seedAddr string) *Cluster {
+	return &Cluster{
+		name:     crypto.RandString(12),
+		port:     port,
+		seedAddr: seedAddr,
+		stop:     stopOnce.New(),
+	}
+}
+
+func (c *Cluster) Connect() error {
 	var err error
 
-	nodeName := crypto.RandString(12)
-	clusterAddr := "127.0.0.1:" + strconv.Itoa(clusterPort)
-	if args[0] == clusterStart {
-		c.s, c.eventCh, err = cluster.Connect(nodeName, clusterAddr, clusterPort)
-	} else {
-		c.s, c.eventCh, err = cluster.Connect(nodeName, clusterAddr, clusterPort+1+int(crypto.RandInt64(1000)))
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer c.Leave()
-
-	shutdownCh := make(chan struct{})
-	var shutdownWg sync.WaitGroup
-
-	shutdownWg.Add(1)
-	go func() {
-		defer shutdownWg.Done()
-		for {
-			select {
-			case event := <-eventCh:
-				spew.Dump(event)
-				switch event.EventType() {
-				case serf.EventMemberJoin, serf.EventMemberFailed, serf.EventMemberLeave:
-					memberEvent := event.(serf.MemberEvent)
-					if event.EventType() == serf.EventMemberJoin && len(memberEvent.Members) == 1 && memberEvent.Members[0].Name == nodeName {
-						// ignore event from my own joining of the cluster
-					} else {
-						//spew.Dump(c.Members())
-						alive := getAliveMembers(c.Members())
-						log.Printf("%s: my hash range is now %d of %d\n", nodeName, getHashRangeStart(nodeName, alive), len(alive))
-						// figure out my new hash range based on the start and the number of alive members
-						// get hashes in that range that need announcing
-						// announce them
-						// if more than one node is announcing each hash, figure out how to deal with last_announced_at so both nodes dont announce the same thing at the same time
-					}
-				}
-			case <-shutdownCh:
-				log.Debugln("shutting down event dumper")
-				return
-			}
-		}
-	}()
-
-	interruptChan := make(chan os.Signal, 1)
-	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
-	<-interruptChan
-	log.Debugln("received interrupt")
-	close(shutdownCh)
-	log.Debugln("waiting for threads to finish")
-	shutdownWg.Wait()
-	log.Debugln("shutting down main thread")
-}
-
-func Connect(nodeName, addr string, port int) (*serf.Serf, <-chan serf.Event, error) {
 	conf := serf.DefaultConfig()
-	conf.MemberlistConfig.BindPort = port
-	conf.MemberlistConfig.AdvertisePort = port
-	conf.NodeName = nodeName
+	conf.MemberlistConfig.BindPort = c.port
+	conf.MemberlistConfig.AdvertisePort = c.port
+	conf.NodeName = c.name
 
 	nullLogger := baselog.New(ioutil.Discard, "", 0)
 	conf.Logger = nullLogger
 
-	eventCh := make(chan serf.Event)
-	conf.EventCh = eventCh
+	c.eventCh = make(chan serf.Event)
+	conf.EventCh = c.eventCh
 
-	cluster, err := serf.Create(conf)
+	c.s, err = serf.Create(conf)
 	if err != nil {
-		return nil, nil, errors.Prefix("couldn't create cluster", err)
+		return errors.Prefix("couldn't create cluster", err)
 	}
 
-	_, err = cluster.Join([]string{addr}, true)
-	if err != nil {
-		log.Warnf("couldn't join cluster, starting own: %v\n", err)
+	if c.seedAddr != "" {
+		_, err = c.s.Join([]string{c.seedAddr}, true)
+		if err != nil {
+			return err
+		}
 	}
 
-	return cluster, eventCh, nil
+	c.listen()
+	return nil
+}
+
+func (c *Cluster) Shutdown() {
+	c.stop.StopAndWait()
+	c.s.Leave()
+}
+
+func (c *Cluster) listen() {
+	c.stop.Add(1)
+	go func() {
+		defer c.stop.Done()
+		for {
+			select {
+			case <-c.stop.Ch():
+				return
+			case event := <-c.eventCh:
+				switch event.EventType() {
+				case serf.EventMemberJoin, serf.EventMemberFailed, serf.EventMemberLeave:
+					memberEvent := event.(serf.MemberEvent)
+					if event.EventType() == serf.EventMemberJoin && len(memberEvent.Members) == 1 && memberEvent.Members[0].Name == c.name {
+						// ignore event from my own joining of the cluster
+						continue
+					}
+
+					//spew.Dump(c.Members())
+					alive := getAliveMembers(c.s.Members())
+					log.Printf("%s: my hash range is now %d of %d\n", c.name, getHashRangeStart(c.name, alive), len(alive))
+					// figure out my new hash range based on the start and the number of alive members
+					// get hashes in that range that need announcing
+					// announce them
+					// if more than one node is announcing each hash, figure out how to deal with last_announced_at so both nodes dont announce the same thing at the same time
+				}
+			}
+		}
+	}()
+}
+
+func getHashRangeStart(myName string, members []serf.Member) int {
+	var names []string
+	for _, m := range members {
+		names = append(names, m.Name)
+	}
+
+	sort.Strings(names)
+	i := 1
+	for _, n := range names {
+		if n == myName {
+			return i
+		}
+		i++
+	}
+	return -1
+}
+
+func getAliveMembers(members []serf.Member) []serf.Member {
+	var alive []serf.Member
+	for _, m := range members {
+		if m.Status == serf.StatusAlive {
+			alive = append(alive, m)
+		}
+	}
+	return alive
 }
