@@ -17,15 +17,15 @@ func init() {
 		Short: "Run reflector server",
 		Run:   reflectorCmd,
 	}
-	RootCmd.AddCommand(cmd)
+	rootCmd.AddCommand(cmd)
 }
 
 func reflectorCmd(cmd *cobra.Command, args []string) {
 	db := new(db.SQL)
-	err := db.Connect(GlobalConfig.DBConn)
+	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 
-	s3 := store.NewS3BlobStore(GlobalConfig.AwsID, GlobalConfig.AwsSecret, GlobalConfig.BucketRegion, GlobalConfig.BucketName)
+	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	combo := store.NewDBBackedS3Store(s3, db)
 	log.Fatal(reflector.NewServer(combo).ListenAndServe("localhost:" + strconv.Itoa(reflector.DefaultPort)))
 }

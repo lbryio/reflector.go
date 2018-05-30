@@ -18,35 +18,47 @@ import (
 )
 
 const (
-	DefaultPort    = 3333
+	// DefaultPort is the port the peer server listens on if not passed in.
+	DefaultPort = 3333
+	// LbrycrdAddress to be used when paying for data. Not implemented yet.
 	LbrycrdAddress = "bJxKvpD96kaJLriqVajZ7SaQTsWWyrGQct"
 )
 
+// Server is an instance of a peer server that houses the listener and store.
 type Server struct {
 	store  store.BlobStore
 	l      net.Listener
 	closed bool
 }
 
+// NewServer returns an initialized Server pointer.
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
 		store: store,
 	}
 }
 
+// Shutdown gracefully shuts down the peer server.
 func (s *Server) Shutdown() {
 	// TODO: need waitgroup so we can finish whatever we're doing before stopping
 	s.closed = true
-	s.l.Close()
+	if err := s.l.Close(); err != nil {
+		log.Error("error shuting down peer server - ", err)
+	}
 }
 
+// ListenAndServe starts the server listener to handle connections.
 func (s *Server) ListenAndServe(address string) error {
 	log.Println("Listening on " + address)
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
-	defer l.Close()
+	defer func(listener net.Listener) {
+		if err := listener.Close(); err != nil {
+			log.Error("error closing listener for peer server - ", err)
+		}
+	}(l)
 
 	for {
 		conn, err := l.Accept()
@@ -62,7 +74,11 @@ func (s *Server) ListenAndServe(address string) error {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	defer conn.Close()
+	defer func(conn net.Conn) {
+		if err := conn.Close(); err != nil {
+			log.Error("error closing client connection for peer server - ", err)
+		}
+	}(conn)
 
 	timeoutDuration := 5 * time.Second
 
@@ -71,7 +87,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 		var response []byte
 		var err error
 
-		conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+		if err := conn.SetReadDeadline(time.Now().Add(timeoutDuration)); err != nil {
+			log.Error("error setting read deadline for client connection - ", err)
+		}
 		request, err = readNextRequest(conn)
 		if err != nil {
 			if err != io.EOF {
@@ -79,7 +97,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 			}
 			return
 		}
-		conn.SetReadDeadline(time.Time{})
+		if err := conn.SetReadDeadline(time.Time{}); err != nil {
+			log.Error("error setting read deadline client connection - ", err)
+		}
 
 		if strings.Contains(string(request), `"requested_blobs"`) {
 			log.Debugln("received availability request")
@@ -225,6 +245,7 @@ func isValidJSON(b []byte) bool {
 	return json.Unmarshal(b, &r) == nil
 }
 
+// GetBlobHash returns the sha512 hash hex encoded string of the blob byte slice.
 func GetBlobHash(blob []byte) string {
 	hashBytes := sha512.Sum384(blob)
 	return hex.EncodeToString(hashBytes[:])
@@ -234,7 +255,8 @@ const (
 	maxRequestSize      = 64 * (2 ^ 10) // 64kb
 	paymentRateAccepted = "RATE_ACCEPTED"
 	paymentRateTooLow   = "RATE_TOO_LOW"
-	paymentRateUnset    = "RATE_UNSET"
+	//ToDo: paymentRateUnset is not used but exists in the protocol.
+	//paymentRateUnset    = "RATE_UNSET"
 )
 
 var errRequestTooLarge = errors.Base("request is too large")
