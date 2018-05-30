@@ -35,8 +35,7 @@ const (
 	udpMaxMessageLength = 1024 // bytes. I think our longest message is ~676 bytes, so I rounded up
 
 	maxPeerFails = 3 // after this many failures, a peer is considered bad and will be removed from the routing table
-
-	tExpire     = 60 * time.Minute // the time after which a key/value pair expires; this is a time-to-live (TTL) from the original publication date
+	//tExpire     = 60 * time.Minute // the time after which a key/value pair expires; this is a time-to-live (TTL) from the original publication date
 	tReannounce = 50 * time.Minute // the time after which the original publisher must republish a key/value pair
 	tRefresh    = 1 * time.Hour    // the time after which an otherwise unaccessed bucket must be refreshed
 	//tReplicate   = 1 * time.Hour    // the interval between Kademlia replication events, when a node is required to publish its entire database

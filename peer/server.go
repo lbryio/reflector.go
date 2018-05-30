@@ -234,7 +234,8 @@ const (
 	maxRequestSize      = 64 * (2 ^ 10) // 64kb
 	paymentRateAccepted = "RATE_ACCEPTED"
 	paymentRateTooLow   = "RATE_TOO_LOW"
-	paymentRateUnset    = "RATE_UNSET"
+	//ToDo: paymentRateUnset is not used, can we remove?
+	//paymentRateUnset    = "RATE_UNSET"
 )
 
 var errRequestTooLarge = errors.Base("request is too large")
