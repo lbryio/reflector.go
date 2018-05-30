@@ -8,21 +8,29 @@ import (
 	"testing"
 
 	"github.com/lbryio/reflector.go/store"
+	log "github.com/sirupsen/logrus"
 )
 
 var address = "localhost:" + strconv.Itoa(DefaultPort)
-var s Server
 
 func TestMain(m *testing.M) {
 	dir, err := ioutil.TempDir("", "reflector_client_test")
 	if err != nil {
-		panic(err)
+		log.Panic("could not create temp directory - ", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func(directory string) {
+		if err := os.RemoveAll(dir); err != nil {
+			log.Panic("error removing files and directory - ", err)
+		}
+	}(dir)
 
 	ms := store.MemoryBlobStore{}
 	s := NewServer(&ms)
-	go s.ListenAndServe(address)
+	go func() {
+		if err := s.Start(address); err != nil {
+			log.Panic("error starting up reflector server - ", err)
+		}
+	}()
 
 	os.Exit(m.Run())
 }
@@ -39,7 +47,7 @@ func TestSmallBlob(t *testing.T) {
 	c := Client{}
 	err := c.Connect(address)
 	if err != nil {
-		t.Error(err)
+		t.Error("error connecting client to server - ", err)
 	}
 
 	err = c.SendBlob([]byte{})

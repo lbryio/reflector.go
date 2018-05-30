@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// S3BlobStore is an S3 store
 type S3BlobStore struct {
 	awsID     string
 	awsSecret string
@@ -25,6 +26,7 @@ type S3BlobStore struct {
 	session *session.Session
 }
 
+// NewS3BlobStore returns an initialized S3 store pointer.
 func NewS3BlobStore(awsID, awsSecret, region, bucket string) *S3BlobStore {
 	return &S3BlobStore{
 		awsID:     awsID,
@@ -51,6 +53,7 @@ func (s *S3BlobStore) initOnce() error {
 	return nil
 }
 
+// Has returns T/F or Error ( from S3 ) if the store contains the blob.
 func (s *S3BlobStore) Has(hash string) (bool, error) {
 	err := s.initOnce()
 	if err != nil {
@@ -71,7 +74,9 @@ func (s *S3BlobStore) Has(hash string) (bool, error) {
 	return true, nil
 }
 
+// Get returns the blob slice if present or errors on S3.
 func (s *S3BlobStore) Get(hash string) ([]byte, error) {
+	//Todo-Need to handle error for blob doesn't exist for consistency.
 	err := s.initOnce()
 	if err != nil {
 		return []byte{}, err
@@ -102,6 +107,7 @@ func (s *S3BlobStore) Get(hash string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Put stores the blob on S3 or errors if S3 connection errors.
 func (s *S3BlobStore) Put(hash string, blob []byte) error {
 	err := s.initOnce()
 	if err != nil {
@@ -122,6 +128,8 @@ func (s *S3BlobStore) Put(hash string, blob []byte) error {
 	return err
 }
 
+// PutSD stores the sd blob on S3 or errors if S3 connection errors.
 func (s *S3BlobStore) PutSD(hash string, blob []byte) error {
+	//Todo - handle missing stream for consistency
 	return s.Put(hash, blob)
 }

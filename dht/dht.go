@@ -35,8 +35,7 @@ const (
 	udpMaxMessageLength = 1024 // bytes. I think our longest message is ~676 bytes, so I rounded up
 
 	maxPeerFails = 3 // after this many failures, a peer is considered bad and will be removed from the routing table
-
-	tExpire     = 60 * time.Minute // the time after which a key/value pair expires; this is a time-to-live (TTL) from the original publication date
+	//tExpire     = 60 * time.Minute // the time after which a key/value pair expires; this is a time-to-live (TTL) from the original publication date
 	tReannounce = 50 * time.Minute // the time after which the original publisher must republish a key/value pair
 	tRefresh    = 1 * time.Hour    // the time after which an otherwise unaccessed bucket must be refreshed
 	//tReplicate   = 1 * time.Hour    // the interval between Kademlia replication events, when a node is required to publish its entire database
@@ -136,6 +135,11 @@ func (dht *DHT) join() {
 
 	// now call iterativeFind on yourself
 	nf := newContactFinder(dht.node, dht.node.id, false)
+	// stop if dht is stopped
+	go func(finder *contactFinder) {
+		<-dht.stop.Ch()
+		nf.Cancel()
+	}(nf)
 	_, err := nf.Find()
 	if err != nil {
 		log.Errorf("[%s] join: %s", dht.node.id.HexShort(), err.Error())
@@ -152,19 +156,26 @@ func (dht *DHT) Start() error {
 		return errors.Err(err)
 	}
 	conn := listener.(*net.UDPConn)
-
 	err = dht.node.Connect(conn)
 	if err != nil {
 		return err
 	}
-
-	dht.join()
-	dht.startReannouncer()
+	dht.stop.Add(1)
+	go func() {
+		defer dht.stop.Done()
+		dht.join()
+	}()
+	dht.stop.Add(1)
+	go func() {
+		defer dht.stop.Done()
+		dht.startReannouncer()
+	}()
 
 	log.Debugf("[%s] DHT ready on %s (%d nodes found during join)", dht.node.id.HexShort(), dht.contact.Addr().String(), dht.node.rt.Count())
 	return nil
 }
 
+// WaitUntilJoined blocks until the node joins the network.
 func (dht *DHT) WaitUntilJoined() {
 	if dht.joined == nil {
 		panic("dht not initialized")
@@ -175,13 +186,13 @@ func (dht *DHT) WaitUntilJoined() {
 // Shutdown shuts down the dht
 func (dht *DHT) Shutdown() {
 	log.Debugf("[%s] DHT shutting down", dht.node.id.HexShort())
-	dht.stop.Stop()
-	dht.stop.Wait()
+	dht.stop.StopAndWait()
 	dht.node.Shutdown()
 	log.Debugf("[%s] DHT stopped", dht.node.id.HexShort())
 }
 
-// Get returns the list of nodes that have the blob for the given hash
+// Ping pings a given address, creates a temporary contact for sending a message, and returns an error if communication
+// fails.
 func (dht *DHT) Ping(addr string) error {
 	raddr, err := net.ResolveUDPAddr(network, addr)
 	if err != nil {
@@ -244,8 +255,6 @@ func (dht *DHT) Announce(hash Bitmap) error {
 }
 
 func (dht *DHT) startReannouncer() {
-	dht.stop.Add(1)
-	defer dht.stop.Done()
 	tick := time.NewTicker(tReannounce)
 	for {
 		select {
@@ -254,7 +263,13 @@ func (dht *DHT) startReannouncer() {
 		case <-tick.C:
 			dht.lock.RLock()
 			for h := range dht.announced {
-				go dht.Announce(h)
+				dht.stop.Add(1)
+				go func(bm Bitmap) {
+					defer dht.stop.Done()
+					if err := dht.Announce(bm); err != nil {
+						log.Error("error re-announcing bitmap - ", err)
+					}
+				}(h)
 			}
 			dht.lock.RUnlock()
 		}
@@ -310,6 +325,8 @@ func (dht *DHT) storeOnNode(hash Bitmap, c Contact) {
 	}()
 }
 
+// PrintState prints the current state of the DHT including address, nr outstanding transactions, stored hashes as well
+// as current bucket information.
 func (dht *DHT) PrintState() {
 	log.Printf("DHT node %s at %s", dht.contact.String(), time.Now().Format(time.RFC822Z))
 	log.Printf("Outstanding transactions: %d", dht.node.CountActiveTransactions())

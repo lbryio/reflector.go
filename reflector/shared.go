@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// DefaultPort is the port the reflector server listens on if not passed in.
 	DefaultPort = 5566
 
 	maxBlobSize = 2 * 1024 * 1024
@@ -16,6 +17,7 @@ const (
 	protocolVersion2 = 1
 )
 
+// ErrBlobExists is a default error for when a blob already exists on the reflector server.
 var ErrBlobExists = errors.Base("blob exists on server")
 
 type errorResponse struct {
