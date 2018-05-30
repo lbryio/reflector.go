@@ -48,7 +48,7 @@ before_script:
 # script always run to completion (set +e). All of these code checks are must haves
 # in a modern Go project.
 script:
-  # Build Prism sucessfully
+  # Build Prism successfully
   - make
   # Fail if a .go file hasn't been formatted with gofmt
   - test -z $(gofmt -s -l $GO_FILES)
@@ -62,10 +62,10 @@ script:
   # forbid code with huge functions
   - gocyclo -ignore "_test" -avg -over 19 $GO_FILES
   # checks for unhandled errors
-  - errcheck $(go list ./... | grep -v /vendor/ )
+  - errcheck ./...
   # "go vet on steroids" + linter - ignore autogen code
-  - megacheck -simple.exit-non-zero=true $(go list ./... | grep -v /vendor/ )
+  - megacheck -simple.exit-non-zero=true ./...
   # check for unnecessary conversions - ignore autogen code
-  - unconvert -v $(go list ./... | grep -v /vendor/ )
+  - unconvert ./...
   # one last linter - ignore autogen code
   - golint -set_exit_status $(go list ./... | grep -v /vendor/ )
