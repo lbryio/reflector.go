@@ -93,9 +93,8 @@ func (n *Node) Connect(conn UDPConn) error {
 	}()
 
 	packets := make(chan packet)
-
+	n.stop.Add(1)
 	go func() {
-		n.stop.Add(1)
 		defer n.stop.Done()
 
 		buf := make([]byte, udpMaxMessageLength)
@@ -123,9 +122,8 @@ func (n *Node) Connect(conn UDPConn) error {
 			}
 		}
 	}()
-
+	n.stop.Add(1)
 	go func() {
-		n.stop.Add(1)
 		defer n.stop.Done()
 
 		var pkt packet

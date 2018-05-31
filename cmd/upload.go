@@ -77,9 +77,8 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 	log.Printf("%d new blobs to upload", totalCount-existsCount)
 
 	startUploadWorkers(&params, args[0])
-
+	params.counterWG.Add(1)
 	go func() {
-		params.counterWG.Add(1)
 		defer params.counterWG.Done()
 		runCountReceiver(&params, startTime, totalCount, existsCount)
 	}()
@@ -137,8 +136,8 @@ func setInterrupt(params *uploaderParams) {
 
 func startUploadWorkers(params *uploaderParams, dir string) {
 	for i := 0; i < workers; i++ {
+		params.workerWG.Add(1)
 		go func(i int) {
-			params.workerWG.Add(1)
 			defer params.workerWG.Done()
 			defer func(i int) {
 				log.Printf("worker %d quitting", i)

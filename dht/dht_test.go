@@ -121,8 +121,8 @@ func TestDHT_LargeDHT(t *testing.T) {
 	ids := make([]Bitmap, nodes)
 	for i := range ids {
 		ids[i] = RandomBitmapP()
+		wg.Add(1)
 		go func(index int) {
-			wg.Add(1)
 			defer wg.Done()
 			if err := dhts[index].Announce(ids[index]); err != nil {
 				t.Error("error announcing random bitmap - ", err)
