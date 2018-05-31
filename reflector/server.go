@@ -29,7 +29,9 @@ func NewServer(store store.BlobStore) *Server {
 func (s *Server) Shutdown() {
 	// TODO: need waitgroup so we can finish whatever we're doing before stopping
 	s.closed = true
-	s.l.Close()
+	if err := s.l.Close(); err != nil {
+		log.Error("error shutting down reflector server - ", err)
+	}
 }
 
 func closeListener(listener net.Listener) {
