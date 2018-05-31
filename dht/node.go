@@ -87,7 +87,9 @@ func (n *Node) Connect(conn UDPConn) error {
 		<-n.stop.Ch()
 		n.tokens.Stop()
 		n.connClosed = true
-		n.conn.Close()
+		if err := n.conn.Close(); err != nil {
+			log.Error("error closing node connection on shutdown - ", err)
+		}
 	}()
 
 	packets := make(chan packet)
@@ -219,26 +221,34 @@ func (n *Node) handleRequest(addr *net.UDPAddr, request Request) {
 		log.Errorln("invalid request method")
 		return
 	case pingMethod:
-		n.sendMessage(addr, Response{ID: request.ID, NodeID: n.id, Data: pingSuccessResponse})
+		if err := n.sendMessage(addr, Response{ID: request.ID, NodeID: n.id, Data: pingSuccessResponse}); err != nil {
+			log.Error("error sending 'pingmethod' response message - ", err)
+		}
 	case storeMethod:
 		// TODO: we should be sending the IP in the request, not just using the sender's IP
 		// TODO: should we be using StoreArgs.NodeID or StoreArgs.Value.LbryID ???
 		if n.tokens.Verify(request.StoreArgs.Value.Token, request.NodeID, addr) {
 			n.Store(request.StoreArgs.BlobHash, Contact{ID: request.StoreArgs.NodeID, IP: addr.IP, Port: request.StoreArgs.Value.Port})
-			n.sendMessage(addr, Response{ID: request.ID, NodeID: n.id, Data: storeSuccessResponse})
+			if err := n.sendMessage(addr, Response{ID: request.ID, NodeID: n.id, Data: storeSuccessResponse}); err != nil {
+				log.Error("error sending 'storemethod' response message - ", err)
+			}
 		} else {
-			n.sendMessage(addr, Error{ID: request.ID, NodeID: n.id, ExceptionType: "invalid-token"})
+			if err := n.sendMessage(addr, Error{ID: request.ID, NodeID: n.id, ExceptionType: "invalid-token"}); err != nil {
+				log.Error("error sending 'storemethod'response message for invalid-token - ", err)
+			}
 		}
 	case findNodeMethod:
 		if request.Arg == nil {
 			log.Errorln("request is missing arg")
 			return
 		}
-		n.sendMessage(addr, Response{
+		if err := n.sendMessage(addr, Response{
 			ID:       request.ID,
 			NodeID:   n.id,
 			Contacts: n.rt.GetClosest(*request.Arg, bucketSize),
-		})
+		}); err != nil {
+			log.Error("error sending 'findnodemethod' response message - ", err)
+		}
 
 	case findValueMethod:
 		if request.Arg == nil {
@@ -259,7 +269,9 @@ func (n *Node) handleRequest(addr *net.UDPAddr, request Request) {
 			res.Contacts = n.rt.GetClosest(*request.Arg, bucketSize)
 		}
 
-		n.sendMessage(addr, res)
+		if err := n.sendMessage(addr, res); err != nil {
+			log.Error("error sending 'findvaluemethod' response message - ", err)
+		}
 	}
 
 	// nodes that send us requests should not be inserted, only refreshed.
@@ -302,7 +314,9 @@ func (n *Node) sendMessage(addr *net.UDPAddr, data Message) error {
 		log.Debugf("[%s] (%d bytes) %s", n.id.HexShort(), len(encoded), spew.Sdump(data))
 	}
 
-	n.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err := n.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return errors.Prefix("error sending data to udp address due to write deadline being reached - ", err)
+	}
 
 	_, err = n.conn.WriteToUDP(encoded, addr)
 	return errors.Err(err)

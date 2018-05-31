@@ -175,14 +175,18 @@ func launchFileUploader(params *uploaderParams, blobStore *store.DBBackedS3Store
 
 			if isJSON(blob) {
 				log.Printf("worker %d: PUTTING SD BLOB %s", worker, hash)
-				blobStore.PutSD(hash, blob)
+				if err := blobStore.PutSD(hash, blob); err != nil {
+					log.Error("PutSD Error: ", err)
+				}
 				select {
 				case params.countChan <- sdInc:
 				case <-params.stopper.Ch():
 				}
 			} else {
 				log.Printf("worker %d: putting %s", worker, hash)
-				blobStore.Put(hash, blob)
+				if err := blobStore.Put(hash, blob); err != nil {
+					log.Error("Put Blob Error: ", err)
+				}
 				select {
 				case params.countChan <- blobInc:
 				case <-params.stopper.Ch():

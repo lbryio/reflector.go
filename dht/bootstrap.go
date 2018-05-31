@@ -157,17 +157,21 @@ func (b *BootstrapNode) check() {
 func (b *BootstrapNode) handleRequest(addr *net.UDPAddr, request Request) {
 	switch request.Method {
 	case pingMethod:
-		b.sendMessage(addr, Response{ID: request.ID, NodeID: b.id, Data: pingSuccessResponse})
+		if err := b.sendMessage(addr, Response{ID: request.ID, NodeID: b.id, Data: pingSuccessResponse}); err != nil {
+			log.Error("error sending response message - ", err)
+		}
 	case findNodeMethod:
 		if request.Arg == nil {
 			log.Errorln("request is missing arg")
 			return
 		}
-		b.sendMessage(addr, Response{
+		if err := b.sendMessage(addr, Response{
 			ID:       request.ID,
 			NodeID:   b.id,
 			Contacts: b.get(bucketSize),
-		})
+		}); err != nil {
+			log.Error("error sending 'findnodemethod' response message - ", err)
+		}
 	}
 
 	go func() {

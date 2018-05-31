@@ -225,10 +225,14 @@ func withTx(dbOrTx interface{}, f txFunc) (err error) {
 		}
 		defer func() {
 			if p := recover(); p != nil {
-				tx.Rollback()
+				if err := tx.Rollback(); err != nil {
+					log.Error("failed to rollback tx on panic - ", err)
+				}
 				panic(p)
 			} else if err != nil {
-				tx.Rollback()
+				if err := tx.Rollback(); err != nil {
+					log.Error("failed to rollback tx on panic - ", err)
+				}
 			} else {
 				err = errors.Err(tx.Commit())
 			}

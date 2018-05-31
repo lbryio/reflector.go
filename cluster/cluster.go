@@ -68,7 +68,9 @@ func (c *Cluster) Connect() error {
 
 func (c *Cluster) Shutdown() {
 	c.stop.StopAndWait()
-	c.s.Leave()
+	if err := c.s.Leave(); err != nil {
+		log.Error("error shutting down cluster - ", err)
+	}
 }
 
 func (c *Cluster) listen() {

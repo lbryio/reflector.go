@@ -37,7 +37,15 @@ func NewServer(store store.BlobStore) *Server {
 func (s *Server) Shutdown() {
 	// TODO: need waitgroup so we can finish whatever we're doing before stopping
 	s.closed = true
-	s.l.Close()
+	if err := s.l.Close(); err != nil {
+		log.Error("error shuting down peer server - ", err)
+	}
+}
+
+func closeListener(listener net.Listener) {
+	if err := listener.Close(); err != nil {
+		log.Error("error closing listener for peer server - ", err)
+	}
 }
 
 func (s *Server) ListenAndServe(address string) error {
@@ -46,7 +54,7 @@ func (s *Server) ListenAndServe(address string) error {
 	if err != nil {
 		return err
 	}
-	defer l.Close()
+	defer closeListener(l)
 
 	for {
 		conn, err := l.Accept()
@@ -61,8 +69,14 @@ func (s *Server) ListenAndServe(address string) error {
 	}
 }
 
+func closeConnection(conn net.Conn) {
+	if err := conn.Close(); err != nil {
+		log.Error("error closing client connection for peer server - ", err)
+	}
+}
+
 func (s *Server) handleConnection(conn net.Conn) {
-	defer conn.Close()
+	defer closeConnection(conn)
 
 	timeoutDuration := 5 * time.Second
 
@@ -71,7 +85,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 		var response []byte
 		var err error
 
-		conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+		if err := conn.SetReadDeadline(time.Now().Add(timeoutDuration)); err != nil {
+			log.Error("error setting read deadline for client connection - ", err)
+		}
 		request, err = readNextRequest(conn)
 		if err != nil {
 			if err != io.EOF {
@@ -79,7 +95,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 			}
 			return
 		}
-		conn.SetReadDeadline(time.Time{})
+		if err := conn.SetReadDeadline(time.Time{}); err != nil {
+			log.Error("error setting read deadline client connection - ", err)
+		}
 
 		if strings.Contains(string(request), `"requested_blobs"`) {
 			log.Debugln("received availability request")

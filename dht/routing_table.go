@@ -14,6 +14,7 @@ import (
 	"github.com/lbryio/lbry.go/errors"
 
 	"github.com/lyoshenka/bencode"
+	log "github.com/sirupsen/logrus"
 )
 
 // TODO: if routing table is ever empty (aka the node is isolated), it should re-bootstrap
@@ -457,7 +458,9 @@ func RoutingTableRefresh(n *Node, refreshInterval time.Duration, cancel <-chan s
 				}()
 			}
 
-			nf.Find()
+			if _, err := nf.Find(); err != nil {
+				log.Error("error finding contact during routing table refresh - ", err)
+			}
 		}(id)
 	}
 

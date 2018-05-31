@@ -253,7 +253,11 @@ func (dht *DHT) startReannouncer() {
 		case <-tick.C:
 			dht.lock.RLock()
 			for h := range dht.announced {
-				go dht.Announce(h)
+				go func() {
+					if err := dht.Announce(h); err != nil {
+						log.Error("error re-announcing bitmap - ", err)
+					}
+				}()
 			}
 			dht.lock.RUnlock()
 		}

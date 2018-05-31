@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/lbryio/reflector.go/store"
+	log "github.com/sirupsen/logrus"
 )
 
 var blobs = map[string][]byte{
@@ -37,7 +38,9 @@ func getServer(withBlobs bool) *Server {
 	st := store.MemoryBlobStore{}
 	if withBlobs {
 		for k, v := range blobs {
-			st.Put(k, v)
+			if err := st.Put(k, v); err != nil {
+				log.Error("error during put operation of memory blobstore - ", err)
+			}
 		}
 	}
 	return NewServer(&st)
