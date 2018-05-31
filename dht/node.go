@@ -315,7 +315,7 @@ func (n *Node) sendMessage(addr *net.UDPAddr, data Message) error {
 	}
 
 	if err := n.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
-		return errors.Prefix("error sending data to udp address due to write deadline being reached - ", err)
+		log.Error("error setting write deadline - ", err)
 	}
 
 	_, err = n.conn.WriteToUDP(encoded, addr)
