@@ -290,10 +290,8 @@ func TestFindValueExisting(t *testing.T) {
 	defer dht.Shutdown()
 
 	nodesToInsert := 3
-	var nodes []Contact
 	for i := 0; i < nodesToInsert; i++ {
 		n := Contact{ID: RandomBitmapP(), IP: net.ParseIP("127.0.0.1"), Port: 10000 + i}
-		nodes = append(nodes, n)
 		dht.node.rt.Update(n)
 	}
 
