@@ -122,14 +122,14 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 		rows, err := s.conn.Query(query, args...)
 		if err != nil {
-			rows.Close()
+			CloseRows(rows)
 			return exists, err
 		}
 
 		for rows.Next() {
 			err := rows.Scan(&hash)
 			if err != nil {
-				rows.Close()
+				CloseRows(rows)
 				return exists, err
 			}
 			exists[hash] = true
@@ -137,11 +137,11 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 		err = rows.Err()
 		if err != nil {
-			rows.Close()
+			CloseRows(rows)
 			return exists, err
 		}
 
-		rows.Close()
+		CloseRows(rows)
 		doneIndex += len(batch)
 	}
 
@@ -238,6 +238,13 @@ func withTx(dbOrTx interface{}, f txFunc) (err error) {
 	}
 
 	return f(tx)
+}
+
+//CloseRows Closes SQL Rows for custom SQL queries.
+func CloseRows(rows *sql.Rows) {
+	if err := rows.Close(); err != nil {
+		log.Error("error closing rows: ", err)
+	}
 }
 
 func schema() {
