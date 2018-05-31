@@ -214,7 +214,7 @@ func runCountReceiver(params *uploaderParams, startTime time.Time, totalCount in
 			}
 		}
 		if (params.sdCount+params.blobCount)%50 == 0 {
-			log.Printf("%d of %d done (%s elapsed, %.3fs per blob)", params.sdCount+params.blobCount, totalCount-existsCount, time.Now().Sub(startTime).String(), time.Now().Sub(startTime).Seconds()/float64(params.sdCount+params.blobCount))
+			log.Printf("%d of %d done (%s elapsed, %.3fs per blob)", params.sdCount+params.blobCount, totalCount-existsCount, time.Since(startTime).String(), time.Since(startTime).Seconds()/float64(params.sdCount+params.blobCount))
 		}
 	}
 }

@@ -110,7 +110,7 @@ func newTestUDPConn(addr string) *testUDPConn {
 func (t testUDPConn) ReadFromUDP(b []byte) (int, *net.UDPAddr, error) {
 	var timeoutCh <-chan time.Time
 	if !t.readDeadline.IsZero() {
-		timeoutCh = time.After(t.readDeadline.Sub(time.Now()))
+		timeoutCh = time.After(time.Until(t.readDeadline))
 	}
 
 	select {

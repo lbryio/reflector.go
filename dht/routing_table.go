@@ -140,7 +140,7 @@ func (p *peer) Touch() {
 // ActiveSince returns whether a peer has responded in the last `d` duration
 // this is used to check if the peer is "good", meaning that we believe the peer will respond to our requests
 func (p *peer) ActiveInLast(d time.Duration) bool {
-	return time.Now().Sub(p.LastActivity) > d
+	return time.Since(p.LastActivity) > d
 }
 
 // IsBad returns whether a peer is "bad", meaning that it has failed to respond to multiple pings in a row
@@ -237,7 +237,7 @@ func find(id Bitmap, peers []peer) int {
 func (b *bucket) NeedsRefresh(refreshInterval time.Duration) bool {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
-	return time.Now().Sub(b.lastUpdate) > refreshInterval
+	return time.Since(b.lastUpdate) > refreshInterval
 }
 
 type routingTable struct {
