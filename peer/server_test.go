@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/lbryio/reflector.go/store"
-	log "github.com/sirupsen/logrus"
 )
 
 var blobs = map[string][]byte{
@@ -34,12 +33,12 @@ var availabilityRequests = []pair{
 	},
 }
 
-func getServer(withBlobs bool) *Server {
+func getServer(t *testing.T, withBlobs bool) *Server {
 	st := store.MemoryBlobStore{}
 	if withBlobs {
 		for k, v := range blobs {
 			if err := st.Put(k, v); err != nil {
-				log.Error("error during put operation of memory blobstore - ", err)
+				t.Error("error during put operation of memory blobstore - ", err)
 			}
 		}
 	}
@@ -47,7 +46,7 @@ func getServer(withBlobs bool) *Server {
 }
 
 func TestAvailabilityRequest_NoBlobs(t *testing.T) {
-	s := getServer(false)
+	s := getServer(t, false)
 
 	for _, p := range availabilityRequests {
 		response, err := s.handleAvailabilityRequest(p.request)
@@ -62,7 +61,7 @@ func TestAvailabilityRequest_NoBlobs(t *testing.T) {
 }
 
 func TestAvailabilityRequest_WithBlobs(t *testing.T) {
-	s := getServer(true)
+	s := getServer(t, true)
 
 	for _, p := range availabilityRequests {
 		response, err := s.handleAvailabilityRequest(p.request)

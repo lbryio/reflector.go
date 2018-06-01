@@ -15,14 +15,14 @@ var address = "localhost:" + strconv.Itoa(DefaultPort)
 
 func removeAll(dir string) {
 	if err := os.RemoveAll(dir); err != nil {
-		log.Error("error removing files and directory - ", err)
+		log.Panic("error removing files and directory - ", err)
 	}
 }
 
 func TestMain(m *testing.M) {
 	dir, err := ioutil.TempDir("", "reflector_client_test")
 	if err != nil {
-		log.Panic("can't create temp directory - ", err)
+		log.Panic("could not create temp directory - ", err)
 	}
 	defer removeAll(dir)
 
@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 	s := NewServer(&ms)
 	go func() {
 		if err := s.ListenAndServe(address); err != nil {
-			log.Error("error starting up reflector server - ", err)
+			log.Panic("error starting up reflector server - ", err)
 		}
 	}()
 

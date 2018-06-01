@@ -252,7 +252,7 @@ const (
 	maxRequestSize      = 64 * (2 ^ 10) // 64kb
 	paymentRateAccepted = "RATE_ACCEPTED"
 	paymentRateTooLow   = "RATE_TOO_LOW"
-	//ToDo: paymentRateUnset is not used, can we remove?
+	//ToDo: paymentRateUnset is not used but exists in the protocol.
 	//paymentRateUnset    = "RATE_UNSET"
 )
 

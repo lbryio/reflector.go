@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/lbryio/lbry.go/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var testingDHTIP = "127.0.0.1"
 var testingDHTFirstPort = 21000
 
-func TestingCreateDHT(numNodes int, bootstrap, concurrent bool) (*BootstrapNode, []*DHT) {
+func TestingCreateDHT(t *testing.T, numNodes int, bootstrap, concurrent bool) (*BootstrapNode, []*DHT) {
 	var bootstrapNode *BootstrapNode
 	var seeds []string
 
@@ -27,7 +26,7 @@ func TestingCreateDHT(numNodes int, bootstrap, concurrent bool) (*BootstrapNode,
 			panic(err)
 		}
 		if err := bootstrapNode.Connect(listener.(*net.UDPConn)); err != nil {
-			logrus.Error("error connecting bootstrap node - ", err)
+			t.Error("error connecting bootstrap node - ", err)
 		}
 	}
 
@@ -46,7 +45,7 @@ func TestingCreateDHT(numNodes int, bootstrap, concurrent bool) (*BootstrapNode,
 
 		go func() {
 			if err := dht.Start(); err != nil {
-				logrus.Error("error starting dht - ", err)
+				t.Error("error starting dht - ", err)
 			}
 		}()
 		if !concurrent {
