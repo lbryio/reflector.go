@@ -45,13 +45,13 @@ func init() {
 		Run:   uploadCmd,
 	}
 	cmd.PersistentFlags().IntVar(&workers, "workers", 1, "How many worker threads to run at once")
-	RootCmd.AddCommand(cmd)
+	rootCmd.AddCommand(cmd)
 }
 
 func uploadCmd(cmd *cobra.Command, args []string) {
 	startTime := time.Now()
 	db := new(db.SQL)
-	err := db.Connect(GlobalConfig.DBConn)
+	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 
 	params := uploaderParams{
@@ -118,10 +118,10 @@ func isJSON(data []byte) bool {
 
 func newBlobStore() *store.DBBackedS3Store {
 	db := new(db.SQL)
-	err := db.Connect(GlobalConfig.DBConn)
+	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 
-	s3 := store.NewS3BlobStore(GlobalConfig.AwsID, GlobalConfig.AwsSecret, GlobalConfig.BucketRegion, GlobalConfig.BucketName)
+	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	return store.NewDBBackedS3Store(s3, db)
 }
 

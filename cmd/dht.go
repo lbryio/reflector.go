@@ -12,7 +12,7 @@ func init() {
 		Short: "Run interactive dht node",
 		Run:   dhtCmd,
 	}
-	RootCmd.AddCommand(cmd)
+	rootCmd.AddCommand(cmd)
 }
 
 func dhtCmd(cmd *cobra.Command, args []string) {

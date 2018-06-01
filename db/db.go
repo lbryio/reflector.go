@@ -11,6 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// DB interface communicates to a backend database with a simple set of methods that supports tracking blobs that are
+// used together with a BlobStore. The DB tracks pointers and the BlobStore stores the data.
 type DB interface {
 	Connect(string) error
 	HasBlob(string) (bool, error)
@@ -18,6 +20,7 @@ type DB interface {
 	AddSDBlob(string, int, types.SdBlob) error
 }
 
+// SQL is the container for the supporting MySQL database connection.
 type SQL struct {
 	conn *sql.DB
 }
@@ -31,6 +34,7 @@ func logQuery(query string, args ...interface{}) {
 	}
 }
 
+// Connect will create a connection to the database
 func (s *SQL) Connect(dsn string) error {
 	var err error
 	dsn += "?parseTime=1&collation=utf8mb4_unicode_ci"
@@ -42,6 +46,7 @@ func (s *SQL) Connect(dsn string) error {
 	return errors.Err(s.conn.Ping())
 }
 
+// AddBlob adds a blobs information to the database.
 func (s *SQL) AddBlob(hash string, length int, stored bool) error {
 	if s.conn == nil {
 		return errors.Err("not connected")
@@ -75,6 +80,7 @@ func addBlob(tx *sql.Tx, hash string, length int, stored bool) error {
 	return nil
 }
 
+// HasBlob checks if the database contains the blob information.
 func (s *SQL) HasBlob(hash string) (bool, error) {
 	if s.conn == nil {
 		return false, errors.Err("not connected")
@@ -93,6 +99,7 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 	return exists, errors.Err(err)
 }
 
+// HashBlobs checks if the database contains the set of blobs and returns a bool map.
 func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 	if s.conn == nil {
 		return nil, errors.Err("not connected")
@@ -122,14 +129,14 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 		rows, err := s.conn.Query(query, args...)
 		if err != nil {
-			CloseRows(rows)
+			closeRows(rows)
 			return exists, err
 		}
 
 		for rows.Next() {
 			err := rows.Scan(&hash)
 			if err != nil {
-				CloseRows(rows)
+				closeRows(rows)
 				return exists, err
 			}
 			exists[hash] = true
@@ -137,17 +144,20 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 		err = rows.Err()
 		if err != nil {
-			CloseRows(rows)
+			closeRows(rows)
 			return exists, err
 		}
 
-		CloseRows(rows)
+		closeRows(rows)
 		doneIndex += len(batch)
 	}
 
 	return exists, nil
 }
 
+// AddSDBlob takes the SD Hash number of blobs and the set of blobs. In a single db tx it inserts the sdblob information
+// into a stream, and inserts the associated blobs' information in the database. If a blob fails the transaction is
+// rolled back and error(s) are returned.
 func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob types.SdBlob) error {
 	if s.conn == nil {
 		return errors.Err("not connected")
@@ -244,8 +254,7 @@ func withTx(dbOrTx interface{}, f txFunc) (err error) {
 	return f(tx)
 }
 
-//CloseRows Closes SQL Rows for custom SQL queries.
-func CloseRows(rows *sql.Rows) {
+func closeRows(rows *sql.Rows) {
 	if err := rows.Close(); err != nil {
 		log.Error("error closing rows: ", err)
 	}

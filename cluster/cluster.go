@@ -17,6 +17,7 @@ const (
 	DefaultClusterPort = 17946
 )
 
+// Cluster is a management type for Serf which is used to maintain cluster membership of lbry nodes.
 type Cluster struct {
 	name     string
 	port     int
@@ -27,6 +28,7 @@ type Cluster struct {
 	stop    *stopOnce.Stopper
 }
 
+// New returns a new Cluster instance that is not connected.
 func New(port int, seedAddr string) *Cluster {
 	return &Cluster{
 		name:     crypto.RandString(12),
@@ -36,6 +38,8 @@ func New(port int, seedAddr string) *Cluster {
 	}
 }
 
+// Connect Initializes the Cluster based on a configuration passed via the New function. It then stores the seed
+// address, starts gossiping and listens for gossip.
 func (c *Cluster) Connect() error {
 	var err error
 
@@ -66,6 +70,7 @@ func (c *Cluster) Connect() error {
 	return nil
 }
 
+// Shutdown safely shuts down the cluster.
 func (c *Cluster) Shutdown() {
 	c.stop.StopAndWait()
 	if err := c.s.Leave(); err != nil {
