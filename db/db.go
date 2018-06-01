@@ -251,6 +251,7 @@ func CloseRows(rows *sql.Rows) {
 	}
 }
 
+/*// func to generate schema. SQL below that.
 func schema() {
 	_ = `
 CREATE TABLE blob_ (
@@ -280,4 +281,35 @@ CREATE TABLE stream_blob (
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 `
-}
+}*/
+
+/* SQL script to create schema
+CREATE TABLE `reflector`.`blob_`
+(
+  `hash` char(96) NOT NULL,
+  `stored` TINYINT(1) NOT NULL DEFAULT 0,
+  `length` bigint(20) unsigned DEFAULT NULL,
+  `last_announced_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`hash`),
+  KEY `last_announced_at_idx` (`last_announced_at`)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `reflector`.`stream`
+(
+  `hash` char(96) NOT NULL,
+  `sd_hash` char(96) NOT NULL,
+  PRIMARY KEY (hash),
+  KEY `sd_hash_idx` (`sd_hash`),
+  FOREIGN KEY (`sd_hash`) REFERENCES `blob_` (`hash`) ON DELETE RESTRICT ON UPDATE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `reflector`.`stream_blob`
+(
+  `stream_hash` char(96) NOT NULL,
+  `blob_hash` char(96) NOT NULL,
+  `num` int NOT NULL,
+  PRIMARY KEY (`stream_hash`, `blob_hash`),
+  FOREIGN KEY (`stream_hash`) REFERENCES `stream` (`hash`) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (`blob_hash`) REFERENCES `blob_` (`hash`) ON DELETE CASCADE ON UPDATE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+*/

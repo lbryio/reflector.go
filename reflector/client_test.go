@@ -12,7 +12,6 @@ import (
 )
 
 var address = "localhost:" + strconv.Itoa(DefaultPort)
-var s Server
 
 func removeAll(dir string) {
 	if err := os.RemoveAll(dir); err != nil {
