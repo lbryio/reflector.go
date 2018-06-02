@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"strconv"
+
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lyoshenka/bencode"
 )
@@ -31,14 +33,17 @@ func (b Bitmap) BString() string {
 	return buf.String()
 }
 
+// Hex returns a hexadecimal representation of the bitmap.
 func (b Bitmap) Hex() string {
 	return hex.EncodeToString(b[:])
 }
 
+// HexShort returns a hexadecimal representation of the first 4 bytes.
 func (b Bitmap) HexShort() string {
 	return hex.EncodeToString(b[:4])
 }
 
+// HexSimplified returns the hexadecimal representation with all leading 0's removed
 func (b Bitmap) HexSimplified() string {
 	simple := strings.TrimLeft(b.Hex(), "0")
 	if simple == "" {
@@ -47,6 +52,7 @@ func (b Bitmap) HexSimplified() string {
 	return simple
 }
 
+// Equals returns T/F if every byte in bitmap are equal.
 func (b Bitmap) Equals(other Bitmap) bool {
 	for k := range b {
 		if b[k] != other[k] {
@@ -56,6 +62,7 @@ func (b Bitmap) Equals(other Bitmap) bool {
 	return true
 }
 
+// Less returns T/F if there exists a byte pair that is not equal AND this bitmap is less than the other.
 func (b Bitmap) Less(other interface{}) bool {
 	for k := range b {
 		if b[k] != other.(Bitmap)[k] {
@@ -65,6 +72,7 @@ func (b Bitmap) Less(other interface{}) bool {
 	return false
 }
 
+// LessOrEqual returns true if the bitmaps are equal, otherwise it checks if this bitmap is less than the other.
 func (b Bitmap) LessOrEqual(other interface{}) bool {
 	if bm, ok := other.(Bitmap); ok && b.Equals(bm) {
 		return true
@@ -72,6 +80,7 @@ func (b Bitmap) LessOrEqual(other interface{}) bool {
 	return b.Less(other)
 }
 
+// Greater returns T/F if there exists a byte pair that is not equal AND this bitmap byte is greater than the other.
 func (b Bitmap) Greater(other interface{}) bool {
 	for k := range b {
 		if b[k] != other.(Bitmap)[k] {
@@ -81,6 +90,7 @@ func (b Bitmap) Greater(other interface{}) bool {
 	return false
 }
 
+// GreaterOrEqual returns true if the bitmaps are equal, otherwise it checks if this bitmap is greater than the other.
 func (b Bitmap) GreaterOrEqual(other interface{}) bool {
 	if bm, ok := other.(Bitmap); ok && b.Equals(bm) {
 		return true
@@ -88,12 +98,15 @@ func (b Bitmap) GreaterOrEqual(other interface{}) bool {
 	return b.Greater(other)
 }
 
+// Copy returns a duplicate value for the bitmap.
 func (b Bitmap) Copy() Bitmap {
 	var ret Bitmap
 	copy(ret[:], b[:])
 	return ret
 }
 
+// Xor returns a diff bitmap. If they are equal, the returned bitmap will be all 0's. If 100% unique the returned
+// bitmap will be all 1's.
 func (b Bitmap) Xor(other Bitmap) Bitmap {
 	var ret Bitmap
 	for k := range b {
@@ -102,6 +115,7 @@ func (b Bitmap) Xor(other Bitmap) Bitmap {
 	return ret
 }
 
+// And returns a comparison bitmap, that for each byte returns the AND true table result
 func (b Bitmap) And(other Bitmap) Bitmap {
 	var ret Bitmap
 	for k := range b {
@@ -110,6 +124,7 @@ func (b Bitmap) And(other Bitmap) Bitmap {
 	return ret
 }
 
+// Or returns a comparison bitmap, that for each byte returns the OR true table result
 func (b Bitmap) Or(other Bitmap) Bitmap {
 	var ret Bitmap
 	for k := range b {
@@ -118,6 +133,7 @@ func (b Bitmap) Or(other Bitmap) Bitmap {
 	return ret
 }
 
+// Not returns a complimentary bitmap that is an inverse. So b.NOT.NOT = b
 func (b Bitmap) Not() Bitmap {
 	var ret Bitmap
 	for k := range b {
@@ -138,16 +154,21 @@ func (b Bitmap) add(other Bitmap) (Bitmap, bool) {
 	return ret, carry
 }
 
+// Add returns a bitmap that treats both bitmaps as numbers and adding them together. Since the size of a bitmap is
+// limited, an overflow is possible when adding bitmaps.
 func (b Bitmap) Add(other Bitmap) Bitmap {
 	ret, carry := b.add(other)
 	if carry {
-		panic("overflow in bitmap addition")
+		panic("overflow in bitmap addition. limited to " + strconv.Itoa(nodeIDBits) + " bits.")
 	}
 	return ret
 }
 
+// Sub returns a bitmap that treats both bitmaps as numbers and subtracts then via the inverse of the other and adding
+// then together a + (-b). Negative bitmaps are not supported so other must be greater than this.
 func (b Bitmap) Sub(other Bitmap) Bitmap {
 	if b.Less(other) {
+		// ToDo: Why is this not supported? Should it say not implemented? BitMap might have a generic use case outside of dht.
 		panic("negative bitmaps not supported")
 	}
 	complement, _ := other.Not().add(BitmapFromShortHexP("1"))
@@ -155,10 +176,12 @@ func (b Bitmap) Sub(other Bitmap) Bitmap {
 	return ret
 }
 
+// Get returns the binary bit at the position passed.
 func (b Bitmap) Get(n int) bool {
 	return getBit(b[:], n)
 }
 
+// Set sets the binary bit at the position passed.
 func (b Bitmap) Set(n int, one bool) Bitmap {
 	ret := b.Copy()
 	setBit(ret[:], n, one)
@@ -200,7 +223,7 @@ Outer:
 	return ret
 }
 
-// Syffix returns a copy of b with the last n bits set to 1 (if `one` is true) or 0 (if `one` is false)
+// Suffix returns a copy of b with the last n bits set to 1 (if `one` is true) or 0 (if `one` is false)
 // https://stackoverflow.com/a/23192263/182709
 func (b Bitmap) Suffix(n int, one bool) Bitmap {
 	ret := b.Copy()
@@ -223,11 +246,13 @@ Outer:
 	return ret
 }
 
+// MarshalBencode implements the Marshaller(bencode)/Message interface.
 func (b Bitmap) MarshalBencode() ([]byte, error) {
 	str := string(b[:])
 	return bencode.EncodeBytes(str)
 }
 
+// UnmarshalBencode implements the Marshaller(bencode)/Message interface.
 func (b *Bitmap) UnmarshalBencode(encoded []byte) error {
 	var str string
 	err := bencode.DecodeBytes(encoded, &str)
@@ -241,6 +266,7 @@ func (b *Bitmap) UnmarshalBencode(encoded []byte) error {
 	return nil
 }
 
+// BitmapFromBytes returns a bitmap as long as the byte array is of a specific length specified in the parameters.
 func BitmapFromBytes(data []byte) (Bitmap, error) {
 	var bmp Bitmap
 
@@ -252,6 +278,8 @@ func BitmapFromBytes(data []byte) (Bitmap, error) {
 	return bmp, nil
 }
 
+// BitmapFromBytesP returns a bitmap as long as the byte array is of a specific length specified in the parameters
+// otherwise it wil panic.
 func BitmapFromBytesP(data []byte) Bitmap {
 	bmp, err := BitmapFromBytes(data)
 	if err != nil {
@@ -260,10 +288,14 @@ func BitmapFromBytesP(data []byte) Bitmap {
 	return bmp
 }
 
+//BitmapFromString returns a bitmap by converting the string to bytes and creating from bytes as long as the byte array
+// is of a specific length specified in the parameters
 func BitmapFromString(data string) (Bitmap, error) {
 	return BitmapFromBytes([]byte(data))
 }
 
+//BitmapFromStringP returns a bitmap by converting the string to bytes and creating from bytes as long as the byte array
+// is of a specific length specified in the parameters otherwise it wil panic.
 func BitmapFromStringP(data string) Bitmap {
 	bmp, err := BitmapFromString(data)
 	if err != nil {
@@ -272,6 +304,8 @@ func BitmapFromStringP(data string) Bitmap {
 	return bmp
 }
 
+//BitmapFromHex returns a bitmap by converting the hex string to bytes and creating from bytes as long as the byte array
+// is of a specific length specified in the parameters
 func BitmapFromHex(hexStr string) (Bitmap, error) {
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
@@ -280,6 +314,8 @@ func BitmapFromHex(hexStr string) (Bitmap, error) {
 	return BitmapFromBytes(decoded)
 }
 
+//BitmapFromHexP returns a bitmap by converting the hex string to bytes and creating from bytes as long as the byte array
+// is of a specific length specified in the parameters otherwise it wil panic.
 func BitmapFromHexP(hexStr string) Bitmap {
 	bmp, err := BitmapFromHex(hexStr)
 	if err != nil {
@@ -288,10 +324,15 @@ func BitmapFromHexP(hexStr string) Bitmap {
 	return bmp
 }
 
+//BitmapFromShortHex returns a bitmap by converting the hex string to bytes, adding the leading zeros prefix to the
+// hex string and creating from bytes as long as the byte array is of a specific length specified in the parameters
 func BitmapFromShortHex(hexStr string) (Bitmap, error) {
 	return BitmapFromHex(strings.Repeat("0", nodeIDLength*2-len(hexStr)) + hexStr)
 }
 
+//BitmapFromShortHex returns a bitmap by converting the hex string to bytes, adding the leading zeros prefix to the
+// hex string and creating from bytes as long as the byte array is of a specific length specified in the parameters
+// otherwise it wil panic.
 func BitmapFromShortHexP(hexStr string) Bitmap {
 	bmp, err := BitmapFromShortHex(hexStr)
 	if err != nil {
@@ -300,6 +341,7 @@ func BitmapFromShortHexP(hexStr string) Bitmap {
 	return bmp
 }
 
+// RandomBitmapP generates a cryptographically random bitmap with the confines of the parameters specified.
 func RandomBitmapP() Bitmap {
 	var id Bitmap
 	_, err := rand.Read(id[:])
@@ -309,12 +351,16 @@ func RandomBitmapP() Bitmap {
 	return id
 }
 
+// RandomBitmapInRangeP generates a cryptographically random bitmap and while it is greater than the high threshold
+// bitmap will subtract the diff between high and low until it is no longer greater that the high.
 func RandomBitmapInRangeP(low, high Bitmap) Bitmap {
 	diff := high.Sub(low)
 	r := RandomBitmapP()
 	for r.Greater(diff) {
 		r = r.Sub(diff)
 	}
+	//ToDo - Adding the low at this point doesn't gurantee it will be within the range. Consider bitmaps as numbers and
+	// I have a range of 50-100. If get to say 60, and add 50, I would be at 110. Should protect against this?
 	return r.Add(low)
 }
 
