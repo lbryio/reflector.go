@@ -1,5 +1,6 @@
 package types
 
+// SdBlob is an instance of specialized blob that contains information on the rest of the blobs it is associated with.
 type SdBlob struct {
 	StreamName string `json:"stream_name"`
 	Blobs      []struct {

@@ -19,7 +19,8 @@ import (
 
 const (
 	// DefaultPort is the port the peer server listens on if not passed in.
-	DefaultPort    = 3333
+	DefaultPort = 3333
+	// LbrycrdAddress to be used when paying for data. Not implemented yet.
 	LbrycrdAddress = "bJxKvpD96kaJLriqVajZ7SaQTsWWyrGQct"
 )
 
