@@ -13,6 +13,7 @@ const (
 	bootstrapDefaultRefreshDuration = 15 * time.Minute
 )
 
+// BootstrapNode is a configured node setup for testing.
 type BootstrapNode struct {
 	Node
 
@@ -71,7 +72,7 @@ func (b *BootstrapNode) Connect(conn UDPConn) error {
 	return nil
 }
 
-// ypsert adds the contact to the list, or updates the lastPinged time
+// upsert adds the contact to the list, or updates the lastPinged time
 func (b *BootstrapNode) upsert(c Contact) {
 	b.nlock.Lock()
 	defer b.nlock.Unlock()

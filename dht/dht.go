@@ -180,7 +180,8 @@ func (dht *DHT) Shutdown() {
 	log.Debugf("[%s] DHT stopped", dht.node.id.HexShort())
 }
 
-// Get returns the list of nodes that have the blob for the given hash
+// Ping pings a given address, creates a temporary contact for sending a message, and returns an error if communication
+// fails.
 func (dht *DHT) Ping(addr string) error {
 	raddr, err := net.ResolveUDPAddr(network, addr)
 	if err != nil {
@@ -313,6 +314,8 @@ func (dht *DHT) storeOnNode(hash Bitmap, c Contact) {
 	}()
 }
 
+// PrintState prints the current state of the DHT including address, nr outstanding transactions, stored hashes as well
+// as current bucket information.
 func (dht *DHT) PrintState() {
 	log.Printf("DHT node %s at %s", dht.contact.String(), time.Now().Format(time.RFC822Z))
 	log.Printf("Outstanding transactions: %d", dht.node.CountActiveTransactions())

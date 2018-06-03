@@ -171,7 +171,7 @@ func (n *Node) handlePacket(pkt packet) {
 			log.Errorf("[%s] error decoding request from %s: %s: (%d bytes) %s", n.id.HexShort(), pkt.raddr.String(), err.Error(), len(pkt.data), hex.EncodeToString(pkt.data))
 			return
 		}
-		log.Debugf("[%s] query %s: received request from %s: %s(%s)", n.id.HexShort(), request.ID.HexShort(), request.NodeID.HexShort(), request.Method, request.ArgsDebug())
+		log.Debugf("[%s] query %s: received request from %s: %s(%s)", n.id.HexShort(), request.ID.HexShort(), request.NodeID.HexShort(), request.Method, request.argsDebug())
 		n.handleRequest(pkt.raddr, request)
 
 	case '0' + responseType:
@@ -181,7 +181,7 @@ func (n *Node) handlePacket(pkt packet) {
 			log.Errorf("[%s] error decoding response from %s: %s: (%d bytes) %s", n.id.HexShort(), pkt.raddr.String(), err.Error(), len(pkt.data), hex.EncodeToString(pkt.data))
 			return
 		}
-		log.Debugf("[%s] query %s: received response from %s: %s", n.id.HexShort(), response.ID.HexShort(), response.NodeID.HexShort(), response.ArgsDebug())
+		log.Debugf("[%s] query %s: received response from %s: %s", n.id.HexShort(), response.ID.HexShort(), response.NodeID.HexShort(), response.argsDebug())
 		n.handleResponse(pkt.raddr, response)
 
 	case '0' + errorType:
@@ -304,10 +304,10 @@ func (n *Node) sendMessage(addr *net.UDPAddr, data Message) error {
 
 	if req, ok := data.(Request); ok {
 		log.Debugf("[%s] query %s: sending request to %s (%d bytes) %s(%s)",
-			n.id.HexShort(), req.ID.HexShort(), addr.String(), len(encoded), req.Method, req.ArgsDebug())
+			n.id.HexShort(), req.ID.HexShort(), addr.String(), len(encoded), req.Method, req.argsDebug())
 	} else if res, ok := data.(Response); ok {
 		log.Debugf("[%s] query %s: sending response to %s (%d bytes) %s",
-			n.id.HexShort(), res.ID.HexShort(), addr.String(), len(encoded), res.ArgsDebug())
+			n.id.HexShort(), res.ID.HexShort(), addr.String(), len(encoded), res.argsDebug())
 	} else {
 		log.Debugf("[%s] (%d bytes) %s", n.id.HexShort(), len(encoded), spew.Sdump(data))
 	}
