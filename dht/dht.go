@@ -164,6 +164,7 @@ func (dht *DHT) Start() error {
 	return nil
 }
 
+// WaitUntilJoined blocks until the node joins the network.
 func (dht *DHT) WaitUntilJoined() {
 	if dht.joined == nil {
 		panic("dht not initialized")

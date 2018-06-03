@@ -13,6 +13,7 @@ import (
 var testingDHTIP = "127.0.0.1"
 var testingDHTFirstPort = 21000
 
+// TestingCreateDHT initializes a testable DHT network with a specific number of nodes, with bootstrap and concurrent options.
 func TestingCreateDHT(t *testing.T, numNodes int, bootstrap, concurrent bool) (*BootstrapNode, []*DHT) {
 	var bootstrapNode *BootstrapNode
 	var seeds []string
@@ -224,7 +225,7 @@ func verifyContacts(t *testing.T, contacts []interface{}, nodes []Contact) {
 				continue
 			}
 			for _, n := range nodes {
-				if n.ID.RawString() == id {
+				if n.ID.rawString() == id {
 					currNode = n
 					currNodeFound = true
 					foundNodes[id] = true

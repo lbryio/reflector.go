@@ -6,7 +6,7 @@ import (
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/lbry.go/querytools"
 	"github.com/lbryio/reflector.go/types"
-
+	// blank import for db driver
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
 )
@@ -99,7 +99,7 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 	return exists, errors.Err(err)
 }
 
-// HashBlobs checks if the database contains the set of blobs and returns a bool map.
+// HasBlobs checks if the database contains the set of blobs and returns a bool map.
 func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 	if s.conn == nil {
 		return nil, errors.Err("not connected")

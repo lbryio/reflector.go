@@ -22,24 +22,29 @@ import (
 // TODO: use a tree with bucket splitting instead of a fixed bucket list. include jack's optimization (see link in commit mesg)
 // https://github.com/lbryio/lbry/pull/1211/commits/341b27b6d21ac027671d42458826d02735aaae41
 
+// Contact is a type representation of another node that a specific node is in communication with.
 type Contact struct {
 	ID   Bitmap
 	IP   net.IP
 	Port int
 }
 
+// Equals returns T/F if two contacts are the same.
 func (c Contact) Equals(other Contact) bool {
 	return c.ID == other.ID
 }
 
+// Addr returns the UPD Address of the contact.
 func (c Contact) Addr() *net.UDPAddr {
 	return &net.UDPAddr{IP: c.IP, Port: c.Port}
 }
 
+// String returns the concatenated short hex encoded string of its ID + @ + string represention of its UPD Address.
 func (c Contact) String() string {
 	return c.ID.HexShort() + "@" + c.Addr().String()
 }
 
+// MarshallCompact What is the purpose of this?
 func (c Contact) MarshalCompact() ([]byte, error) {
 	if c.IP.To4() == nil {
 		return nil, errors.Err("ip not set")
@@ -61,6 +66,7 @@ func (c Contact) MarshalCompact() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// UnmarshalCompact What is the purpose of this?
 func (c *Contact) UnmarshalCompact(b []byte) error {
 	if len(b) != compactNodeInfoLength {
 		return errors.Err("invalid compact length")
@@ -71,10 +77,12 @@ func (c *Contact) UnmarshalCompact(b []byte) error {
 	return nil
 }
 
+// MarshalBencode returns the serialized byte slice representation of a contact.
 func (c Contact) MarshalBencode() ([]byte, error) {
 	return bencode.EncodeBytes([]interface{}{c.ID, c.IP.String(), c.Port})
 }
 
+// UnmarshalBencode unmarshals the serialized byte slice into the appropriate fields of the contact.
 func (c *Contact) UnmarshalBencode(b []byte) error {
 	var raw []bencode.RawMessage
 	err := bencode.DecodeBytes(b, &raw)
@@ -342,6 +350,7 @@ func (rt *routingTable) Count() int {
 	return count
 }
 
+// Range is a structure that holds a min and max bitmaps. The range is used in bucket sizing.
 type Range struct {
 	start Bitmap
 	end   Bitmap

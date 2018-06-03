@@ -89,7 +89,7 @@ type Request struct {
 	StoreArgs *storeArgs
 }
 
-// MarshallBencode returns the serialized byte slice representation of the request
+// MarshalBencode returns the serialized byte slice representation of the request
 func (r Request) MarshalBencode() ([]byte, error) {
 	var args interface{}
 	if r.StoreArgs != nil {

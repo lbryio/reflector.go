@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	// DefaultClusterPort is the default port used when starting up a Cluster.
 	DefaultClusterPort = 17946
 )
 

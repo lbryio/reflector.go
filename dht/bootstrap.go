@@ -25,7 +25,7 @@ type BootstrapNode struct {
 	nodeKeys map[Bitmap]int
 }
 
-// New returns a BootstrapNode pointer.
+// NewBootstrapNode returns a BootstrapNode pointer.
 func NewBootstrapNode(id Bitmap, initialPingInterval, rePingInterval time.Duration) *BootstrapNode {
 	b := &BootstrapNode{
 		Node: *NewNode(id),

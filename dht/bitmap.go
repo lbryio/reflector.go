@@ -14,9 +14,11 @@ import (
 
 // TODO: http://roaringbitmap.org/
 
+// Bitmap is a generalized representation of an identifier or data that can be sorted, compared fast. Used by the DHT
+// package as a way to handle the unique identifiers of a DHT node.
 type Bitmap [nodeIDLength]byte
 
-func (b Bitmap) RawString() string {
+func (b Bitmap) rawString() string {
 	return string(b[:])
 }
 
@@ -330,7 +332,7 @@ func BitmapFromShortHex(hexStr string) (Bitmap, error) {
 	return BitmapFromHex(strings.Repeat("0", nodeIDLength*2-len(hexStr)) + hexStr)
 }
 
-//BitmapFromShortHex returns a bitmap by converting the hex string to bytes, adding the leading zeros prefix to the
+//BitmapFromShortHexP returns a bitmap by converting the hex string to bytes, adding the leading zeros prefix to the
 // hex string and creating from bytes as long as the byte array is of a specific length specified in the parameters
 // otherwise it wil panic.
 func BitmapFromShortHexP(hexStr string) Bitmap {

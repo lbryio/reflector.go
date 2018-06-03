@@ -33,8 +33,10 @@ type UDPConn interface {
 	Close() error
 }
 
+// RequestHandlerFunc is exported handler for requests.
 type RequestHandlerFunc func(addr *net.UDPAddr, request Request)
 
+// Node is a type representation of a node on the network.
 type Node struct {
 	// the node's id
 	id Bitmap
@@ -61,7 +63,7 @@ type Node struct {
 	stop *stopOnce.Stopper
 }
 
-// New returns a Node pointer.
+// NewNode returns an initialized Node's pointer.
 func NewNode(id Bitmap) *Node {
 	return &Node{
 		id:    id,
@@ -261,7 +263,7 @@ func (n *Node) handleRequest(addr *net.UDPAddr, request Request) {
 		}
 
 		if contacts := n.store.Get(*request.Arg); len(contacts) > 0 {
-			res.FindValueKey = request.Arg.RawString()
+			res.FindValueKey = request.Arg.rawString()
 			res.Contacts = contacts
 		} else {
 			res.Contacts = n.rt.GetClosest(*request.Arg, bucketSize)
@@ -417,7 +419,7 @@ func (n *Node) SendCancelable(contact Contact, req Request) (<-chan *Response, c
 	return n.SendAsync(ctx, contact, req), cancel
 }
 
-// Count returns the number of transactions in the manager
+// CountActiveTransactions returns the number of transactions in the manager
 func (n *Node) CountActiveTransactions() int {
 	n.txLock.Lock()
 	defer n.txLock.Unlock()
@@ -440,6 +442,7 @@ func (n *Node) startRoutingTableGrooming() {
 	}()
 }
 
+// Store stores a node contact in the node's contact store.
 func (n *Node) Store(hash Bitmap, c Contact) {
 	n.store.Upsert(hash, c)
 }
