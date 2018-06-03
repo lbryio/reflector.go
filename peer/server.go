@@ -47,12 +47,6 @@ func (s *Server) Shutdown() {
 	}
 }
 
-func closeListener(listener net.Listener) {
-	if err := listener.Close(); err != nil {
-		log.Error("error closing listener for peer server - ", err)
-	}
-}
-
 // ListenAndServe starts the server listener to handle connections.
 func (s *Server) ListenAndServe(address string) error {
 	log.Println("Listening on " + address)
@@ -60,7 +54,11 @@ func (s *Server) ListenAndServe(address string) error {
 	if err != nil {
 		return err
 	}
-	defer closeListener(l)
+	defer func(listener net.Listener) {
+		if err := listener.Close(); err != nil {
+			log.Error("error closing listener for peer server - ", err)
+		}
+	}(l)
 
 	for {
 		conn, err := l.Accept()
@@ -75,14 +73,12 @@ func (s *Server) ListenAndServe(address string) error {
 	}
 }
 
-func closeConnection(conn net.Conn) {
-	if err := conn.Close(); err != nil {
-		log.Error("error closing client connection for peer server - ", err)
-	}
-}
-
 func (s *Server) handleConnection(conn net.Conn) {
-	defer closeConnection(conn)
+	defer func(conn net.Conn) {
+		if err := conn.Close(); err != nil {
+			log.Error("error closing client connection for peer server - ", err)
+		}
+	}(conn)
 
 	timeoutDuration := 5 * time.Second
 

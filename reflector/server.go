@@ -37,12 +37,6 @@ func (s *Server) Shutdown() {
 	}
 }
 
-func closeListener(listener net.Listener) {
-	if err := listener.Close(); err != nil {
-		log.Error("error closing reflector server listener - ", err)
-	}
-}
-
 //ListenAndServe starts the server listener to handle connections.
 func (s *Server) ListenAndServe(address string) error {
 	//ToDo - We should make this DRY as it is the same code in both servers.
@@ -51,7 +45,12 @@ func (s *Server) ListenAndServe(address string) error {
 	if err != nil {
 		return err
 	}
-	defer closeListener(l)
+
+	defer func(listener net.Listener) {
+		if err := listener.Close(); err != nil {
+			log.Error("error closing reflector server listener - ", err)
+		}
+	}(l)
 
 	for {
 		conn, err := l.Accept()
@@ -66,15 +65,13 @@ func (s *Server) ListenAndServe(address string) error {
 	}
 }
 
-func closeConnection(conn net.Conn) {
-	if err := conn.Close(); err != nil {
-		log.Error("error closing reflector client connection - ", err)
-	}
-}
-
 func (s *Server) handleConn(conn net.Conn) {
 	// TODO: connection should time out eventually
-	defer closeConnection(conn)
+	defer func(conn net.Conn) {
+		if err := conn.Close(); err != nil {
+			log.Error("error closing reflector client connection - ", err)
+		}
+	}(conn)
 
 	err := s.doHandshake(conn)
 	if err != nil {

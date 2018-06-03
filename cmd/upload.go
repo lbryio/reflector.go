@@ -61,7 +61,7 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 		countChan:    make(chan int),
 		stopper:      stopOnce.New()}
 
-	setInterrupt(&params)
+	setInterrupt(params.stopper)
 
 	filenames, err := getFileNames(args[0])
 	checkErr(err)
@@ -125,12 +125,12 @@ func newBlobStore() *store.DBBackedS3Store {
 	return store.NewDBBackedS3Store(s3, db)
 }
 
-func setInterrupt(params *uploaderParams) {
+func setInterrupt(stopper *stopOnce.Stopper) {
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-interruptChan
-		params.stopper.Stop()
+		stopper.Stop()
 	}()
 }
 

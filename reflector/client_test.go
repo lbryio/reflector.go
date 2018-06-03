@@ -13,18 +13,16 @@ import (
 
 var address = "localhost:" + strconv.Itoa(DefaultPort)
 
-func removeAll(dir string) {
-	if err := os.RemoveAll(dir); err != nil {
-		log.Panic("error removing files and directory - ", err)
-	}
-}
-
 func TestMain(m *testing.M) {
 	dir, err := ioutil.TempDir("", "reflector_client_test")
 	if err != nil {
 		log.Panic("could not create temp directory - ", err)
 	}
-	defer removeAll(dir)
+	defer func(directory string) {
+		if err := os.RemoveAll(dir); err != nil {
+			log.Panic("error removing files and directory - ", err)
+		}
+	}(dir)
 
 	ms := store.MemoryBlobStore{}
 	s := NewServer(&ms)
