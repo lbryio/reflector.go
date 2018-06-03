@@ -14,18 +14,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Server is and instance of the reflector server. It houses the blob store and listener.
 type Server struct {
 	store  store.BlobStore
 	l      net.Listener
 	closed bool
 }
 
+// NewServer returns an initialized reflector server pointer.
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
 		store: store,
 	}
 }
 
+// Shutdown shuts down the reflector server gracefully.
 func (s *Server) Shutdown() {
 	// TODO: need waitgroup so we can finish whatever we're doing before stopping
 	s.closed = true
@@ -40,7 +43,9 @@ func closeListener(listener net.Listener) {
 	}
 }
 
+//ListenAndServe starts the server listener to handle connections.
 func (s *Server) ListenAndServe(address string) error {
+	//ToDo - We should make this DRY as it is the same code in both servers.
 	log.Println("Listening on " + address)
 	l, err := net.Listen("tcp", address)
 	if err != nil {

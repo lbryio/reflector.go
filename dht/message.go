@@ -261,7 +261,7 @@ func (r Response) argsDebug() string {
 	return str
 }
 
-// MarshalBencode returns the serialized byte slice represenation of the reponse.
+// MarshalBencode returns the serialized byte slice representation of the response.
 func (r Response) MarshalBencode() ([]byte, error) {
 	data := map[string]interface{}{
 		headerTypeField:      responseType,

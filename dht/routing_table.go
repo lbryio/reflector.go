@@ -44,7 +44,7 @@ func (c Contact) String() string {
 	return c.ID.HexShort() + "@" + c.Addr().String()
 }
 
-// MarshallCompact What is the purpose of this?
+// MarshalCompact returns the compact byte slice representation of a contact.
 func (c Contact) MarshalCompact() ([]byte, error) {
 	if c.IP.To4() == nil {
 		return nil, errors.Err("ip not set")
@@ -66,7 +66,7 @@ func (c Contact) MarshalCompact() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// UnmarshalCompact What is the purpose of this?
+// UnmarshalCompact unmarshals the compact byte slice representation of a contact.
 func (c *Contact) UnmarshalCompact(b []byte) error {
 	if len(b) != compactNodeInfoLength {
 		return errors.Err("invalid compact length")

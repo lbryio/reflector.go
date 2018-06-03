@@ -9,11 +9,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Client is an instance of a client connected to a server.
 type Client struct {
 	conn      net.Conn
 	connected bool
 }
 
+// Connect connects to a specific clients and errors if it cannot be contacted.
 func (c *Client) Connect(address string) error {
 	var err error
 	c.conn, err = net.Dial("tcp", address)
@@ -23,11 +25,14 @@ func (c *Client) Connect(address string) error {
 	c.connected = true
 	return c.doHandshake(protocolVersion1)
 }
+
+// Close closes the connection with the client.
 func (c *Client) Close() error {
 	c.connected = false
 	return c.conn.Close()
 }
 
+// SendBlob sends a send blob request to the client.
 func (c *Client) SendBlob(blob []byte) error {
 	if !c.connected {
 		return errors.Err("not connected")

@@ -18,22 +18,26 @@ import (
 )
 
 const (
+	// DefaultPort is the port the peer server listens on if not passed in.
 	DefaultPort    = 3333
 	LbrycrdAddress = "bJxKvpD96kaJLriqVajZ7SaQTsWWyrGQct"
 )
 
+// Server is an instance of a peer server that houses the listener and store.
 type Server struct {
 	store  store.BlobStore
 	l      net.Listener
 	closed bool
 }
 
+// NewServer returns an initialized Server pointer.
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
 		store: store,
 	}
 }
 
+// Shutdown gracefully shuts down the peer server.
 func (s *Server) Shutdown() {
 	// TODO: need waitgroup so we can finish whatever we're doing before stopping
 	s.closed = true
@@ -48,6 +52,7 @@ func closeListener(listener net.Listener) {
 	}
 }
 
+// ListenAndServe starts the server listener to handle connections.
 func (s *Server) ListenAndServe(address string) error {
 	log.Println("Listening on " + address)
 	l, err := net.Listen("tcp", address)
@@ -243,6 +248,7 @@ func isValidJSON(b []byte) bool {
 	return json.Unmarshal(b, &r) == nil
 }
 
+// GetBlobHash returns the sha512 hash hex encoded string of the blob byte slice.
 func GetBlobHash(blob []byte) string {
 	hashBytes := sha512.Sum384(blob)
 	return hex.EncodeToString(hashBytes[:])
