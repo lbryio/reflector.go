@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 	ms := store.MemoryBlobStore{}
 	s := NewServer(&ms)
 	go func() {
-		if err := s.ListenAndServe(address); err != nil {
+		if err := s.Start(address); err != nil {
 			log.Panic("error starting up reflector server - ", err)
 		}
 	}()

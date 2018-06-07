@@ -24,10 +24,10 @@ func init() {
 }
 
 func startCmd(cmd *cobra.Command, args []string) {
+	log.SetLevel(log.DebugLevel)
 	db := new(db.SQL)
 	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
-
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	comboStore := store.NewDBBackedS3Store(s3, db)
 
@@ -37,12 +37,9 @@ func startCmd(cmd *cobra.Command, args []string) {
 	}
 
 	p := reflector.NewPrism(comboStore, clusterAddr)
-	err = p.Connect()
-	if err != nil {
-		log.Error(err)
-		return
+	if err = p.Start(); err != nil {
+		log.Fatal(err)
 	}
-
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	<-interruptChan
