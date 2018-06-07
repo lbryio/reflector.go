@@ -56,7 +56,7 @@ func (s *Server) Start(address string) error {
 	if err != nil {
 		return err
 	}
-	s.stop.Add(1)
+
 	go s.listenForShutdown(l)
 	s.stop.Add(1)
 	go s.listenAndServe(l)

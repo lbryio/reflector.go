@@ -175,8 +175,7 @@ func (dht *DHT) WaitUntilJoined() {
 // Shutdown shuts down the dht
 func (dht *DHT) Shutdown() {
 	log.Debugf("[%s] DHT shutting down", dht.node.id.HexShort())
-	dht.stop.Stop()
-	dht.stop.Wait()
+	dht.stop.StopAndWait()
 	dht.node.Shutdown()
 	log.Debugf("[%s] DHT stopped", dht.node.id.HexShort())
 }

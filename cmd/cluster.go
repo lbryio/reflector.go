@@ -16,7 +16,7 @@ import (
 func init() {
 	var cmd = &cobra.Command{
 		Use:       "cluster [start|join]",
-		Short:     "Connect to cluster",
+		Short:     "Connect(join) to or Start a new cluster",
 		ValidArgs: []string{"start", "join"},
 		Args:      argFuncs(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		Run:       clusterCmd,
@@ -28,9 +28,9 @@ func clusterCmd(cmd *cobra.Command, args []string) {
 	port := 17946
 	var c *cluster.Cluster
 	if args[0] == "start" {
-		c = cluster.New(port, "")
+		c = cluster.NewCluster(port, "")
 	} else {
-		c = cluster.New(port+1+int(crypto.RandInt64(1000)), "127.0.0.1:"+strconv.Itoa(port))
+		c = cluster.NewCluster(port+1+int(crypto.RandInt64(1000)), "127.0.0.1:"+strconv.Itoa(port))
 	}
 
 	err := c.Connect()
