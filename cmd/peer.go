@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/peer"
@@ -27,5 +30,13 @@ func peerCmd(cmd *cobra.Command, args []string) {
 
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	combo := store.NewDBBackedS3Store(s3, db)
-	log.Fatal(peer.NewServer(combo).ListenAndServe("localhost:" + strconv.Itoa(peer.DefaultPort)))
+	peerServer := peer.NewServer(combo)
+	if err := peerServer.Start("localhost:" + strconv.Itoa(peer.DefaultPort)); err != nil {
+		log.Fatal(err)
+	}
+
+	interruptChan := make(chan os.Signal, 1)
+	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
+	<-interruptChan
+	peerServer.Shutdown()
 }

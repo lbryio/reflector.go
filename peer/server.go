@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lbryio/lbry.go/errors"
+	"github.com/lbryio/lbry.go/stopOnce"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/davecgh/go-spew/spew"
@@ -29,57 +30,66 @@ type Server struct {
 	store  store.BlobStore
 	l      net.Listener
 	closed bool
+
+	stop *stopOnce.Stopper
 }
 
 // NewServer returns an initialized Server pointer.
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
 		store: store,
+		stop:  stopOnce.New(),
 	}
 }
 
 // Shutdown gracefully shuts down the peer server.
 func (s *Server) Shutdown() {
-	// TODO: need waitgroup so we can finish whatever we're doing before stopping
-	s.closed = true
-	if err := s.l.Close(); err != nil {
-		log.Error("error shuting down peer server - ", err)
-	}
+	log.Debug("shutting down peer server...")
+	s.stop.StopAndWait()
 }
 
-// ListenAndServe starts the server listener to handle connections.
-func (s *Server) ListenAndServe(address string) error {
+// Start starts the server listener to handle connections.
+func (s *Server) Start(address string) error {
+
 	log.Println("Listening on " + address)
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
-	defer func(listener net.Listener) {
-		if err := listener.Close(); err != nil {
-			log.Error("error closing listener for peer server - ", err)
-		}
-	}(l)
+	s.stop.Add(1)
+	go s.listenForShutdown(l)
+	s.stop.Add(1)
+	go s.listenAndServe(l)
 
+	return nil
+}
+
+func (s *Server) listenForShutdown(listener net.Listener) {
+	<-s.stop.Ch()
+	s.closed = true
+	if err := listener.Close(); err != nil {
+		log.Error("error closing listener for peer server - ", err)
+	}
+}
+
+func (s *Server) listenAndServe(listener net.Listener) {
+	defer s.stop.Done()
 	for {
-		conn, err := l.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			if s.closed {
-				return nil
+				return
 			}
 			log.Error(err)
 		} else {
+			s.stop.Add(1)
 			go s.handleConnection(conn)
 		}
 	}
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	defer func(conn net.Conn) {
-		if err := conn.Close(); err != nil {
-			log.Error("error closing client connection for peer server - ", err)
-		}
-	}(conn)
-
+	defer s.stop.Done()
 	timeoutDuration := 5 * time.Second
 
 	for {
