@@ -40,7 +40,7 @@ func (s *Server) Shutdown() {
 //Start starts the server listener to handle connections.
 func (s *Server) Start(address string) error {
 	//ToDo - We should make this DRY as it is the same code in both servers.
-	log.Println("Listening on " + address)
+	log.Println("reflector listening on " + address)
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		return err

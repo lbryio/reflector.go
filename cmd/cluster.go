@@ -16,7 +16,7 @@ import (
 func init() {
 	var cmd = &cobra.Command{
 		Use:       "cluster [start|join]",
-		Short:     "Connect(join) to or Start a new cluster",
+		Short:     "Start(join) to or Start a new cluster",
 		ValidArgs: []string{"start", "join"},
 		Args:      argFuncs(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		Run:       clusterCmd,
