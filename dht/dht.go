@@ -113,7 +113,6 @@ func New(config *Config) (*DHT, error) {
 
 // join makes current node join the dht network.
 func (dht *DHT) join() {
-	defer dht.stop.Done()
 	defer close(dht.joined) // if anyone's waiting for join to finish, they'll know its done
 
 	log.Debugf("[%s] joining network", dht.node.id.HexShort())
@@ -159,9 +158,16 @@ func (dht *DHT) Start() error {
 	}
 
 	dht.stop.Add(1)
-	go dht.join()
+	go func() {
+		defer dht.stop.Done()
+		dht.join()
+	}()
+
 	dht.stop.Add(1)
-	go dht.startReannouncer()
+	go func() {
+		defer dht.stop.Done()
+		dht.startReannouncer()
+	}()
 
 	log.Debugf("[%s] DHT ready on %s (%d nodes found during join)", dht.node.id.HexShort(), dht.contact.Addr().String(), dht.node.rt.Count())
 	return nil
@@ -247,7 +253,6 @@ func (dht *DHT) Announce(hash Bitmap) error {
 }
 
 func (dht *DHT) startReannouncer() {
-	defer dht.stop.Done()
 	tick := time.NewTicker(tReannounce)
 	for {
 		select {

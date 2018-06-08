@@ -47,8 +47,12 @@ func (s *Server) Start(address string) error {
 	}
 
 	go s.listenForShutdown(l)
+
 	s.stop.Add(1)
-	go s.listenAndServe(l)
+	go func() {
+		defer s.stop.Done()
+		s.listenAndServe(l)
+	}()
 
 	return nil
 }
@@ -62,7 +66,6 @@ func (s *Server) listenForShutdown(listener net.Listener) {
 }
 
 func (s *Server) listenAndServe(listener net.Listener) {
-	defer s.stop.Done()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
