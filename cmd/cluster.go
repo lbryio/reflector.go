@@ -28,9 +28,9 @@ func clusterCmd(cmd *cobra.Command, args []string) {
 	port := 17946
 	var c *cluster.Cluster
 	if args[0] == "start" {
-		c = cluster.NewCluster(port, "")
+		c = cluster.New(port, "")
 	} else {
-		c = cluster.NewCluster(port+1+int(crypto.RandInt64(1000)), "127.0.0.1:"+strconv.Itoa(port))
+		c = cluster.New(port+1+int(crypto.RandInt64(1000)), "127.0.0.1:"+strconv.Itoa(port))
 	}
 
 	err := c.Connect()

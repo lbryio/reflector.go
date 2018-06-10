@@ -30,7 +30,7 @@ func NewPrism(store store.BlobStore, clusterSeedAddr string) *Prism {
 		dht:       d,
 		peer:      peer.NewServer(store),
 		reflector: NewServer(store),
-		cluster:   cluster.NewCluster(cluster.DefaultClusterPort, clusterSeedAddr),
+		cluster:   cluster.New(cluster.DefaultClusterPort, clusterSeedAddr),
 		stop:      stopOnce.New(),
 	}
 }
