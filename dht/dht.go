@@ -135,6 +135,11 @@ func (dht *DHT) join() {
 
 	// now call iterativeFind on yourself
 	nf := newContactFinder(dht.node, dht.node.id, false)
+	// stop if dht is stopped
+	go func(finder *contactFinder) {
+		<-dht.stop.Ch()
+		nf.Cancel()
+	}(nf)
 	_, err := nf.Find()
 	if err != nil {
 		log.Errorf("[%s] join: %s", dht.node.id.HexShort(), err.Error())
@@ -151,18 +156,15 @@ func (dht *DHT) Start() error {
 		return errors.Err(err)
 	}
 	conn := listener.(*net.UDPConn)
-
 	err = dht.node.Connect(conn)
 	if err != nil {
 		return err
 	}
-
 	dht.stop.Add(1)
 	go func() {
 		defer dht.stop.Done()
 		dht.join()
 	}()
-
 	dht.stop.Add(1)
 	go func() {
 		defer dht.stop.Done()
@@ -261,7 +263,9 @@ func (dht *DHT) startReannouncer() {
 		case <-tick.C:
 			dht.lock.RLock()
 			for h := range dht.announced {
+				dht.stop.Add(1)
 				go func(bm Bitmap) {
+					defer dht.stop.Done()
 					if err := dht.Announce(bm); err != nil {
 						log.Error("error re-announcing bitmap - ", err)
 					}

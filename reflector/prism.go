@@ -8,8 +8,6 @@ import (
 	"github.com/lbryio/reflector.go/dht"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/store"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Prism is the root instance of the application and houses the DHT, Peer Server, Reflector Server, and Cluster.
@@ -39,19 +37,15 @@ func NewPrism(store store.BlobStore, clusterSeedAddr string) *Prism {
 
 // Start starts the components of the application.
 func (p *Prism) Start() error {
-	log.Info("--starting dht")
 	if err := p.dht.Start(); err != nil {
 		return err
 	}
-	log.Info("--starting cluster")
 	if err := p.cluster.Connect(); err != nil {
 		return err
 	}
-	log.Info("--starting peer server")
 	if err := p.peer.Start("localhost:" + strconv.Itoa(peer.DefaultPort)); err != nil {
 		return err
 	}
-	log.Info("--starting reflector server")
 	if err := p.reflector.Start("localhost:" + strconv.Itoa(DefaultPort)); err != nil {
 		return err
 	}
