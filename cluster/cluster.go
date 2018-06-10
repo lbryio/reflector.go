@@ -39,7 +39,7 @@ func New(port int, seedAddr string) *Cluster {
 	}
 }
 
-// Start Initializes the Cluster based on a configuration passed via the New function. It then stores the seed
+// Connect Initializes the Cluster based on a configuration passed via the New function. It then stores the seed
 // address, starts gossiping and listens for gossip.
 func (c *Cluster) Connect() error {
 	var err error

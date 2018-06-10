@@ -17,7 +17,6 @@ import (
 // Server is and instance of the reflector server. It houses the blob store and listener.
 type Server struct {
 	store  store.BlobStore
-	l      net.Listener
 	closed bool
 
 	stop *stopOnce.Stopper

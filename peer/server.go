@@ -28,7 +28,6 @@ const (
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
 	store  store.BlobStore
-	l      net.Listener
 	closed bool
 
 	stop *stopOnce.Stopper
