@@ -37,16 +37,23 @@ func NewPrism(store store.BlobStore, clusterSeedAddr string) *Prism {
 
 // Start starts the components of the application.
 func (p *Prism) Start() error {
-	if err := p.dht.Start(); err != nil {
+	err := p.dht.Start()
+	if err != nil {
 		return err
 	}
-	if err := p.cluster.Connect(); err != nil {
+
+	err = p.cluster.Connect()
+	if err != nil {
 		return err
 	}
-	if err := p.peer.Start("localhost:" + strconv.Itoa(peer.DefaultPort)); err != nil {
+
+	err = p.peer.Start("localhost:" + strconv.Itoa(peer.DefaultPort))
+	if err != nil {
 		return err
 	}
-	if err := p.reflector.Start("localhost:" + strconv.Itoa(DefaultPort)); err != nil {
+
+	err = p.reflector.Start("localhost:" + strconv.Itoa(DefaultPort))
+	if err != nil {
 		return err
 	}
 
