@@ -25,8 +25,8 @@ var conf string
 var globalConfig Config
 
 var rootCmd = &cobra.Command{
-	Use:   "reflector",
-	Short: "Reflector accepts blobs, stores them securely, and hosts them on the network",
+	Use:   "prism",
+	Short: "Prism is a single entry point application with multiple sub modules which can be leveraged individually or together",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if verbose {
 			log.SetLevel(log.DebugLevel)

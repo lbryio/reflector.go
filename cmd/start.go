@@ -16,7 +16,7 @@ import (
 func init() {
 	var cmd = &cobra.Command{
 		Use:   "start [cluster-address]",
-		Short: "Run prism server",
+		Short: "Runs prism application with cluster, dht, peer server, and reflector server.",
 		Run:   startCmd,
 		Args:  cobra.RangeArgs(0, 1),
 	}
@@ -24,7 +24,6 @@ func init() {
 }
 
 func startCmd(cmd *cobra.Command, args []string) {
-	log.SetLevel(log.DebugLevel)
 	db := new(db.SQL)
 	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
