@@ -1,6 +1,8 @@
 package reflector
 
 import (
+	"strconv"
+
 	"github.com/lbryio/lbry.go/stopOnce"
 	"github.com/lbryio/reflector.go/cluster"
 	"github.com/lbryio/reflector.go/dht"
@@ -33,21 +35,20 @@ func NewPrism(store store.BlobStore, clusterSeedAddr string) *Prism {
 	}
 }
 
-// Connect starts the components of the application.
-func (p *Prism) Connect() error {
-	err := p.dht.Start()
-	if err != nil {
+// Start starts the components of the application.
+func (p *Prism) Start() error {
+	if err := p.dht.Start(); err != nil {
 		return err
 	}
-
-	err = p.cluster.Connect()
-	if err != nil {
+	if err := p.cluster.Connect(); err != nil {
 		return err
 	}
-
-	// start peer
-
-	// start reflector
+	if err := p.peer.Start("localhost:" + strconv.Itoa(peer.DefaultPort)); err != nil {
+		return err
+	}
+	if err := p.reflector.Start("localhost:" + strconv.Itoa(DefaultPort)); err != nil {
+		return err
+	}
 
 	return nil
 }
