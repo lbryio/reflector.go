@@ -14,31 +14,43 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Server is and instance of the reflector server. It houses the blob store and listener.
 type Server struct {
 	store  store.BlobStore
 	l      net.Listener
 	closed bool
 }
 
+// NewServer returns an initialized reflector server pointer.
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
 		store: store,
 	}
 }
 
+// Shutdown shuts down the reflector server gracefully.
 func (s *Server) Shutdown() {
 	// TODO: need waitgroup so we can finish whatever we're doing before stopping
 	s.closed = true
-	s.l.Close()
+	if err := s.l.Close(); err != nil {
+		log.Error("error shutting down reflector server - ", err)
+	}
 }
 
+//ListenAndServe starts the server listener to handle connections.
 func (s *Server) ListenAndServe(address string) error {
+	//ToDo - We should make this DRY as it is the same code in both servers.
 	log.Println("Listening on " + address)
 	l, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
-	defer l.Close()
+
+	defer func(listener net.Listener) {
+		if err := listener.Close(); err != nil {
+			log.Error("error closing reflector server listener - ", err)
+		}
+	}(l)
 
 	for {
 		conn, err := l.Accept()
@@ -55,14 +67,20 @@ func (s *Server) ListenAndServe(address string) error {
 
 func (s *Server) handleConn(conn net.Conn) {
 	// TODO: connection should time out eventually
-	defer conn.Close()
+	defer func(conn net.Conn) {
+		if err := conn.Close(); err != nil {
+			log.Error("error closing reflector client connection - ", err)
+		}
+	}(conn)
 
 	err := s.doHandshake(conn)
 	if err != nil {
 		if err == io.EOF {
 			return
 		}
-		s.doError(conn, err)
+		if err := s.doError(conn, err); err != nil {
+			log.Error("error sending error response to reflector client connection - ", err)
+		}
 		return
 	}
 
@@ -70,7 +88,9 @@ func (s *Server) handleConn(conn net.Conn) {
 		err = s.receiveBlob(conn)
 		if err != nil {
 			if err != io.EOF {
-				s.doError(conn, err)
+				if err := s.doError(conn, err); err != nil {
+					log.Error("error sending error response for receiving a blob to reflector client connection - ", err)
+				}
 			}
 			return
 		}

@@ -20,6 +20,23 @@ import (
 
 var workers int
 
+const (
+	sdInc   = 1
+	blobInc = 2
+	errInc  = 3
+)
+
+type uploaderParams struct {
+	workerWG     *sync.WaitGroup
+	counterWG    *sync.WaitGroup
+	stopper      *stopOnce.Stopper
+	filenameChan chan string
+	countChan    chan int
+	sdCount      int
+	blobCount    int
+	errCount     int
+}
+
 func init() {
 	var cmd = &cobra.Command{
 		Use:   "upload DIR",
@@ -28,39 +45,26 @@ func init() {
 		Run:   uploadCmd,
 	}
 	cmd.PersistentFlags().IntVar(&workers, "workers", 1, "How many worker threads to run at once")
-	RootCmd.AddCommand(cmd)
+	rootCmd.AddCommand(cmd)
 }
 
 func uploadCmd(cmd *cobra.Command, args []string) {
 	startTime := time.Now()
 	db := new(db.SQL)
-	err := db.Connect(GlobalConfig.DBConn)
+	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 
-	stopper := stopOnce.New()
-	interruptChan := make(chan os.Signal, 1)
-	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-interruptChan
-		stopper.Stop()
-	}()
+	params := uploaderParams{
+		workerWG:     &sync.WaitGroup{},
+		counterWG:    &sync.WaitGroup{},
+		filenameChan: make(chan string),
+		countChan:    make(chan int),
+		stopper:      stopOnce.New()}
 
-	dir := args[0]
+	setInterrupt(params.stopper)
 
-	f, err := os.Open(dir)
+	filenames, err := getFileNames(args[0])
 	checkErr(err)
-
-	files, err := f.Readdir(-1)
-	checkErr(err)
-	err = f.Close()
-	checkErr(err)
-
-	var filenames []string
-	for _, file := range files {
-		if !file.IsDir() {
-			filenames = append(filenames, file.Name())
-		}
-	}
 
 	totalCount := len(filenames)
 
@@ -72,96 +76,11 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 
 	log.Printf("%d new blobs to upload", totalCount-existsCount)
 
-	sdCount := 0
-	blobCount := 0
-	errCount := 0
-
-	workerWG := &sync.WaitGroup{}
-	filenameChan := make(chan string)
-	counterWG := &sync.WaitGroup{}
-	countChan := make(chan int)
-	const (
-		sdInc   = 1
-		blobInc = 2
-		errInc  = 3
-	)
-
-	for i := 0; i < workers; i++ {
-		go func(i int) {
-			workerWG.Add(1)
-			defer workerWG.Done()
-			defer func(i int) {
-				log.Printf("worker %d quitting", i)
-			}(i)
-
-			blobStore := newBlobStore()
-
-			for {
-				select {
-				case <-stopper.Ch():
-					return
-				case filename, ok := <-filenameChan:
-					if !ok {
-						return
-					}
-
-					blob, err := ioutil.ReadFile(dir + "/" + filename)
-					checkErr(err)
-
-					hash := peer.GetBlobHash(blob)
-					if hash != filename {
-						log.Errorf("worker %d: filename does not match hash (%s != %s), skipping", i, filename, hash)
-						select {
-						case countChan <- errInc:
-						case <-stopper.Ch():
-						}
-						continue
-					}
-
-					if isJSON(blob) {
-						log.Printf("worker %d: PUTTING SD BLOB %s", i, hash)
-						blobStore.PutSD(hash, blob)
-						select {
-						case countChan <- sdInc:
-						case <-stopper.Ch():
-						}
-					} else {
-						log.Printf("worker %d: putting %s", i, hash)
-						blobStore.Put(hash, blob)
-						select {
-						case countChan <- blobInc:
-						case <-stopper.Ch():
-						}
-					}
-				}
-			}
-		}(i)
-	}
-
+	startUploadWorkers(&params, args[0])
+	params.counterWG.Add(1)
 	go func() {
-		counterWG.Add(1)
-		defer counterWG.Done()
-		for {
-			select {
-			case <-stopper.Ch():
-				return
-			case countType, ok := <-countChan:
-				if !ok {
-					return
-				}
-				switch countType {
-				case sdInc:
-					sdCount++
-				case blobInc:
-					blobCount++
-				case errInc:
-					errCount++
-				}
-			}
-			if (sdCount+blobCount)%50 == 0 {
-				log.Printf("%d of %d done (%s elapsed, %.3fs per blob)", sdCount+blobCount, totalCount-existsCount, time.Now().Sub(startTime).String(), time.Now().Sub(startTime).Seconds()/float64(sdCount+blobCount))
-			}
-		}
+		defer params.counterWG.Done()
+		runCountReceiver(&params, startTime, totalCount, existsCount)
 	}()
 
 Upload:
@@ -171,25 +90,25 @@ Upload:
 		}
 
 		select {
-		case filenameChan <- filename:
-		case <-stopper.Ch():
+		case params.filenameChan <- filename:
+		case <-params.stopper.Ch():
 			log.Warnln("Caught interrupt, quitting at first opportunity...")
 			break Upload
 		}
 	}
 
-	close(filenameChan)
-	workerWG.Wait()
-	close(countChan)
-	counterWG.Wait()
-	stopper.Stop()
+	close(params.filenameChan)
+	params.workerWG.Wait()
+	close(params.countChan)
+	params.counterWG.Wait()
+	params.stopper.Stop()
 
 	log.Println("SUMMARY")
 	log.Printf("%d blobs total", totalCount)
-	log.Printf("%d SD blobs uploaded", sdCount)
-	log.Printf("%d content blobs uploaded", blobCount)
+	log.Printf("%d SD blobs uploaded", params.sdCount)
+	log.Printf("%d content blobs uploaded", params.blobCount)
 	log.Printf("%d blobs already stored", existsCount)
-	log.Printf("%d errors encountered", errCount)
+	log.Printf("%d errors encountered", params.errCount)
 }
 
 func isJSON(data []byte) bool {
@@ -199,9 +118,128 @@ func isJSON(data []byte) bool {
 
 func newBlobStore() *store.DBBackedS3Store {
 	db := new(db.SQL)
-	err := db.Connect(GlobalConfig.DBConn)
+	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 
-	s3 := store.NewS3BlobStore(GlobalConfig.AwsID, GlobalConfig.AwsSecret, GlobalConfig.BucketRegion, GlobalConfig.BucketName)
+	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	return store.NewDBBackedS3Store(s3, db)
+}
+
+func setInterrupt(stopper *stopOnce.Stopper) {
+	interruptChan := make(chan os.Signal, 1)
+	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-interruptChan
+		stopper.Stop()
+	}()
+}
+
+func startUploadWorkers(params *uploaderParams, dir string) {
+	for i := 0; i < workers; i++ {
+		params.workerWG.Add(1)
+		go func(i int) {
+			defer params.workerWG.Done()
+			defer func(i int) {
+				log.Printf("worker %d quitting", i)
+			}(i)
+
+			blobStore := newBlobStore()
+			launchFileUploader(params, blobStore, dir, i)
+		}(i)
+	}
+}
+
+func launchFileUploader(params *uploaderParams, blobStore *store.DBBackedS3Store, dir string, worker int) {
+	for {
+		select {
+		case <-params.stopper.Ch():
+			return
+		case filename, ok := <-params.filenameChan:
+			if !ok {
+				return
+			}
+
+			blob, err := ioutil.ReadFile(dir + "/" + filename)
+			checkErr(err)
+
+			hash := peer.GetBlobHash(blob)
+			if hash != filename {
+				log.Errorf("worker %d: filename does not match hash (%s != %s), skipping", worker, filename, hash)
+				select {
+				case params.countChan <- errInc:
+				case <-params.stopper.Ch():
+				}
+				continue
+			}
+
+			if isJSON(blob) {
+				log.Printf("worker %d: PUTTING SD BLOB %s", worker, hash)
+				if err := blobStore.PutSD(hash, blob); err != nil {
+					log.Error("PutSD Error: ", err)
+				}
+				select {
+				case params.countChan <- sdInc:
+				case <-params.stopper.Ch():
+				}
+			} else {
+				log.Printf("worker %d: putting %s", worker, hash)
+				if err := blobStore.Put(hash, blob); err != nil {
+					log.Error("Put Blob Error: ", err)
+				}
+				select {
+				case params.countChan <- blobInc:
+				case <-params.stopper.Ch():
+				}
+			}
+		}
+	}
+}
+
+func runCountReceiver(params *uploaderParams, startTime time.Time, totalCount int, existsCount int) {
+	for {
+		select {
+		case <-params.stopper.Ch():
+			return
+		case countType, ok := <-params.countChan:
+			if !ok {
+				return
+			}
+			switch countType {
+			case sdInc:
+				params.sdCount++
+			case blobInc:
+				params.blobCount++
+			case errInc:
+				params.errCount++
+			}
+		}
+		if (params.sdCount+params.blobCount)%50 == 0 {
+			log.Printf("%d of %d done (%s elapsed, %.3fs per blob)", params.sdCount+params.blobCount, totalCount-existsCount, time.Since(startTime).String(), time.Since(startTime).Seconds()/float64(params.sdCount+params.blobCount))
+		}
+	}
+}
+
+func getFileNames(dir string) ([]string, error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	files, err := f.Readdir(-1)
+	if err != nil {
+		return nil, err
+	}
+	err = f.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	var filenames []string
+	for _, file := range files {
+		if !file.IsDir() {
+			filenames = append(filenames, file.Name())
+		}
+	}
+
+	return filenames, nil
 }

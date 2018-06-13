@@ -20,15 +20,15 @@ func init() {
 		Run:   startCmd,
 		Args:  cobra.RangeArgs(0, 1),
 	}
-	RootCmd.AddCommand(cmd)
+	rootCmd.AddCommand(cmd)
 }
 
 func startCmd(cmd *cobra.Command, args []string) {
 	db := new(db.SQL)
-	err := db.Connect(GlobalConfig.DBConn)
+	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 
-	s3 := store.NewS3BlobStore(GlobalConfig.AwsID, GlobalConfig.AwsSecret, GlobalConfig.BucketRegion, GlobalConfig.BucketName)
+	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	comboStore := store.NewDBBackedS3Store(s3, db)
 
 	clusterAddr := ""

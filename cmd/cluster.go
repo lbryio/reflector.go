@@ -21,7 +21,7 @@ func init() {
 		Args:      argFuncs(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		Run:       clusterCmd,
 	}
-	RootCmd.AddCommand(cmd)
+	rootCmd.AddCommand(cmd)
 }
 
 func clusterCmd(cmd *cobra.Command, args []string) {

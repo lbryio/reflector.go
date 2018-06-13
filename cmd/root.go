@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Config is the base configuration for Prism when no sub commands are used.
 type Config struct {
 	AwsID        string `json:"aws_id"`
 	AwsSecret    string `json:"aws_secret"`
@@ -19,25 +20,24 @@ type Config struct {
 	DBConn       string `json:"db_conn"`
 }
 
-var Verbose bool
-var Conf string
-var GlobalConfig Config
+var verbose bool
+var conf string
+var globalConfig Config
 
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
+var rootCmd = &cobra.Command{
 	Use:   "reflector",
 	Short: "Reflector accepts blobs, stores them securely, and hosts them on the network",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if Verbose {
+		if verbose {
 			log.SetLevel(log.DebugLevel)
 		}
 
 		var err error
-		if Conf == "" {
+		if conf == "" {
 			log.Errorln("--conf flag required")
 			os.Exit(1)
 		} else {
-			GlobalConfig, err = loadConfig(Conf)
+			globalConfig, err = loadConfig(conf)
 			if err != nil {
 				log.Error(err)
 				os.Exit(1)
@@ -51,14 +51,14 @@ var RootCmd = &cobra.Command{
 }
 
 func init() {
-	RootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "Enable verbose logging")
-	RootCmd.PersistentFlags().StringVar(&Conf, "conf", "config.json", "Path to config")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+	rootCmd.PersistentFlags().StringVar(&conf, "conf", "config.json", "Path to config")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := RootCmd.Execute(); err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		log.Errorln(err)
 		os.Exit(1)
 	}

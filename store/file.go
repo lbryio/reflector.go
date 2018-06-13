@@ -8,12 +8,14 @@ import (
 	"github.com/lbryio/lbry.go/errors"
 )
 
+// FileBlobStore is a local disk store.
 type FileBlobStore struct {
 	dir string
 
 	initialized bool
 }
 
+// NewFileBlobStore returns an initialized file disk store pointer.
 func NewFileBlobStore(dir string) *FileBlobStore {
 	return &FileBlobStore{dir: dir}
 }
@@ -43,6 +45,7 @@ func (f *FileBlobStore) initOnce() error {
 	return nil
 }
 
+// Has returns T/F or Error if it the blob stored already. It will error with any IO disk error.
 func (f *FileBlobStore) Has(hash string) (bool, error) {
 	err := f.initOnce()
 	if err != nil {
@@ -59,6 +62,7 @@ func (f *FileBlobStore) Has(hash string) (bool, error) {
 	return true, nil
 }
 
+// Get returns the byte slice of the blob stored or will error if the blob doesn't exist.
 func (f *FileBlobStore) Get(hash string) ([]byte, error) {
 	err := f.initOnce()
 	if err != nil {
@@ -76,6 +80,7 @@ func (f *FileBlobStore) Get(hash string) ([]byte, error) {
 	return ioutil.ReadAll(file)
 }
 
+// Put stores the blob on disk or errors with any IO error.
 func (f *FileBlobStore) Put(hash string, blob []byte) error {
 	err := f.initOnce()
 	if err != nil {
@@ -85,6 +90,8 @@ func (f *FileBlobStore) Put(hash string, blob []byte) error {
 	return ioutil.WriteFile(f.path(hash), blob, 0644)
 }
 
+// PutSD stores the sd blob on the disk or errors with any IO error.
 func (f *FileBlobStore) PutSD(hash string, blob []byte) error {
+	//Todo - need to handle when streaming hash is not present.
 	return f.Put(hash, blob)
 }

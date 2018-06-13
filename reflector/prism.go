@@ -8,6 +8,7 @@ import (
 	"github.com/lbryio/reflector.go/store"
 )
 
+// Prism is the root instance of the application and houses the DHT, Peer Server, Reflector Server, and Cluster.
 type Prism struct {
 	dht       *dht.DHT
 	peer      *peer.Server
@@ -17,6 +18,7 @@ type Prism struct {
 	stop *stopOnce.Stopper
 }
 
+// NewPrism returns an initialized Prism instance pointer.
 func NewPrism(store store.BlobStore, clusterSeedAddr string) *Prism {
 	d, err := dht.New(nil)
 	if err != nil {
@@ -31,6 +33,7 @@ func NewPrism(store store.BlobStore, clusterSeedAddr string) *Prism {
 	}
 }
 
+// Connect starts the components of the application.
 func (p *Prism) Connect() error {
 	err := p.dht.Start()
 	if err != nil {
@@ -49,6 +52,7 @@ func (p *Prism) Connect() error {
 	return nil
 }
 
+// Shutdown gracefully shuts down the different prism components before exiting.
 func (p *Prism) Shutdown() {
 	p.stop.StopAndWait()
 	p.reflector.Shutdown()
