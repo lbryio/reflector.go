@@ -16,7 +16,7 @@ import (
 func init() {
 	var cmd = &cobra.Command{
 		Use:   "start [cluster-address]",
-		Short: "Run prism server",
+		Short: "Runs prism application with cluster, dht, peer server, and reflector server.",
 		Run:   startCmd,
 		Args:  cobra.RangeArgs(0, 1),
 	}

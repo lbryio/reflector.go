@@ -74,13 +74,20 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			log.Error(err)
 		} else {
 			s.stop.Add(1)
-			go s.handleConn(conn)
+			go func() {
+				defer s.stop.Done()
+				s.handleConn(conn)
+			}()
 		}
 	}
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	defer s.stop.Done()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error("error closing client connection for reflector server - ", err)
+		}
+	}()
 	// TODO: connection should time out eventually
 	err := s.doHandshake(conn)
 	if err != nil {
