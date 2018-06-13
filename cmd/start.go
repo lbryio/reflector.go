@@ -24,6 +24,7 @@ func init() {
 }
 
 func startCmd(cmd *cobra.Command, args []string) {
+	log.SetLevel(log.DebugLevel)
 	db := new(db.SQL)
 	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
