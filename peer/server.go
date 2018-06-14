@@ -84,13 +84,20 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			log.Error(err)
 		} else {
 			s.stop.Add(1)
-			go s.handleConnection(conn)
+			go func() {
+				s.stop.Done()
+				s.handleConnection(conn)
+			}()
 		}
 	}
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	defer s.stop.Done()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error("error closing client connection for peer server - ", err)
+		}
+	}()
 	timeoutDuration := 5 * time.Second
 
 	for {
