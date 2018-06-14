@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/lbryio/reflector.go/dht"
+	"github.com/lbryio/reflector.go/dht/bits"
 
 	"github.com/spf13/cobra"
 )
@@ -33,7 +34,7 @@ func dhtCmd(cmd *cobra.Command, args []string) {
 	err = d.Ping("34.231.152.182:4470")
 	checkErr(err)
 
-	err = d.Announce(dht.RandomBitmapP())
+	err = d.Announce(bits.Rand())
 	checkErr(err)
 
 	d.PrintState()
