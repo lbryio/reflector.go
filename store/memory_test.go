@@ -20,7 +20,8 @@ func TestMemoryBlobStore_Get(t *testing.T) {
 	s := MemoryBlobStore{}
 	hash := "abc"
 	blob := []byte("abcdefg")
-	if err := s.Put(hash, blob); err != nil {
+	err := s.Put(hash, blob)
+	if err != nil {
 		t.Error("error getting memory blob - ", err)
 	}
 

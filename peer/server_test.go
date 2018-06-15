@@ -37,7 +37,8 @@ func getServer(t *testing.T, withBlobs bool) *Server {
 	st := store.MemoryBlobStore{}
 	if withBlobs {
 		for k, v := range blobs {
-			if err := st.Put(k, v); err != nil {
+			err := st.Put(k, v)
+			if err != nil {
 				t.Error("error during put operation of memory blobstore - ", err)
 			}
 		}

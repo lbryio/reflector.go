@@ -45,11 +45,11 @@ func NewServer(store store.BlobStore) *Server {
 func (s *Server) Shutdown() {
 	log.Debug("shutting down peer server...")
 	s.stop.StopAndWait()
+	log.Debug("peer server stopped")
 }
 
 // Start starts the server listener to handle connections.
 func (s *Server) Start(address string) error {
-
 	log.Println("peer listening on " + address)
 	l, err := net.Listen("tcp", address)
 	if err != nil {
@@ -59,8 +59,8 @@ func (s *Server) Start(address string) error {
 	go s.listenForShutdown(l)
 	s.stop.Add(1)
 	go func() {
-		defer s.stop.Done()
 		s.listenAndServe(l)
+		s.stop.Done()
 	}()
 
 	return nil
@@ -69,7 +69,8 @@ func (s *Server) Start(address string) error {
 func (s *Server) listenForShutdown(listener net.Listener) {
 	<-s.stop.Ch()
 	s.closed = true
-	if err := listener.Close(); err != nil {
+	err := listener.Close()
+	if err != nil {
 		log.Error("error closing listener for peer server - ", err)
 	}
 }
@@ -84,13 +85,21 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			log.Error(err)
 		} else {
 			s.stop.Add(1)
-			go s.handleConnection(conn)
+			go func() {
+				s.handleConnection(conn)
+				s.stop.Done()
+			}()
 		}
 	}
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	defer s.stop.Done()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error(errors.Prefix("closing peer conn", err))
+		}
+	}()
+
 	timeoutDuration := 5 * time.Second
 
 	for {
@@ -98,9 +107,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 		var response []byte
 		var err error
 
-		if err := conn.SetReadDeadline(time.Now().Add(timeoutDuration)); err != nil {
-			log.Error("error setting read deadline for client connection - ", err)
+		err = conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+		if err != nil {
+			log.Error(errors.FullTrace(err))
 		}
+
 		request, err = readNextRequest(conn)
 		if err != nil {
 			if err != io.EOF {
@@ -108,8 +119,10 @@ func (s *Server) handleConnection(conn net.Conn) {
 			}
 			return
 		}
-		if err := conn.SetReadDeadline(time.Time{}); err != nil {
-			log.Error("error setting read deadline client connection - ", err)
+
+		err = conn.SetReadDeadline(time.Time{})
+		if err != nil {
+			log.Error(errors.FullTrace(err))
 		}
 
 		if strings.Contains(string(request), `"requested_blobs"`) {

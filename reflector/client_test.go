@@ -19,7 +19,8 @@ func TestMain(m *testing.M) {
 		log.Panic("could not create temp directory - ", err)
 	}
 	defer func(directory string) {
-		if err := os.RemoveAll(dir); err != nil {
+		err := os.RemoveAll(dir)
+		if err != nil {
 			log.Panic("error removing files and directory - ", err)
 		}
 	}(dir)
@@ -27,7 +28,8 @@ func TestMain(m *testing.M) {
 	ms := store.MemoryBlobStore{}
 	s := NewServer(&ms)
 	go func() {
-		if err := s.Start(address); err != nil {
+		err := s.Start(address)
+		if err != nil {
 			log.Panic("error starting up reflector server - ", err)
 		}
 	}()

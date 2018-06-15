@@ -1,10 +1,12 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/lbry.go/querytools"
+	"github.com/lbryio/reflector.go/dht/bits"
 	"github.com/lbryio/reflector.go/types"
 	// blank import for db driver
 	_ "github.com/go-sql-driver/mysql"
@@ -217,6 +219,57 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob types.SdBlob) er
 	})
 }
 
+// GetHashesInRange gets blobs with hashes in a given range, and sends the hashes into a channel
+func (s *SQL) GetHashesInRange(ctx context.Context, start, end bits.Bitmap) (ch chan bits.Bitmap, ech chan error) {
+	ch = make(chan bits.Bitmap)
+	ech = make(chan error)
+
+	// TODO: needs waitgroup?
+	go func() {
+		defer close(ch)
+		defer close(ech)
+
+		if s.conn == nil {
+			ech <- errors.Err("not connected")
+			return
+		}
+
+		query := "SELECT hash FROM blob_ WHERE hash >= ? AND hash <= ?"
+		args := []interface{}{start.Hex(), end.Hex()}
+
+		logQuery(query, args...)
+
+		rows, err := s.conn.Query(query, args...)
+		defer closeRows(rows)
+		if err != nil {
+			ech <- err
+			return
+		}
+
+		var hash string
+		for rows.Next() {
+			err := rows.Scan(&hash)
+			if err != nil {
+				ech <- err
+				return
+			}
+			select {
+			case <-ctx.Done():
+				break
+			case ch <- bits.FromHexP(hash):
+			}
+		}
+
+		err = rows.Err()
+		if err != nil {
+			ech <- err
+			return
+		}
+	}()
+
+	return
+}
+
 // txFunc is a function that can be wrapped in a transaction
 type txFunc func(tx *sql.Tx) error
 
@@ -255,14 +308,16 @@ func withTx(dbOrTx interface{}, f txFunc) (err error) {
 }
 
 func closeRows(rows *sql.Rows) {
-	if err := rows.Close(); err != nil {
-		log.Error("error closing rows: ", err)
+	if rows != nil {
+		err := rows.Close()
+		if err != nil {
+			log.Error("error closing rows: ", err)
+		}
 	}
 }
 
-/*// func to generate schema. SQL below that.
-func schema() {
-	_ = `
+/*  SQL schema
+
 CREATE TABLE blob_ (
   hash char(96) NOT NULL,
   stored TINYINT(1) NOT NULL DEFAULT 0,
@@ -270,7 +325,7 @@ CREATE TABLE blob_ (
   last_announced_at datetime DEFAULT NULL,
   PRIMARY KEY (hash),
   KEY last_announced_at_idx (last_announced_at)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+);
 
 CREATE TABLE stream (
   hash char(96) NOT NULL,
@@ -278,7 +333,7 @@ CREATE TABLE stream (
   PRIMARY KEY (hash),
   KEY sd_hash_idx (sd_hash),
   FOREIGN KEY (sd_hash) REFERENCES blob_ (hash) ON DELETE RESTRICT ON UPDATE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+);
 
 CREATE TABLE stream_blob (
   stream_hash char(96) NOT NULL,
@@ -287,38 +342,8 @@ CREATE TABLE stream_blob (
   PRIMARY KEY (stream_hash, blob_hash),
   FOREIGN KEY (stream_hash) REFERENCES stream (hash) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (blob_hash) REFERENCES blob_ (hash) ON DELETE CASCADE ON UPDATE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+);
 
-`
-}*/
+could add UNIQUE KEY (stream_hash, num) to stream_blob ...
 
-/* SQL script to create schema
-CREATE TABLE `reflector`.`blob_`
-(
-  `hash` char(96) NOT NULL,
-  `stored` TINYINT(1) NOT NULL DEFAULT 0,
-  `length` bigint(20) unsigned DEFAULT NULL,
-  `last_announced_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`hash`),
-  KEY `last_announced_at_idx` (`last_announced_at`)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE `reflector`.`stream`
-(
-  `hash` char(96) NOT NULL,
-  `sd_hash` char(96) NOT NULL,
-  PRIMARY KEY (hash),
-  KEY `sd_hash_idx` (`sd_hash`),
-  FOREIGN KEY (`sd_hash`) REFERENCES `blob_` (`hash`) ON DELETE RESTRICT ON UPDATE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE `reflector`.`stream_blob`
-(
-  `stream_hash` char(96) NOT NULL,
-  `blob_hash` char(96) NOT NULL,
-  `num` int NOT NULL,
-  PRIMARY KEY (`stream_hash`, `blob_hash`),
-  FOREIGN KEY (`stream_hash`) REFERENCES `stream` (`hash`) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (`blob_hash`) REFERENCES `blob_` (`hash`) ON DELETE CASCADE ON UPDATE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 */

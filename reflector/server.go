@@ -34,6 +34,7 @@ func NewServer(store store.BlobStore) *Server {
 func (s *Server) Shutdown() {
 	log.Debug("shutting down reflector server...")
 	s.stop.StopAndWait()
+	log.Debug("reflector server stopped")
 }
 
 //Start starts the server listener to handle connections.
@@ -49,8 +50,8 @@ func (s *Server) Start(address string) error {
 
 	s.stop.Add(1)
 	go func() {
-		defer s.stop.Done()
 		s.listenAndServe(l)
+		s.stop.Done()
 	}()
 
 	return nil
@@ -59,7 +60,8 @@ func (s *Server) Start(address string) error {
 func (s *Server) listenForShutdown(listener net.Listener) {
 	<-s.stop.Ch()
 	s.closed = true
-	if err := listener.Close(); err != nil {
+	err := listener.Close()
+	if err != nil {
 		log.Error("error closing listener for peer server - ", err)
 	}
 }
@@ -74,20 +76,30 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			log.Error(err)
 		} else {
 			s.stop.Add(1)
-			go s.handleConn(conn)
+			go func() {
+				s.handleConn(conn)
+				s.stop.Done()
+			}()
 		}
 	}
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	defer s.stop.Done()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error(errors.Prefix("closing peer conn", err))
+		}
+	}()
+
 	// TODO: connection should time out eventually
+
 	err := s.doHandshake(conn)
 	if err != nil {
 		if err == io.EOF {
 			return
 		}
-		if err := s.doError(conn, err); err != nil {
+		err := s.doError(conn, err)
+		if err != nil {
 			log.Error("error sending error response to reflector client connection - ", err)
 		}
 		return
@@ -97,7 +109,8 @@ func (s *Server) handleConn(conn net.Conn) {
 		err = s.receiveBlob(conn)
 		if err != nil {
 			if err != io.EOF {
-				if err := s.doError(conn, err); err != nil {
+				err := s.doError(conn, err)
+				if err != nil {
 					log.Error("error sending error response for receiving a blob to reflector client connection - ", err)
 				}
 			}

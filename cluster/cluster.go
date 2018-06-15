@@ -18,8 +18,10 @@ const (
 	DefaultClusterPort = 17946
 )
 
-// Cluster is a management type for Serf which is used to maintain cluster membership of lbry nodes.
+// Cluster maintains cluster membership and notifies on certain events
 type Cluster struct {
+	OnHashRangeChange func(n, total int)
+
 	name     string
 	port     int
 	seedAddr string
@@ -66,20 +68,26 @@ func (c *Cluster) Connect() error {
 			return err
 		}
 	}
+
 	c.stop.Add(1)
 	go func() {
-		defer c.stop.Done()
 		c.listen()
+		c.stop.Done()
 	}()
+
+	log.Debugf("cluster started")
 	return nil
 }
 
 // Shutdown safely shuts down the cluster.
 func (c *Cluster) Shutdown() {
+	log.Debug("shutting down cluster...")
 	c.stop.StopAndWait()
-	if err := c.s.Leave(); err != nil {
-		log.Error("error shutting down cluster - ", err)
+	err := c.s.Leave()
+	if err != nil {
+		log.Error(errors.Prefix("shutting down cluster", err))
 	}
+	log.Debugf("cluster stopped")
 }
 
 func (c *Cluster) listen() {
@@ -96,19 +104,16 @@ func (c *Cluster) listen() {
 					continue
 				}
 
-				//spew.Dump(c.Members())
-				alive := getAliveMembers(c.s.Members())
-				log.Printf("%s: my hash range is now %d of %d\n", c.name, getHashRangeStart(c.name, alive), len(alive))
-				// figure out my new hash range based on the start and the number of alive members
-				// get hashes in that range that need announcing
-				// announce them
-				// if more than one node is announcing each hash, figure out how to deal with last_announced_at so both nodes dont announce the same thing at the same time
+				if c.OnHashRangeChange != nil {
+					alive := getAliveMembers(c.s.Members())
+					c.OnHashRangeChange(getHashInterval(c.name, alive), len(alive))
+				}
 			}
 		}
 	}
 }
 
-func getHashRangeStart(myName string, members []serf.Member) int {
+func getHashInterval(myName string, members []serf.Member) int {
 	var names []string
 	for _, m := range members {
 		names = append(names, m.Name)

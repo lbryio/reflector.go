@@ -1,4 +1,4 @@
-BINARY=prism
+BINARY=prism-bin
 
 DIR = $(shell cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
 VENDOR_DIR = vendor
