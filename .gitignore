@@ -1,4 +1,4 @@
 /vendor
 /blobs
-/config.json
+/config.json*
 /prism-bin

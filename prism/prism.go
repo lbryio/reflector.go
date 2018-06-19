@@ -2,7 +2,6 @@ package prism
 
 import (
 	"context"
-	"math/big"
 	"strconv"
 	"sync"
 
@@ -79,7 +78,7 @@ func New(conf *Config) *Prism {
 		stop: stopOnce.New(),
 	}
 
-	c.OnHashRangeChange = func(n, total int) {
+	c.OnMembershipChange = func(n, total int) {
 		p.stop.Add(1)
 		go func() {
 			p.AnnounceRange(n, total)
@@ -144,22 +143,20 @@ func (p *Prism) AnnounceRange(n, total int) {
 		return
 	}
 
-	max := bits.MaxP().Big()
-	interval := new(big.Int).Div(max, big.NewInt(int64(total)))
+	//r := bits.MaxRange().IntervalP(n, total)
 
-	start := new(big.Int).Mul(interval, big.NewInt(int64(n-1)))
-	end := new(big.Int).Add(start, interval)
-	if n == total {
-		end = end.Add(end, big.NewInt(10000)) // there are rounding issues sometimes, so lets make sure we get the full range
+	// TODO: this is temporary. it lets me test with a small number of hashes. use the full range in production
+	min, max, err := p.db.GetHashRange()
+	if err != nil {
+		log.Errorf("%s: error getting hash range: %s", p.dht.ID().HexShort(), err.Error())
+		return
 	}
-	if end.Cmp(max) > 0 {
-		end.Set(max)
-	}
+	r := (bits.Range{Start: bits.FromHexP(min), End: bits.FromHexP(max)}).IntervalP(n, total)
 
-	log.Debugf("%s: hash range is now %s to %s\n", p.dht.ID().HexShort(), bits.FromBigP(start).Hex(), bits.FromBigP(end).Hex())
+	log.Infof("%s: hash range is now %s to %s", p.dht.ID().HexShort(), r.Start, r.End)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	hashCh, errCh := p.db.GetHashesInRange(ctx, bits.FromBigP(start), bits.FromBigP(end))
+	hashCh, errCh := p.db.GetHashesInRange(ctx, r.Start, r.End)
 
 	var wg sync.WaitGroup
 
@@ -188,6 +185,7 @@ func (p *Prism) AnnounceRange(n, total int) {
 				if !more {
 					return
 				}
+				//log.Infof("%s: announcing %s", p.dht.ID().HexShort(), hash.Hex())
 				p.dht.Add(hash)
 			}
 		}

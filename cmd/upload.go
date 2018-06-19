@@ -184,9 +184,9 @@ func launchFileUploader(params *uploaderParams, blobStore *store.DBBackedS3Store
 				}
 			} else {
 				log.Printf("worker %d: putting %s", worker, hash)
-				err := blobStore.Put(hash, blob)
+				err = blobStore.Put(hash, blob)
 				if err != nil {
-					log.Error("Put Blob Error: ", err)
+					log.Error("put Blob Error: ", err)
 				}
 				select {
 				case params.countChan <- blobInc:

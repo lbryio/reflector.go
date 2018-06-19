@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	baselog "log"
 	"sort"
+	"time"
 
 	"github.com/lbryio/lbry.go/crypto"
 	"github.com/lbryio/lbry.go/errors"
@@ -15,12 +16,13 @@ import (
 
 const (
 	// DefaultClusterPort is the default port used when starting up a Cluster.
-	DefaultClusterPort = 17946
+	DefaultClusterPort           = 17946
+	MembershipChangeBufferWindow = 1 * time.Second
 )
 
 // Cluster maintains cluster membership and notifies on certain events
 type Cluster struct {
-	OnHashRangeChange func(n, total int)
+	OnMembershipChange func(n, total int)
 
 	name     string
 	port     int
@@ -91,6 +93,9 @@ func (c *Cluster) Shutdown() {
 }
 
 func (c *Cluster) listen() {
+	var timerCh <-chan time.Time
+	timer := time.NewTimer(0)
+
 	for {
 		select {
 		case <-c.stop.Ch():
@@ -104,11 +109,17 @@ func (c *Cluster) listen() {
 					continue
 				}
 
-				if c.OnHashRangeChange != nil {
-					alive := getAliveMembers(c.s.Members())
-					c.OnHashRangeChange(getHashInterval(c.name, alive), len(alive))
+				if timerCh == nil {
+					timer.Reset(MembershipChangeBufferWindow)
+					timerCh = timer.C
 				}
 			}
+		case <-timerCh:
+			if c.OnMembershipChange != nil {
+				alive := getAliveMembers(c.s.Members())
+				c.OnMembershipChange(getHashInterval(c.name, alive), len(alive))
+			}
+			timerCh = nil
 		}
 	}
 }

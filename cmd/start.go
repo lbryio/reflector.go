@@ -49,6 +49,12 @@ func startCmd(cmd *cobra.Command, args []string) {
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	comboStore := store.NewDBBackedS3Store(s3, db)
 
+	// TODO: args we need:
+	// clusterAddr - to connect to cluster (or start new cluster if empty)
+	// minNodes - minimum number of nodes before announcing starts. otherwise first node will try to announce all the blobs in the db
+	//     or maybe we should do maxHashesPerNode?
+	//     in either case, this should not kill the cluster, but should only limit announces (and notify when some hashes are being left unannounced)
+
 	//clusterAddr := ""
 	//if len(args) > 0 {
 	//	clusterAddr = args[0]

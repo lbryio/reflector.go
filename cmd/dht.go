@@ -31,7 +31,7 @@ func init() {
 
 func dhtCmd(cmd *cobra.Command, args []string) {
 	if args[0] == "bootstrap" {
-		node := dht.NewBootstrapNode(bits.Rand(), 1*time.Millisecond, 1*time.Millisecond)
+		node := dht.NewBootstrapNode(bits.Rand(), 1*time.Millisecond, 1*time.Minute)
 
 		listener, err := net.ListenPacket(dht.Network, "127.0.0.1:"+strconv.Itoa(dhtPort))
 		checkErr(err)

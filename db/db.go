@@ -49,23 +49,23 @@ func (s *SQL) Connect(dsn string) error {
 }
 
 // AddBlob adds a blobs information to the database.
-func (s *SQL) AddBlob(hash string, length int, stored bool) error {
+func (s *SQL) AddBlob(hash string, length int, isStored bool) error {
 	if s.conn == nil {
 		return errors.Err("not connected")
 	}
 
 	return withTx(s.conn, func(tx *sql.Tx) error {
-		return addBlob(tx, hash, length, stored)
+		return addBlob(tx, hash, length, isStored)
 	})
 }
 
-func addBlob(tx *sql.Tx, hash string, length int, stored bool) error {
+func addBlob(tx *sql.Tx, hash string, length int, isStored bool) error {
 	if length <= 0 {
 		return errors.Err("length must be positive")
 	}
 
-	query := "INSERT INTO blob_ (hash, stored, length) VALUES (?,?,?) ON DUPLICATE KEY UPDATE stored = (stored or VALUES(stored))"
-	args := []interface{}{hash, stored, length}
+	query := "INSERT INTO blob_ (hash, is_stored, length) VALUES (?,?,?) ON DUPLICATE KEY UPDATE is_stored = (is_stored or VALUES(is_stored))"
+	args := []interface{}{hash, isStored, length}
 
 	logQuery(query, args...)
 
@@ -88,7 +88,7 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 		return false, errors.Err("not connected")
 	}
 
-	query := "SELECT EXISTS(SELECT 1 FROM blob_ WHERE hash = ? AND stored = ?)"
+	query := "SELECT EXISTS(SELECT 1 FROM blob_ WHERE hash = ? AND is_stored = ?)"
 	args := []interface{}{hash, true}
 
 	logQuery(query, args...)
@@ -120,7 +120,7 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 		log.Debugf("getting hashes[%d:%d] of %d", doneIndex, sliceEnd, len(hashes))
 		batch := hashes[doneIndex:sliceEnd]
 
-		query := "SELECT hash FROM blob_ WHERE stored = ? && hash IN (" + querytools.Qs(len(batch)) + ")"
+		query := "SELECT hash FROM blob_ WHERE is_stored = ? && hash IN (" + querytools.Qs(len(batch)) + ")"
 		args := make([]interface{}, len(batch)+1)
 		args[0] = true
 		for i := range batch {
@@ -217,6 +217,23 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob types.SdBlob) er
 		}
 		return nil
 	})
+}
+
+// GetHashRange gets the smallest and biggest hashes in the db
+func (s *SQL) GetHashRange() (string, string, error) {
+	var min string
+	var max string
+
+	if s.conn == nil {
+		return "", "", errors.Err("not connected")
+	}
+
+	query := "SELECT MIN(hash), MAX(hash) from blob_"
+
+	logQuery(query)
+
+	err := s.conn.QueryRow(query).Scan(&min, &max)
+	return min, max, err
 }
 
 // GetHashesInRange gets blobs with hashes in a given range, and sends the hashes into a channel
@@ -320,7 +337,7 @@ func closeRows(rows *sql.Rows) {
 
 CREATE TABLE blob_ (
   hash char(96) NOT NULL,
-  stored TINYINT(1) NOT NULL DEFAULT 0,
+  is_stored TINYINT(1) NOT NULL DEFAULT 0,
   length bigint(20) unsigned DEFAULT NULL,
   last_announced_at datetime DEFAULT NULL,
   PRIMARY KEY (hash),
