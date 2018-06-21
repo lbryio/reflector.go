@@ -51,7 +51,7 @@ func (s *Server) Shutdown() {
 // Start starts the server listener to handle connections.
 func (s *Server) Start(address string) error {
 	log.Println("peer listening on " + address)
-	l, err := net.Listen("tcp", address)
+	l, err := net.Listen("tcp4", address)
 	if err != nil {
 		return err
 	}

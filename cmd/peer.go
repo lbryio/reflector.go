@@ -32,7 +32,7 @@ func peerCmd(cmd *cobra.Command, args []string) {
 	combo := store.NewDBBackedS3Store(s3, db)
 	peerServer := peer.NewServer(combo)
 
-	err = peerServer.Start("localhost:" + strconv.Itoa(peer.DefaultPort))
+	err = peerServer.Start(":" + strconv.Itoa(peer.DefaultPort))
 	if err != nil {
 		log.Fatal(err)
 	}

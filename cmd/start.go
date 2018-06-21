@@ -4,9 +4,13 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
+	"github.com/lbryio/reflector.go/cluster"
 	"github.com/lbryio/reflector.go/db"
+	"github.com/lbryio/reflector.go/dht"
+	"github.com/lbryio/reflector.go/dht/bits"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/prism"
 	"github.com/lbryio/reflector.go/reflector"
@@ -16,28 +20,33 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	startNewCluster = "new"
+)
+
 var (
-	startPeerPort        int
-	startReflectorPort   int
-	startDhtPort         int
-	startDhtSeedPort     int
-	startClusterPort     int
-	startClusterSeedPort int
+	startClusterPort   int
+	startPeerPort      int
+	startReflectorPort int
+	startDhtPort       int
+	startDhtSeeds      []string
+	startHashRange     string
 )
 
 func init() {
 	var cmd = &cobra.Command{
-		Use:   "start [cluster-address]",
-		Short: "Runs prism application with cluster, dht, peer server, and reflector server.",
+		Use:   `start [cluster-address|"new"]`,
+		Short: "Runs full prism application with cluster, dht, peer server, and reflector server.",
 		Run:   startCmd,
-		Args:  cobra.RangeArgs(0, 1),
+		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().IntVar(&startDhtPort, "dht-port", 4570, "Port to start DHT on")
-	cmd.PersistentFlags().IntVar(&startDhtSeedPort, "dht-seed-port", 4567, "Port to connect to DHT bootstrap node on")
-	cmd.PersistentFlags().IntVar(&startClusterPort, "cluster-port", 5678, "Port to start DHT on")
-	cmd.PersistentFlags().IntVar(&startClusterSeedPort, "cluster-seed-port", 0, "Port to start DHT on")
+	cmd.PersistentFlags().IntVar(&startClusterPort, "cluster-port", cluster.DefaultPort, "Port that cluster listens on")
 	cmd.PersistentFlags().IntVar(&startPeerPort, "peer-port", peer.DefaultPort, "Port to start peer protocol on")
 	cmd.PersistentFlags().IntVar(&startReflectorPort, "reflector-port", reflector.DefaultPort, "Port to start reflector protocol on")
+	cmd.PersistentFlags().IntVar(&startDhtPort, "dht-port", dht.DefaultPort, "Port that dht will listen on")
+	cmd.PersistentFlags().StringSliceVar(&startDhtSeeds, "dht-seeds", []string{}, "Comma-separated list of dht seed nodes (addr:port,addr:port,...)")
+
+	cmd.PersistentFlags().StringVar(&startHashRange, "hash-range", "", "Limit on range of hashes to announce (start-end)")
 
 	rootCmd.AddCommand(cmd)
 }
@@ -49,25 +58,32 @@ func startCmd(cmd *cobra.Command, args []string) {
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	comboStore := store.NewDBBackedS3Store(s3, db)
 
+	conf := prism.DefaultConf()
+
 	// TODO: args we need:
-	// clusterAddr - to connect to cluster (or start new cluster if empty)
 	// minNodes - minimum number of nodes before announcing starts. otherwise first node will try to announce all the blobs in the db
 	//     or maybe we should do maxHashesPerNode?
 	//     in either case, this should not kill the cluster, but should only limit announces (and notify when some hashes are being left unannounced)
 
-	//clusterAddr := ""
-	//if len(args) > 0 {
-	//	clusterAddr = args[0]
-	//}
+	if args[0] != startNewCluster {
+		conf.ClusterSeedAddr = args[0]
+	}
 
-	conf := prism.DefaultConf()
 	conf.DB = db
 	conf.Blobs = comboStore
-	conf.DhtAddress = "127.0.0.1:" + strconv.Itoa(startDhtPort)
-	conf.DhtSeedNodes = []string{"127.0.0.1:" + strconv.Itoa(startDhtSeedPort)}
+	conf.DhtAddress = "0.0.0.0:" + strconv.Itoa(startDhtPort)
+	conf.DhtSeedNodes = startDhtSeeds
 	conf.ClusterPort = startClusterPort
-	if startClusterSeedPort > 0 {
-		conf.ClusterSeedAddr = "127.0.0.1:" + strconv.Itoa(startClusterSeedPort)
+	conf.PeerPort = startPeerPort
+	conf.ReflectorPort = startReflectorPort
+
+	if startHashRange != "" {
+		hashRange := strings.Split(startHashRange, "-")
+		if len(hashRange) != 2 {
+			log.Fatal("invalid hash range")
+		}
+		r := bits.Range{Start: bits.FromShortHexP(hashRange[0]), End: bits.FromShortHexP(hashRange[1])}
+		conf.HashRange = &r
 	}
 
 	p := prism.New(conf)

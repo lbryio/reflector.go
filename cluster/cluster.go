@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	// DefaultClusterPort is the default port used when starting up a Cluster.
-	DefaultClusterPort           = 17946
+	DefaultPort                  = 17946
 	MembershipChangeBufferWindow = 1 * time.Second
 )
 
@@ -103,11 +102,11 @@ func (c *Cluster) listen() {
 		case event := <-c.eventCh:
 			switch event.EventType() {
 			case serf.EventMemberJoin, serf.EventMemberFailed, serf.EventMemberLeave:
-				memberEvent := event.(serf.MemberEvent)
-				if event.EventType() == serf.EventMemberJoin && len(memberEvent.Members) == 1 && memberEvent.Members[0].Name == c.name {
-					// ignore event from my own joining of the cluster
-					continue
-				}
+				//	// ignore event from my own joining of the cluster
+				//memberEvent := event.(serf.MemberEvent)
+				//if event.EventType() == serf.EventMemberJoin && len(memberEvent.Members) == 1 && memberEvent.Members[0].Name == c.name {
+				//	continue
+				//}
 
 				if timerCh == nil {
 					timer.Reset(MembershipChangeBufferWindow)

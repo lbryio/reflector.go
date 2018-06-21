@@ -29,6 +29,9 @@ type Config struct {
 	ClusterPort     int
 	ClusterSeedAddr string
 
+	// limit the range of hashes to announce. useful for testing
+	HashRange *bits.Range
+
 	DB    *db.SQL
 	Blobs store.BlobStore
 }
@@ -36,7 +39,7 @@ type Config struct {
 // DefaultConf returns a default config
 func DefaultConf() *Config {
 	return &Config{
-		ClusterPort: cluster.DefaultClusterPort,
+		ClusterPort: cluster.DefaultPort,
 	}
 }
 
@@ -61,7 +64,10 @@ func New(conf *Config) *Prism {
 
 	dhtConf := dht.NewStandardConfig()
 	dhtConf.Address = conf.DhtAddress
-	dhtConf.SeedNodes = conf.DhtSeedNodes
+	dhtConf.PeerProtocolPort = conf.PeerPort
+	if len(conf.DhtSeedNodes) > 0 {
+		dhtConf.SeedNodes = conf.DhtSeedNodes
+	}
 	d := dht.New(dhtConf)
 
 	c := cluster.New(conf.ClusterPort, conf.ClusterSeedAddr)
@@ -91,6 +97,8 @@ func New(conf *Config) *Prism {
 
 // Start starts the components of the application.
 func (p *Prism) Start() error {
+	var err error
+
 	if p.conf.DB == nil {
 		return errors.Err("db required in conf")
 	}
@@ -99,24 +107,22 @@ func (p *Prism) Start() error {
 		return errors.Err("blobs required in conf")
 	}
 
-	err := p.dht.Start()
+	err = p.peer.Start(":" + strconv.Itoa(p.conf.PeerPort))
+	if err != nil {
+		return err
+	}
+
+	err = p.reflector.Start(":" + strconv.Itoa(p.conf.ReflectorPort))
+	if err != nil {
+		return err
+	}
+
+	err = p.dht.Start()
 	if err != nil {
 		return err
 	}
 
 	err = p.cluster.Connect()
-	if err != nil {
-		return err
-	}
-
-	// TODO: should not be localhost forever. should prolly be 0.0.0.0, or configurable
-	err = p.peer.Start("localhost:" + strconv.Itoa(p.conf.PeerPort))
-	if err != nil {
-		return err
-	}
-
-	// TODO: should not be localhost forever. should prolly be 0.0.0.0, or configurable
-	err = p.reflector.Start("localhost:" + strconv.Itoa(p.conf.ReflectorPort))
 	if err != nil {
 		return err
 	}
@@ -127,10 +133,10 @@ func (p *Prism) Start() error {
 // Shutdown gracefully shuts down the different prism components before exiting.
 func (p *Prism) Shutdown() {
 	p.stop.StopAndWait()
-	p.reflector.Shutdown()
-	p.peer.Shutdown()
 	p.cluster.Shutdown()
 	p.dht.Shutdown()
+	p.reflector.Shutdown()
+	p.peer.Shutdown()
 }
 
 // AnnounceRange announces the `n`th interval of hashes, out of a total of `total` intervals
@@ -143,15 +149,19 @@ func (p *Prism) AnnounceRange(n, total int) {
 		return
 	}
 
-	//r := bits.MaxRange().IntervalP(n, total)
-
-	// TODO: this is temporary. it lets me test with a small number of hashes. use the full range in production
-	min, max, err := p.db.GetHashRange()
-	if err != nil {
-		log.Errorf("%s: error getting hash range: %s", p.dht.ID().HexShort(), err.Error())
-		return
+	var r bits.Range
+	if p.conf.HashRange != nil {
+		r = *p.conf.HashRange
+	} else {
+		//r := bits.MaxRange().IntervalP(n, total)
+		// TODO: this is temporary. it lets me test with a small number of hashes. use the full range in production
+		min, max, err := p.db.GetHashRange()
+		if err != nil {
+			log.Errorf("%s: error getting hash range: %s", p.dht.ID().HexShort(), err.Error())
+			return
+		}
+		r = (bits.Range{Start: bits.FromHexP(min), End: bits.FromHexP(max)}).IntervalP(n, total)
 	}
-	r := (bits.Range{Start: bits.FromHexP(min), End: bits.FromHexP(max)}).IntervalP(n, total)
 
 	log.Infof("%s: hash range is now %s to %s", p.dht.ID().HexShort(), r.Start, r.End)
 

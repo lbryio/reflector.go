@@ -41,7 +41,7 @@ func (s *Server) Shutdown() {
 func (s *Server) Start(address string) error {
 	//ToDo - We should make this DRY as it is the same code in both servers.
 	log.Println("reflector listening on " + address)
-	l, err := net.Listen("tcp", address)
+	l, err := net.Listen("tcp4", address)
 	if err != nil {
 		return err
 	}
