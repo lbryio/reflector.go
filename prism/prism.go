@@ -166,7 +166,7 @@ func (p *Prism) AnnounceRange(n, total int) {
 	log.Infof("%s: hash range is now %s to %s", p.dht.ID().HexShort(), r.Start, r.End)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	hashCh, errCh := p.db.GetHashesInRange(ctx, r.Start, r.End)
+	hashCh, errCh := p.db.GetStoredHashesInRange(ctx, r.Start, r.End)
 
 	var wg sync.WaitGroup
 

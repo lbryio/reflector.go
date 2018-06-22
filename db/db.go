@@ -236,8 +236,8 @@ func (s *SQL) GetHashRange() (string, string, error) {
 	return min, max, err
 }
 
-// GetHashesInRange gets blobs with hashes in a given range, and sends the hashes into a channel
-func (s *SQL) GetHashesInRange(ctx context.Context, start, end bits.Bitmap) (ch chan bits.Bitmap, ech chan error) {
+// GetStoredHashesInRange gets stored blobs with hashes in a given range, and sends the hashes into a channel
+func (s *SQL) GetStoredHashesInRange(ctx context.Context, start, end bits.Bitmap) (ch chan bits.Bitmap, ech chan error) {
 	ch = make(chan bits.Bitmap)
 	ech = make(chan error)
 
