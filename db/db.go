@@ -251,8 +251,13 @@ func (s *SQL) GetStoredHashesInRange(ctx context.Context, start, end bits.Bitmap
 			return
 		}
 
-		query := "SELECT hash FROM blob_ WHERE hash >= ? AND hash <= ?"
-		args := []interface{}{start.Hex(), end.Hex()}
+		//query := "SELECT hash FROM blob_ WHERE hash >= ? AND hash <= ? AND is_stored = 1"
+		//args := []interface{}{start.Hex(), end.Hex()}
+		query := "SELECT hash FROM blob_ WHERE hash IN (?,?) AND is_stored = 1"
+		args := []interface{}{
+			"6363e3ed8d32156aebbbe8c0dd077e7029c7cdaec58e08271aa35baa4250ec531129cb4f7a9ac9b7285dbb7ba375ab11",
+			"89c5c3f9794b0b24a03406e3b74361edb9ae70828e4c133512fc75db0a2d312673cdd4e30eed37892a46692d2fe439f3",
+		}
 
 		logQuery(query, args...)
 
