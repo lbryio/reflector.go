@@ -8,7 +8,7 @@ import (
 
 	"github.com/lbryio/lbry.go/crypto"
 	"github.com/lbryio/lbry.go/errors"
-	"github.com/lbryio/lbry.go/stopOnce"
+	"github.com/lbryio/lbry.go/stop"
 
 	"github.com/hashicorp/serf/serf"
 	log "github.com/sirupsen/logrus"
@@ -29,7 +29,7 @@ type Cluster struct {
 
 	s       *serf.Serf
 	eventCh chan serf.Event
-	stop    *stopOnce.Stopper
+	stop    *stop.Group
 }
 
 // New returns a new Cluster instance that is not connected.
@@ -38,7 +38,7 @@ func New(port int, seedAddr string) *Cluster {
 		name:     crypto.RandString(12),
 		port:     port,
 		seedAddr: seedAddr,
-		stop:     stopOnce.New(),
+		stop:     stop.New(),
 	}
 }
 

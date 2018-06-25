@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lbryio/lbry.go/stopOnce"
+	"github.com/lbryio/lbry.go/stop"
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/store"
@@ -29,7 +29,7 @@ const (
 type uploaderParams struct {
 	workerWG     *sync.WaitGroup
 	counterWG    *sync.WaitGroup
-	stopper      *stopOnce.Stopper
+	stopper      *stop.Group
 	filenameChan chan string
 	countChan    chan int
 	sdCount      int
@@ -59,7 +59,7 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 		counterWG:    &sync.WaitGroup{},
 		filenameChan: make(chan string),
 		countChan:    make(chan int),
-		stopper:      stopOnce.New()}
+		stopper:      stop.New()}
 
 	setInterrupt(params.stopper)
 
@@ -125,7 +125,7 @@ func newBlobStore() *store.DBBackedS3Store {
 	return store.NewDBBackedS3Store(s3, db)
 }
 
-func setInterrupt(stopper *stopOnce.Stopper) {
+func setInterrupt(stopper *stop.Group) {
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	go func() {

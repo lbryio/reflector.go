@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/lbryio/lbry.go/errors"
-	"github.com/lbryio/lbry.go/stopOnce"
+	"github.com/lbryio/lbry.go/stop"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/davecgh/go-spew/spew"
@@ -30,21 +30,21 @@ type Server struct {
 	store  store.BlobStore
 	closed bool
 
-	stop *stopOnce.Stopper
+	grp *stop.Group
 }
 
 // NewServer returns an initialized Server pointer.
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
 		store: store,
-		stop:  stopOnce.New(),
+		grp:   stop.New(),
 	}
 }
 
 // Shutdown gracefully shuts down the peer server.
 func (s *Server) Shutdown() {
 	log.Debug("shutting down peer server...")
-	s.stop.StopAndWait()
+	s.grp.StopAndWait()
 	log.Debug("peer server stopped")
 }
 
@@ -57,17 +57,17 @@ func (s *Server) Start(address string) error {
 	}
 
 	go s.listenForShutdown(l)
-	s.stop.Add(1)
+	s.grp.Add(1)
 	go func() {
 		s.listenAndServe(l)
-		s.stop.Done()
+		s.grp.Done()
 	}()
 
 	return nil
 }
 
 func (s *Server) listenForShutdown(listener net.Listener) {
-	<-s.stop.Ch()
+	<-s.grp.Ch()
 	s.closed = true
 	err := listener.Close()
 	if err != nil {
@@ -84,10 +84,10 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			}
 			log.Error(err)
 		} else {
-			s.stop.Add(1)
+			s.grp.Add(1)
 			go func() {
 				s.handleConnection(conn)
-				s.stop.Done()
+				s.grp.Done()
 			}()
 		}
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/errors"
-	"github.com/lbryio/lbry.go/stopOnce"
+	"github.com/lbryio/lbry.go/stop"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -53,7 +53,7 @@ type Prism struct {
 	reflector *reflector.Server
 	cluster   *cluster.Cluster
 
-	stop *stopOnce.Stopper
+	grp *stop.Group
 }
 
 // New returns an initialized Prism instance
@@ -81,14 +81,14 @@ func New(conf *Config) *Prism {
 		peer:      peer.NewServer(conf.Blobs),
 		reflector: reflector.NewServer(conf.Blobs),
 
-		stop: stopOnce.New(),
+		grp: stop.New(),
 	}
 
 	c.OnMembershipChange = func(n, total int) {
-		p.stop.Add(1)
+		p.grp.Add(1)
 		go func() {
 			p.AnnounceRange(n, total)
-			p.stop.Done()
+			p.grp.Done()
 		}()
 	}
 
@@ -132,7 +132,7 @@ func (p *Prism) Start() error {
 
 // Shutdown gracefully shuts down the different prism components before exiting.
 func (p *Prism) Shutdown() {
-	p.stop.StopAndWait()
+	p.grp.StopAndWait()
 	p.cluster.Shutdown()
 	p.dht.Shutdown()
 	p.reflector.Shutdown()
@@ -174,7 +174,7 @@ func (p *Prism) AnnounceRange(n, total int) {
 	go func() {
 		defer wg.Done()
 		select {
-		case <-p.stop.Ch():
+		case <-p.grp.Ch():
 			return
 		case err, more := <-errCh:
 			if more && err != nil {
@@ -188,7 +188,7 @@ func (p *Prism) AnnounceRange(n, total int) {
 		defer wg.Done()
 		for {
 			select {
-			case <-p.stop.Ch():
+			case <-p.grp.Ch():
 				cancel()
 				return
 			case hash, more := <-hashCh:

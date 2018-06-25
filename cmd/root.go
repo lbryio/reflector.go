@@ -6,9 +6,10 @@ import (
 	"os"
 
 	"github.com/lbryio/lbry.go/errors"
+	"github.com/lbryio/lbry.go/util"
 	"github.com/lbryio/reflector.go/dht"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -21,13 +22,14 @@ type Config struct {
 	DBConn       string `json:"db_conn"`
 }
 
-var debug []string
+var verbose []string
 
 const (
-	debugNodeFinder = "nodefinder"
+	verboseAll        = "all"
+	verboseDHT        = "dht"
+	verboseNodeFinder = "nodefinder"
 )
 
-var verbose bool
 var conf string
 var globalConfig Config
 
@@ -35,27 +37,30 @@ var rootCmd = &cobra.Command{
 	Use:   "prism",
 	Short: "Prism is a single entry point application with multiple sub modules which can be leveraged individually or together",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if verbose {
-			log.SetLevel(log.DebugLevel)
+		debugLogger := logrus.New()
+		debugLogger.SetLevel(logrus.DebugLevel)
+
+		if util.InSlice(verboseAll, verbose) {
+			verbose = []string{verboseDHT, verboseNodeFinder}
 		}
 
-		debugLogger := log.New()
-		debugLogger.SetLevel(log.DebugLevel)
-		for _, debugType := range debug {
+		for _, debugType := range verbose {
 			switch debugType {
-			case debugNodeFinder:
-				dht.NodeFinderUserLogger(debugLogger)
+			case verboseDHT:
+				dht.UseLogger(debugLogger)
+			case verboseNodeFinder:
+				dht.NodeFinderUseLogger(debugLogger)
 			}
 		}
 
 		var err error
 		if conf == "" {
-			log.Errorln("--conf flag required")
+			logrus.Errorln("--conf flag required")
 			os.Exit(1)
 		} else {
 			globalConfig, err = loadConfig(conf)
 			if err != nil {
-				log.Error(err)
+				logrus.Error(err)
 				os.Exit(1)
 			}
 		}
@@ -67,8 +72,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
-	rootCmd.PersistentFlags().StringSliceVar(&debug, "debug", []string{}, "Debug loggin for specific components")
+	rootCmd.PersistentFlags().StringSliceVarP(&verbose, "verbose", "v", []string{}, "Verbose logging for specific components")
 	rootCmd.PersistentFlags().StringVar(&conf, "conf", "config.json", "Path to config")
 }
 
@@ -77,7 +81,7 @@ func init() {
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		log.Errorln(err)
+		logrus.Errorln(err)
 		os.Exit(1)
 	}
 }
