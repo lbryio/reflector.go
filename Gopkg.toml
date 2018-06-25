@@ -25,3 +25,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/lyoshenka/bencode"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/uber-go/atomic"

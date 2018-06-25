@@ -215,6 +215,12 @@
   version = "v1.0.1"
 
 [[projects]]
+  name = "github.com/uber-go/atomic"
+  packages = ["."]
+  revision = "1ea20fb1cbb1cc08cbd0d913a96dead89aa18289"
+  version = "v1.3.2"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
@@ -262,6 +268,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bfa7ee41b88f515ef386012a9dd28e045f9108de93c1dcfa66d9361340cf7eec"
+  inputs-digest = "e24df8daf9e27895cd79820c74d57f7cc554a84cd1d268b3cd9e58acf03c0a55"
   solver-name = "gps-cdcl"
   solver-version = 1

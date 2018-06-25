@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/lbryio/lbry.go/errors"
+	"github.com/lbryio/reflector.go/dht"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -20,6 +21,12 @@ type Config struct {
 	DBConn       string `json:"db_conn"`
 }
 
+var debug []string
+
+const (
+	debugNodeFinder = "nodefinder"
+)
+
 var verbose bool
 var conf string
 var globalConfig Config
@@ -30,6 +37,15 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		if verbose {
 			log.SetLevel(log.DebugLevel)
+		}
+
+		debugLogger := log.New()
+		debugLogger.SetLevel(log.DebugLevel)
+		for _, debugType := range debug {
+			switch debugType {
+			case debugNodeFinder:
+				dht.NodeFinderUserLogger(debugLogger)
+			}
 		}
 
 		var err error
@@ -52,6 +68,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+	rootCmd.PersistentFlags().StringSliceVar(&debug, "debug", []string{}, "Debug loggin for specific components")
 	rootCmd.PersistentFlags().StringVar(&conf, "conf", "config.json", "Path to config")
 }
 
