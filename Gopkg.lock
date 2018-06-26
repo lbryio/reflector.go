@@ -158,7 +158,7 @@
     "stop",
     "util"
   ]
-  revision = "f14ff7ba4f2c420108302f651ce85df1e45477ad"
+  revision = "821cfb748eb42aa7b6fb345a174950f3ed78dff5"
 
 [[projects]]
   branch = "master"
