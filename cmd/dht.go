@@ -19,7 +19,7 @@ var dhtPort int
 
 func init() {
 	var cmd = &cobra.Command{
-		Use:       "dht [start|bootstrap]",
+		Use:       "dht [bootstrap|connect]",
 		Short:     "Run dht node",
 		ValidArgs: []string{"start", "bootstrap"},
 		Args:      argFuncs(cobra.ExactArgs(1), cobra.OnlyValidArgs),
@@ -47,5 +47,8 @@ func dhtCmd(cmd *cobra.Command, args []string) {
 		node.Shutdown()
 	} else {
 		log.Fatal("not implemented")
+
+		//
+
 	}
 }
