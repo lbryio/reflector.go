@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"log"
 	"net/http"
+	"math/big"
 )
 
 type NodeRPC string
@@ -73,6 +74,12 @@ func dhtCmd(cmd *cobra.Command, args []string) {
 		err = node.Connect(conn)
 		checkErr(err)
 		log.Println("started node")
+		node.AddKnownNode(
+			dht.Contact{
+			bits.FromHexP("62c8ad9fb40a16062e884a63cd81f47b94604446319663d1334e1734dcefc8874b348ec683225e4852017a846e07d94e"),
+			net.ParseIP("34.231.152.182"), 4444,
+			})
+		_, _, err = dht.FindContacts(&node.Node, nodeID.Sub(bits.FromBigP(big.NewInt(1))), false, nil)
 		rpcServer := dht.RunRPCServer(":1234", "/", node)
 		interruptChan := make(chan os.Signal, 1)
 		signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
