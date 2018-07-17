@@ -27,7 +27,7 @@ var verbose []string
 const (
 	verboseAll        = "all"
 	verboseDHT        = "dht"
-	verboseNodeFinder = "nodefinder"
+	verboseNodeFinder = "node_finder"
 )
 
 var conf string
