@@ -58,3 +58,8 @@ func (d *DBBackedS3Store) PutSD(hash string, blob []byte) error {
 
 	return d.db.AddSDBlob(hash, len(blob), blobContents)
 }
+
+// HasFullStream checks if the full stream has been uploaded (i.e. if we have the sd blob and all the content blobs)
+func (d *DBBackedS3Store) HasFullStream(sdHash string) (bool, error) {
+	return d.db.HasFullStream(sdHash)
+}

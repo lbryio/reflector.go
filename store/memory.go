@@ -28,7 +28,7 @@ func (m *MemoryBlobStore) Get(hash string) ([]byte, error) {
 	return blob, nil
 }
 
-// Put stores the blob in memory. It will never error.
+// Put stores the blob in memory
 func (m *MemoryBlobStore) Put(hash string, blob []byte) error {
 	if m.blobs == nil {
 		m.blobs = make(map[string][]byte)
@@ -37,8 +37,7 @@ func (m *MemoryBlobStore) Put(hash string, blob []byte) error {
 	return nil
 }
 
-// PutSD stores the sd blob in memory. It will never error.
+// PutSD stores the sd blob in memory
 func (m *MemoryBlobStore) PutSD(hash string, blob []byte) error {
-	//ToDo - need to handle when stream is not present.
 	return m.Put(hash, blob)
 }

@@ -20,6 +20,7 @@ type DB interface {
 	HasBlob(string) (bool, error)
 	AddBlob(string, int, bool) error
 	AddSDBlob(string, int, types.SdBlob) error
+	HasFullStream(string) (bool, error)
 }
 
 // SQL is the container for the supporting MySQL database connection.
@@ -155,6 +156,32 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 	}
 
 	return exists, nil
+}
+
+// HasFullStream checks if the full stream has been uploaded (i.e. if we have the sd blob and all the content blobs)
+func (s *SQL) HasFullStream(sdHash string) (bool, error) {
+	if s.conn == nil {
+		return false, errors.Err("not connected")
+	}
+
+	query := `SELECT EXISTS(
+		SELECT 1 FROM stream s
+		LEFT JOIN stream_blob sb ON s.hash = sb.stream_hash
+		LEFT JOIN blob_ b ON b.hash = sb.blob_hash
+		WHERE s.sd_hash = ?
+		GROUP BY s.sd_hash
+		HAVING min(b.is_stored = 1)
+	);`
+	args := []interface{}{sdHash}
+
+	logQuery(query, args...)
+
+	row := s.conn.QueryRow(query, args...)
+
+	exists := false
+	err := row.Scan(&exists)
+
+	return exists, errors.Err(err)
 }
 
 // AddSDBlob takes the SD Hash number of blobs and the set of blobs. In a single db tx it inserts the sdblob information

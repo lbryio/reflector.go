@@ -28,7 +28,6 @@ func (f *FileBlobStore) initOnce() error {
 	if f.initialized {
 		return nil
 	}
-	defer func() { f.initialized = true }()
 
 	if stat, err := os.Stat(f.dir); err != nil {
 		if os.IsNotExist(err) {
@@ -42,6 +41,8 @@ func (f *FileBlobStore) initOnce() error {
 	} else if !stat.IsDir() {
 		return errors.Err("blob dir exists but is not a dir")
 	}
+
+	f.initialized = true
 	return nil
 }
 
@@ -80,7 +81,7 @@ func (f *FileBlobStore) Get(hash string) ([]byte, error) {
 	return ioutil.ReadAll(file)
 }
 
-// Put stores the blob on disk or errors with any IO error.
+// Put stores the blob on disk
 func (f *FileBlobStore) Put(hash string, blob []byte) error {
 	err := f.initOnce()
 	if err != nil {
@@ -90,8 +91,7 @@ func (f *FileBlobStore) Put(hash string, blob []byte) error {
 	return ioutil.WriteFile(f.path(hash), blob, 0644)
 }
 
-// PutSD stores the sd blob on the disk or errors with any IO error.
+// PutSD stores the sd blob on the disk
 func (f *FileBlobStore) PutSD(hash string, blob []byte) error {
-	//Todo - need to handle when streaming hash is not present.
 	return f.Put(hash, blob)
 }

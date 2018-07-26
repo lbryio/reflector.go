@@ -133,19 +133,27 @@ func (s *Server) doError(conn net.Conn, err error) error {
 }
 
 func (s *Server) receiveBlob(conn net.Conn) error {
+	var err error
+
 	blobSize, blobHash, isSdBlob, err := s.readBlobRequest(conn)
 	if err != nil {
 		return err
 	}
 
+	// fullStreamChecker can check if the full stream has been uploaded
+	type fullStreamChecker interface {
+		HasFullStream(string) (bool, error)
+	}
+
 	blobExists := false
-	if !isSdBlob {
-		// we have to say sd blobs are missing because if we say we have it, they wont try to send any content blobs
-		has, err := s.store.Has(blobHash)
-		if err != nil {
-			return err
-		}
-		blobExists = has
+	if fsc, ok := s.store.(fullStreamChecker); ok && isSdBlob {
+		blobExists, err = fsc.HasFullStream(blobHash)
+	} else {
+		// if we can't confirm that we have the full stream, we have to say that the sd blob is missing. if we say we have it, they wont try to send any content blobs
+		blobExists, err = s.store.Has(blobHash)
+	}
+	if err != nil {
+		return err
 	}
 
 	err = s.sendBlobResponse(conn, blobExists, isSdBlob)
