@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,11 +19,17 @@ import (
 // TODO: use a tree with bucket splitting instead of a fixed bucket list. include jack's optimization (see link in commit mesg)
 // https://github.com/lbryio/lbry/pull/1211/commits/341b27b6d21ac027671d42458826d02735aaae41
 
-// peer is a contact with extra freshness information
+// peer is a contact with extra information
 type peer struct {
 	Contact      Contact
+	Distance     bits.Bitmap
 	LastActivity time.Time
-	NumFailures  int
+	// LastReplied time.Time
+	// LastRequested time.Time
+	// LastFailure time.Time
+	// SecondLastFailure time.Time
+	NumFailures int
+
 	//<lastPublished>,
 	//<originallyPublished>
 	//	<originalPublisherID>
@@ -55,6 +60,15 @@ type bucket struct {
 	lock       *sync.RWMutex
 	peers      []peer
 	lastUpdate time.Time
+	Range      bits.Range // capitalized because `range` is a keyword
+}
+
+func newBucket(r bits.Range) *bucket {
+	return &bucket{
+		peers: make([]peer, 0, bucketSize),
+		lock:  &sync.RWMutex{},
+		Range: r,
+	}
 }
 
 // Len returns the number of peers in the bucket
@@ -62,6 +76,17 @@ func (b bucket) Len() int {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 	return len(b.peers)
+}
+
+func (b bucket) Has(c Contact) bool {
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+	for _, p := range b.peers {
+		if p.Contact.Equals(c, true) {
+			return true
+		}
+	}
+	return false
 }
 
 // Contacts returns a slice of the bucket's contacts
@@ -75,17 +100,20 @@ func (b bucket) Contacts() []Contact {
 	return contacts
 }
 
-// UpdateContact marks a contact as having been successfully contacted. if insertIfNew and the contact is does not exist yet, it is inserted
-func (b *bucket) UpdateContact(c Contact, insertIfNew bool) {
+// UpdatePeer marks a contact as having been successfully contacted. if insertIfNew and the contact is does not exist yet, it is inserted
+func (b *bucket) UpdatePeer(p peer, insertIfNew bool) error {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	peerIndex := find(c.ID, b.peers)
+	if !b.Range.Contains(p.Distance) {
+		return errors.Err("this bucket range does not cover this peer")
+	}
+
+	peerIndex := find(p.Contact.ID, b.peers)
 	if peerIndex >= 0 {
 		b.lastUpdate = time.Now()
 		b.peers[peerIndex].Touch()
 		moveToBack(b.peers, peerIndex)
-
 	} else if insertIfNew {
 		hasRoom := true
 
@@ -103,11 +131,12 @@ func (b *bucket) UpdateContact(c Contact, insertIfNew bool) {
 
 		if hasRoom {
 			b.lastUpdate = time.Now()
-			peer := peer{Contact: c}
-			peer.Touch()
-			b.peers = append(b.peers, peer)
+			p.Touch()
+			b.peers = append(b.peers, p)
 		}
 	}
+
+	return nil
 }
 
 // FailContact marks a contact as having failed, and removes it if it failed too many times
@@ -138,28 +167,61 @@ func (b *bucket) NeedsRefresh(refreshInterval time.Duration) bool {
 	return time.Since(b.lastUpdate) > refreshInterval
 }
 
+func (b *bucket) Split() (*bucket, *bucket) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	left := newBucket(b.Range.IntervalP(1, 2))
+	right := newBucket(b.Range.IntervalP(2, 2))
+	left.lastUpdate = b.lastUpdate
+	right.lastUpdate = b.lastUpdate
+
+	for _, p := range b.peers {
+		if left.Range.Contains(p.Distance) {
+			left.peers = append(left.peers, p)
+		} else {
+			right.peers = append(right.peers, p)
+		}
+	}
+
+	if len(b.peers) > 1 {
+		if len(left.peers) == 0 {
+			left, right = right.Split()
+			left.Range.Start = b.Range.Start
+		} else if len(right.peers) == 0 {
+			left, right = left.Split()
+			right.Range.End = b.Range.End
+		}
+	}
+
+	return left, right
+}
+
 type routingTable struct {
 	id      bits.Bitmap
-	buckets [nodeIDBits]bucket
+	buckets []*bucket
+	mu      *sync.RWMutex // this mutex is write-locked only when CHANGING THE NUMBER OF BUCKETS in the table
 }
 
 func newRoutingTable(id bits.Bitmap) *routingTable {
-	var rt routingTable
-	rt.id = id
+	rt := routingTable{
+		id: id,
+		mu: &sync.RWMutex{},
+	}
 	rt.reset()
 	return &rt
 }
 
 func (rt *routingTable) reset() {
-	for i := range rt.buckets {
-		rt.buckets[i] = bucket{
-			peers: make([]peer, 0, bucketSize),
-			lock:  &sync.RWMutex{},
-		}
-	}
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	rt.buckets = []*bucket{newBucket(bits.MaxRange())}
 }
 
 func (rt *routingTable) BucketInfo() string {
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
+
 	var bucketInfo []string
 	for i, b := range rt.buckets {
 		if b.Len() > 0 {
@@ -168,7 +230,7 @@ func (rt *routingTable) BucketInfo() string {
 			for j, c := range contacts {
 				s[j] = c.ID.HexShort()
 			}
-			bucketInfo = append(bucketInfo, fmt.Sprintf("Bucket %d: (%d) %s", i, len(contacts), strings.Join(s, ", ")))
+			bucketInfo = append(bucketInfo, fmt.Sprintf("bucket %d: (%d) %s", i, len(contacts), strings.Join(s, ", ")))
 		}
 	}
 	if len(bucketInfo) == 0 {
@@ -179,64 +241,72 @@ func (rt *routingTable) BucketInfo() string {
 
 // Update inserts or refreshes a contact
 func (rt *routingTable) Update(c Contact) {
-	rt.bucketFor(c.ID).UpdateContact(c, true)
+	rt.mu.Lock() // write lock, because updates may cause bucket splits
+	defer rt.mu.Unlock()
+
+	b := rt.bucketFor(c.ID)
+
+	if rt.shouldSplit(b, c) {
+		left, right := b.Split()
+
+		for i := range rt.buckets {
+			if rt.buckets[i].Range.Start.Equals(left.Range.Start) {
+				rt.buckets = append(rt.buckets[:i], append([]*bucket{left, right}, rt.buckets[i+1:]...)...)
+				break
+			}
+		}
+
+		if left.Range.Contains(c.ID) {
+			b = left
+		} else {
+			b = right
+		}
+	}
+
+	b.UpdatePeer(peer{Contact: c, Distance: rt.id.Xor(c.ID)}, true)
 }
 
 // Fresh refreshes a contact if its already in the routing table
 func (rt *routingTable) Fresh(c Contact) {
-	rt.bucketFor(c.ID).UpdateContact(c, false)
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
+	rt.bucketFor(c.ID).UpdatePeer(peer{Contact: c, Distance: rt.id.Xor(c.ID)}, false)
 }
 
 // FailContact marks a contact as having failed, and removes it if it failed too many times
 func (rt *routingTable) Fail(c Contact) {
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
 	rt.bucketFor(c.ID).FailContact(c.ID)
 }
 
-// GetClosest returns the closest `limit` contacts from the routing table
-// It marks each bucket it accesses as having been accessed
+// GetClosest returns the closest `limit` contacts from the routing table.
+// This is a locking wrapper around getClosest()
 func (rt *routingTable) GetClosest(target bits.Bitmap, limit int) []Contact {
-	var toSort []sortedContact
-	var bucketNum int
-
-	if rt.id.Equals(target) {
-		bucketNum = 0
-	} else {
-		bucketNum = rt.bucketNumFor(target)
-	}
-
-	toSort = appendContacts(toSort, rt.buckets[bucketNum], target)
-
-	for i := 1; (bucketNum-i >= 0 || bucketNum+i < nodeIDBits) && len(toSort) < limit; i++ {
-		if bucketNum-i >= 0 {
-			toSort = appendContacts(toSort, rt.buckets[bucketNum-i], target)
-		}
-		if bucketNum+i < nodeIDBits {
-			toSort = appendContacts(toSort, rt.buckets[bucketNum+i], target)
-		}
-	}
-
-	sort.Sort(byXorDistance(toSort))
-
-	var contacts []Contact
-	for _, sorted := range toSort {
-		contacts = append(contacts, sorted.contact)
-		if len(contacts) >= limit {
-			break
-		}
-	}
-
-	return contacts
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
+	return rt.getClosest(target, limit)
 }
 
-func appendContacts(contacts []sortedContact, b bucket, target bits.Bitmap) []sortedContact {
-	for _, contact := range b.Contacts() {
-		contacts = append(contacts, sortedContact{contact, contact.ID.Xor(target)})
+// getClosest returns the closest `limit` contacts from the routing table
+func (rt *routingTable) getClosest(target bits.Bitmap, limit int) []Contact {
+	var contacts []Contact
+	for _, b := range rt.buckets {
+		contacts = append(contacts, b.Contacts()...)
 	}
+
+	sortByDistance(contacts, target)
+	if len(contacts) > limit {
+		contacts = contacts[:limit]
+	}
+
 	return contacts
 }
 
 // Count returns the number of contacts in the routing table
 func (rt *routingTable) Count() int {
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
 	count := 0
 	for _, bucket := range rt.buckets {
 		count += bucket.Len()
@@ -244,28 +314,51 @@ func (rt *routingTable) Count() int {
 	return count
 }
 
-// BucketRanges returns a slice of ranges, where the `start` of each range is the smallest id that can
-// go in that bucket, and the `end` is the largest id
-func (rt *routingTable) BucketRanges() []bits.Range {
-	ranges := make([]bits.Range, len(rt.buckets))
-	for i := range rt.buckets {
-		ranges[i] = bits.Range{
-			Start: rt.id.Suffix(i, false).Set(nodeIDBits-1-i, !rt.id.Get(nodeIDBits-1-i)),
-			End:   rt.id.Suffix(i, true).Set(nodeIDBits-1-i, !rt.id.Get(nodeIDBits-1-i)),
-		}
-	}
-	return ranges
-}
-
-func (rt *routingTable) bucketNumFor(target bits.Bitmap) int {
-	if rt.id.Equals(target) {
-		panic("routing table does not have a bucket for its own id")
-	}
-	return nodeIDBits - 1 - target.Xor(rt.id).PrefixLen()
+// Len returns the number of buckets in the routing table
+func (rt *routingTable) Len() int {
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
+	return len(rt.buckets)
 }
 
 func (rt *routingTable) bucketFor(target bits.Bitmap) *bucket {
-	return &rt.buckets[rt.bucketNumFor(target)]
+	if rt.id.Equals(target) {
+		panic("routing table does not have a bucket for its own id")
+	}
+	distance := target.Xor(rt.id)
+	for _, b := range rt.buckets {
+		if b.Range.Contains(distance) {
+			return b
+		}
+	}
+	panic("target is not contained in any buckets")
+}
+
+func (rt *routingTable) shouldSplit(b *bucket, c Contact) bool {
+	if b.Has(c) {
+		return false
+	}
+	if b.Len() >= bucketSize {
+		if b.Range.Start.Equals(bits.Bitmap{}) { // this is the bucket covering our node id
+			return true
+		}
+		kClosest := rt.getClosest(rt.id, bucketSize)
+		kthClosest := kClosest[len(kClosest)-1]
+		if rt.id.Closer(c.ID, kthClosest.ID) {
+			return true
+		}
+	}
+	return false
+}
+
+func (rt *routingTable) printBucketInfo() {
+	fmt.Printf("there are %d contacts in %d buckets\n", rt.Count(), rt.Len())
+	for i, b := range rt.buckets {
+		fmt.Printf("bucket %d, %d contacts\n", i+1, len(b.peers))
+		fmt.Printf("    start : %s\n", b.Range.Start.String())
+		fmt.Printf("    stop  : %s\n", b.Range.End.String())
+		fmt.Println("")
+	}
 }
 
 func (rt *routingTable) GetIDsForRefresh(refreshInterval time.Duration) []bits.Bitmap {
