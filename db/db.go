@@ -371,9 +371,7 @@ CREATE TABLE blob_ (
   hash char(96) NOT NULL,
   is_stored TINYINT(1) NOT NULL DEFAULT 0,
   length bigint(20) unsigned DEFAULT NULL,
-  last_announced_at datetime DEFAULT NULL,
-  PRIMARY KEY (hash),
-  KEY last_announced_at_idx (last_announced_at)
+  PRIMARY KEY (hash)
 );
 
 CREATE TABLE stream (

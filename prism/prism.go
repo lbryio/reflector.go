@@ -141,8 +141,6 @@ func (p *Prism) Shutdown() {
 
 // AnnounceRange announces the `n`th interval of hashes, out of a total of `total` intervals
 func (p *Prism) AnnounceRange(n, total int) {
-	// TODO: if more than one node is announcing each hash, figure out how to deal with last_announced_at so both nodes dont announce the same thing at the same time
-
 	// num and total are 1-indexed
 	if n < 1 {
 		log.Errorf("%s: n must be >= 1", p.dht.ID().HexShort())
