@@ -60,7 +60,7 @@ script:
   # go vet is the official Go static analyzer
   - go vet ./...
   # forbid code with huge functions
-  - gocyclo -ignore "_test.go" -avg -over 19 $GO_FILES
+  #- gocyclo -ignore "_test.go" -avg -over 19 $GO_FILES
   # checks for unhandled errors
   - errcheck ./...
   # "go vet on steroids" + linter - ignore autogen code
@@ -68,4 +68,4 @@ script:
   # check for unnecessary conversions - ignore autogen code
   - unconvert ./...
   # one last linter - ignore autogen code
-  - golint -set_exit_status $(go list ./... | grep -v /vendor/ )
+  #- golint -set_exit_status $(go list ./... | grep -v /vendor/ )
