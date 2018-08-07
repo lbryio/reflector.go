@@ -105,9 +105,8 @@ func (s *Server) handleConnection(conn net.Conn) {
 	for {
 		var request []byte
 		var response []byte
-		var err error
 
-		err = conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+		err := conn.SetReadDeadline(time.Now().Add(timeoutDuration))
 		if err != nil {
 			log.Error(errors.FullTrace(err))
 		}

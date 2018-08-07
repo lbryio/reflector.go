@@ -122,12 +122,7 @@ func (p *Prism) Start() error {
 		return err
 	}
 
-	err = p.cluster.Connect()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return p.cluster.Connect()
 }
 
 // Shutdown gracefully shuts down the different prism components before exiting.

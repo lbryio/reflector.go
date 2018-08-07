@@ -62,7 +62,11 @@ func dhtCmd(cmd *cobra.Command, args []string) {
 		}
 
 		d := dht.New(dhtConf)
-		d.Start()
+		err := d.Start()
+		if err != nil {
+			log.Println("error starting dht: " + err.Error())
+			return
+		}
 
 		interruptChan := make(chan os.Signal, 1)
 		signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)

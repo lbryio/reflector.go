@@ -296,6 +296,7 @@ func (s *SQL) GetStoredHashesInRange(ctx context.Context, start, end bits.Bitmap
 		}
 
 		var hash string
+	ScanLoop:
 		for rows.Next() {
 			err := rows.Scan(&hash)
 			if err != nil {
@@ -304,7 +305,7 @@ func (s *SQL) GetStoredHashesInRange(ctx context.Context, start, end bits.Bitmap
 			}
 			select {
 			case <-ctx.Done():
-				break
+				break ScanLoop
 			case ch <- bits.FromHexP(hash):
 			}
 		}

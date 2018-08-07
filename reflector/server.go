@@ -206,11 +206,7 @@ func (s *Server) doHandshake(conn net.Conn) error {
 	}
 
 	_, err = conn.Write(resp)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
@@ -257,10 +253,7 @@ func (s *Server) sendBlobResponse(conn net.Conn, blobExists, isSdBlob bool) erro
 	}
 
 	_, err = conn.Write(response)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob, isSdBlob bool) error {
@@ -278,8 +271,5 @@ func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob, isSdBlob bool
 	}
 
 	_, err = conn.Write(response)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }

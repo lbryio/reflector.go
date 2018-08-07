@@ -116,9 +116,5 @@ func loadConfig(path string) (Config, error) {
 	}
 
 	err = json.Unmarshal(raw, &c)
-	if err != nil {
-		return c, err
-	}
-
-	return c, nil
+	return c, err
 }
