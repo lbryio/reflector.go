@@ -241,6 +241,11 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob types.SdBlob) er
 			if err != nil {
 				return errors.Err(err)
 			}
+
+			err = stmt.Close()
+			if err != nil {
+				return errors.Err(err)
+			}
 		}
 		return nil
 	})
