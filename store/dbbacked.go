@@ -5,17 +5,16 @@ import (
 
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/reflector.go/db"
-	"github.com/lbryio/reflector.go/types"
 )
 
 // DBBackedS3Store is an instance of an S3 Store that is backed by a DB for what is stored.
 type DBBackedS3Store struct {
 	s3 *S3BlobStore
-	db db.DB
+	db *db.SQL
 }
 
 // NewDBBackedS3Store returns an initialized store pointer.
-func NewDBBackedS3Store(s3 *S3BlobStore, db db.DB) *DBBackedS3Store {
+func NewDBBackedS3Store(s3 *S3BlobStore, db *db.SQL) *DBBackedS3Store {
 	return &DBBackedS3Store{s3: s3, db: db}
 }
 
@@ -42,7 +41,7 @@ func (d *DBBackedS3Store) Put(hash string, blob []byte) error {
 // PutSD stores the SDBlob in the S3 store. It will return an error if the sd blob is missing the stream hash or if
 // there is an error storing the blob information in the DB.
 func (d *DBBackedS3Store) PutSD(hash string, blob []byte) error {
-	var blobContents types.SdBlob
+	var blobContents db.SdBlob
 	err := json.Unmarshal(blob, &blobContents)
 	if err != nil {
 		return err
