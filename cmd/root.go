@@ -41,6 +41,7 @@ var rootCmd = &cobra.Command{
 		debugLogger.SetLevel(logrus.DebugLevel)
 
 		if util.InSlice(verboseAll, verbose) {
+			logrus.SetLevel(logrus.DebugLevel)
 			verbose = []string{verboseDHT, verboseNodeFinder}
 		}
 

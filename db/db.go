@@ -72,7 +72,7 @@ func addBlob(tx *sql.Tx, hash string, length int, isStored bool) error {
 		return errors.Err("length must be positive")
 	}
 
-	err := execPrepared(tx,
+	err := execTx(tx,
 		"INSERT INTO blob_ (hash, is_stored, length) VALUES (?,?,?) ON DUPLICATE KEY UPDATE is_stored = (is_stored or VALUES(is_stored))",
 		[]interface{}{hash, isStored, length},
 	)
@@ -200,7 +200,7 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 		}
 
 		// insert stream
-		err = execPrepared(tx,
+		err = execTx(tx,
 			"INSERT IGNORE INTO stream (hash, sd_hash) VALUES (?,?)",
 			[]interface{}{sdBlob.StreamHash, sdHash},
 		)
@@ -220,7 +220,7 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 				return err
 			}
 
-			err = execPrepared(tx,
+			err = execTx(tx,
 				"INSERT IGNORE INTO stream_blob (stream_hash, blob_hash, num) VALUES (?,?,?)",
 				[]interface{}{sdBlob.StreamHash, contentBlob.BlobHash, contentBlob.BlobNum},
 			)
@@ -264,13 +264,8 @@ func (s *SQL) GetStoredHashesInRange(ctx context.Context, start, end bits.Bitmap
 			return
 		}
 
-		//query := "SELECT hash FROM blob_ WHERE hash >= ? AND hash <= ? AND is_stored = 1"
-		//args := []interface{}{start.Hex(), end.Hex()}
-		query := "SELECT hash FROM blob_ WHERE hash IN (?,?) AND is_stored = 1"
-		args := []interface{}{
-			"6363e3ed8d32156aebbbe8c0dd077e7029c7cdaec58e08271aa35baa4250ec531129cb4f7a9ac9b7285dbb7ba375ab11",
-			"89c5c3f9794b0b24a03406e3b74361edb9ae70828e4c133512fc75db0a2d312673cdd4e30eed37892a46692d2fe439f3",
-		}
+		query := "SELECT hash FROM blob_ WHERE hash >= ? AND hash <= ? AND is_stored = 1"
+		args := []interface{}{start.Hex(), end.Hex()}
 
 		logQuery(query, args...)
 
@@ -352,20 +347,9 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
-func execPrepared(tx *sql.Tx, query string, args []interface{}) error {
+func execTx(tx *sql.Tx, query string, args []interface{}) error {
 	logQuery(query, args...)
-
-	stmt, err := tx.Prepare(query)
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	_, err = stmt.Exec(args...)
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	err = stmt.Close()
+	_, err := tx.Exec(query, args...)
 	return errors.Err(err)
 }
 

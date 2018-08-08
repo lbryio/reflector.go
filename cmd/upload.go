@@ -5,20 +5,23 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/lbryio/lbry.go/stop"
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/store"
+
+	"github.com/lbryio/lbry.go/stop"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-var workers int
+var uploadWorkers int
+var uploadSkipExistsCheck bool
 
 const (
 	sdInc   = 1
@@ -27,24 +30,25 @@ const (
 )
 
 type uploaderParams struct {
-	workerWG     *sync.WaitGroup
-	counterWG    *sync.WaitGroup
-	stopper      *stop.Group
-	filenameChan chan string
-	countChan    chan int
-	sdCount      int
-	blobCount    int
-	errCount     int
+	workerWG  *sync.WaitGroup
+	counterWG *sync.WaitGroup
+	stopper   *stop.Group
+	pathChan  chan string
+	countChan chan int
+	sdCount   int
+	blobCount int
+	errCount  int
 }
 
 func init() {
 	var cmd = &cobra.Command{
-		Use:   "upload DIR",
+		Use:   "upload PATH",
 		Short: "Upload blobs to S3",
 		Args:  cobra.ExactArgs(1),
 		Run:   uploadCmd,
 	}
-	cmd.PersistentFlags().IntVar(&workers, "workers", 1, "How many worker threads to run at once")
+	cmd.PersistentFlags().IntVar(&uploadWorkers, "workers", 1, "How many worker threads to run at once")
+	cmd.PersistentFlags().BoolVar(&uploadSkipExistsCheck, "skipExistsCheck", false, "Dont check if blobs exist before uploading")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -55,28 +59,36 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 	checkErr(err)
 
 	params := uploaderParams{
-		workerWG:     &sync.WaitGroup{},
-		counterWG:    &sync.WaitGroup{},
-		filenameChan: make(chan string),
-		countChan:    make(chan int),
-		stopper:      stop.New()}
+		workerWG:  &sync.WaitGroup{},
+		counterWG: &sync.WaitGroup{},
+		pathChan:  make(chan string),
+		countChan: make(chan int),
+		stopper:   stop.New()}
 
 	setInterrupt(params.stopper)
 
-	filenames, err := getFileNames(args[0])
+	paths, err := getPaths(args[0])
 	checkErr(err)
 
-	totalCount := len(filenames)
+	totalCount := len(paths)
+
+	hashes := make([]string, len(paths))
+	for i, p := range paths {
+		hashes[i] = path.Base(p)
+	}
 
 	log.Println("checking for existing blobs")
 
-	exists, err := db.HasBlobs(filenames)
-	checkErr(err)
+	exists := make(map[string]bool)
+	if !uploadSkipExistsCheck {
+		exists, err = db.HasBlobs(hashes)
+		checkErr(err)
+	}
 	existsCount := len(exists)
 
 	log.Printf("%d new blobs to upload", totalCount-existsCount)
 
-	startUploadWorkers(&params, args[0])
+	startUploadWorkers(&params)
 	params.counterWG.Add(1)
 	go func() {
 		defer params.counterWG.Done()
@@ -84,20 +96,20 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 	}()
 
 Upload:
-	for _, filename := range filenames {
-		if exists[filename] {
+	for _, f := range paths {
+		if exists[path.Base(f)] {
 			continue
 		}
 
 		select {
-		case params.filenameChan <- filename:
+		case params.pathChan <- f:
 		case <-params.stopper.Ch():
 			log.Warnln("Caught interrupt, quitting at first opportunity...")
 			break Upload
 		}
 	}
 
-	close(params.filenameChan)
+	close(params.pathChan)
 	params.workerWG.Wait()
 	close(params.countChan)
 	params.counterWG.Wait()
@@ -134,8 +146,8 @@ func setInterrupt(stopper *stop.Group) {
 	}()
 }
 
-func startUploadWorkers(params *uploaderParams, dir string) {
-	for i := 0; i < workers; i++ {
+func startUploadWorkers(params *uploaderParams) {
+	for i := 0; i < uploadWorkers; i++ {
 		params.workerWG.Add(1)
 		go func(i int) {
 			defer params.workerWG.Done()
@@ -144,27 +156,27 @@ func startUploadWorkers(params *uploaderParams, dir string) {
 			}(i)
 
 			blobStore := newBlobStore()
-			launchFileUploader(params, blobStore, dir, i)
+			launchFileUploader(params, blobStore, i)
 		}(i)
 	}
 }
 
-func launchFileUploader(params *uploaderParams, blobStore *store.DBBackedS3Store, dir string, worker int) {
+func launchFileUploader(params *uploaderParams, blobStore *store.DBBackedS3Store, worker int) {
 	for {
 		select {
 		case <-params.stopper.Ch():
 			return
-		case filename, ok := <-params.filenameChan:
+		case filepath, ok := <-params.pathChan:
 			if !ok {
 				return
 			}
 
-			blob, err := ioutil.ReadFile(dir + "/" + filename)
+			blob, err := ioutil.ReadFile(filepath)
 			checkErr(err)
 
 			hash := peer.GetBlobHash(blob)
-			if hash != filename {
-				log.Errorf("worker %d: filename does not match hash (%s != %s), skipping", worker, filename, hash)
+			if hash != path.Base(filepath) {
+				log.Errorf("worker %d: file name does not match hash (%s != %s), skipping", worker, filepath, hash)
 				select {
 				case params.countChan <- errInc:
 				case <-params.stopper.Ch():
@@ -221,8 +233,17 @@ func runCountReceiver(params *uploaderParams, startTime time.Time, totalCount in
 	}
 }
 
-func getFileNames(dir string) ([]string, error) {
-	f, err := os.Open(dir)
+func getPaths(path string) ([]string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.Mode().IsRegular() {
+		return []string{path}, nil
+	}
+
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +260,7 @@ func getFileNames(dir string) ([]string, error) {
 	var filenames []string
 	for _, file := range files {
 		if !file.IsDir() {
-			filenames = append(filenames, file.Name())
+			filenames = append(filenames, path+"/"+file.Name())
 		}
 	}
 
