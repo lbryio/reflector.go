@@ -2,31 +2,47 @@ package reflector
 
 import (
 	"bufio"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net"
 	"strconv"
+	"time"
+
+	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/lbry.go/stop"
-	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	// DefaultPort is the port the reflector server listens on if not passed in.
+	DefaultPort = 5566
+	// DefaultTimeout is the default timeout to read or write the next message
+	DefaultTimeout = 5 * time.Second
+
+	network          = "tcp4"
+	protocolVersion1 = 0
+	protocolVersion2 = 1
+	maxBlobSize      = 2 * 1024 * 1024
+)
+
 // Server is and instance of the reflector server. It houses the blob store and listener.
 type Server struct {
-	store  store.BlobStore
-	closed bool
-
-	grp *stop.Group
+	store   store.BlobStore
+	timeout time.Duration // timeout to read or write next message
+	grp     *stop.Group
 }
 
 // NewServer returns an initialized reflector server pointer.
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
-		store: store,
-		grp:   stop.New(),
+		store:   store,
+		grp:     stop.New(),
+		timeout: DefaultTimeout,
 	}
 }
 
@@ -37,16 +53,23 @@ func (s *Server) Shutdown() {
 	log.Debug("reflector server stopped")
 }
 
-//Start starts the server listener to handle connections.
+//Start starts the server to handle connections.
 func (s *Server) Start(address string) error {
-	//ToDo - We should make this DRY as it is the same code in both servers.
 	log.Println("reflector listening on " + address)
-	l, err := net.Listen("tcp4", address)
+	l, err := net.Listen(network, address)
 	if err != nil {
-		return err
+		return errors.Err(err)
 	}
 
-	go s.listenForShutdown(l)
+	s.grp.Add(1)
+	go func() {
+		<-s.grp.Ch()
+		err := l.Close()
+		if err != nil {
+			log.Error(errors.Prefix("closing listener", err))
+		}
+		s.grp.Done()
+	}()
 
 	s.grp.Add(1)
 	go func() {
@@ -57,20 +80,11 @@ func (s *Server) Start(address string) error {
 	return nil
 }
 
-func (s *Server) listenForShutdown(listener net.Listener) {
-	<-s.grp.Ch()
-	s.closed = true
-	err := listener.Close()
-	if err != nil {
-		log.Error("error closing listener for peer server - ", err)
-	}
-}
-
 func (s *Server) listenAndServe(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			if s.closed {
+			if s.quitting() {
 				return
 			}
 			log.Error(err)
@@ -85,22 +99,32 @@ func (s *Server) listenAndServe(listener net.Listener) {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
+	// all this stuff is to close the connections correctly when we're shutting down the server
+	connNeedsClosing := make(chan struct{})
 	defer func() {
-		if err := conn.Close(); err != nil {
+		close(connNeedsClosing)
+	}()
+	s.grp.Add(1)
+	go func() {
+		defer s.grp.Done()
+		select {
+		case <-connNeedsClosing:
+		case <-s.grp.Ch():
+		}
+		err := conn.Close()
+		if err != nil {
 			log.Error(errors.Prefix("closing peer conn", err))
 		}
 	}()
 
-	// TODO: connection should time out eventually
-
 	err := s.doHandshake(conn)
 	if err != nil {
-		if err == io.EOF {
+		if err == io.EOF || s.quitting() {
 			return
 		}
 		err := s.doError(conn, err)
 		if err != nil {
-			log.Error("error sending error response to reflector client connection - ", err)
+			log.Error(errors.Prefix("sending handshake error", err))
 		}
 		return
 	}
@@ -108,11 +132,12 @@ func (s *Server) handleConn(conn net.Conn) {
 	for {
 		err = s.receiveBlob(conn)
 		if err != nil {
-			if err != io.EOF {
-				err := s.doError(conn, err)
-				if err != nil {
-					log.Error("error sending error response for receiving a blob to reflector client connection - ", err)
-				}
+			if err == io.EOF || s.quitting() {
+				return
+			}
+			err := s.doError(conn, err)
+			if err != nil {
+				log.Error(errors.Prefix("sending blob receive error", err))
 			}
 			return
 		}
@@ -120,7 +145,7 @@ func (s *Server) handleConn(conn net.Conn) {
 }
 
 func (s *Server) doError(conn net.Conn, err error) error {
-	log.Errorln(err)
+	log.Errorln(errors.FullTrace(err))
 	if e2, ok := err.(*json.SyntaxError); ok {
 		log.Printf("syntax error at byte offset %d", e2.Offset)
 	}
@@ -128,8 +153,7 @@ func (s *Server) doError(conn net.Conn, err error) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Write(resp)
-	return err
+	return s.write(conn, resp)
 }
 
 func (s *Server) receiveBlob(conn net.Conn) error {
@@ -165,8 +189,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 		return nil
 	}
 
-	blob := make([]byte, blobSize)
-	_, err = io.ReadFull(bufio.NewReader(conn), blob)
+	blob, err := s.readRawBlob(conn, blobSize)
 	if err != nil {
 		return err
 	}
@@ -193,7 +216,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 
 func (s *Server) doHandshake(conn net.Conn) error {
 	var handshake handshakeRequestResponse
-	err := json.NewDecoder(conn).Decode(&handshake)
+	err := s.read(conn, &handshake)
 	if err != nil {
 		return err
 	} else if handshake.Version != protocolVersion1 && handshake.Version != protocolVersion2 {
@@ -205,28 +228,19 @@ func (s *Server) doHandshake(conn net.Conn) error {
 		return err
 	}
 
-	_, err = conn.Write(resp)
-	return err
+	return s.write(conn, resp)
 }
 
 func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 	var sendRequest sendBlobRequest
-	err := json.NewDecoder(conn).Decode(&sendRequest)
+	err := s.read(conn, &sendRequest)
 	if err != nil {
 		return 0, "", false, err
-	}
-
-	if sendRequest.SdBlobHash != "" && sendRequest.BlobHash != "" {
-		return 0, "", false, errors.Err("invalid request")
 	}
 
 	var blobHash string
 	var blobSize int
 	isSdBlob := sendRequest.SdBlobHash != ""
-
-	if blobSize > maxBlobSize {
-		return 0, "", isSdBlob, errors.Err("blob cannot be more than " + strconv.Itoa(maxBlobSize) + " bytes")
-	}
 
 	if isSdBlob {
 		blobSize = sendRequest.SdBlobSize
@@ -234,6 +248,16 @@ func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 	} else {
 		blobSize = sendRequest.BlobSize
 		blobHash = sendRequest.BlobHash
+	}
+
+	if blobHash == "" {
+		return blobSize, blobHash, isSdBlob, errors.Err("blob hash is empty")
+	}
+	if blobSize > maxBlobSize {
+		return blobSize, blobHash, isSdBlob, errors.Err("blob must be at most " + strconv.Itoa(maxBlobSize) + " bytes")
+	}
+	if blobSize == 0 {
+		return blobSize, blobHash, isSdBlob, errors.Err("0-byte blob received")
 	}
 
 	return blobSize, blobHash, isSdBlob, nil
@@ -252,8 +276,7 @@ func (s *Server) sendBlobResponse(conn net.Conn, blobExists, isSdBlob bool) erro
 		return err
 	}
 
-	_, err = conn.Write(response)
-	return err
+	return s.write(conn, response)
 }
 
 func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob, isSdBlob bool) error {
@@ -262,7 +285,6 @@ func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob, isSdBlob bool
 
 	if isSdBlob {
 		response, err = json.Marshal(sdBlobTransferResponse{ReceivedSdBlob: receivedBlob})
-
 	} else {
 		response, err = json.Marshal(blobTransferResponse{ReceivedBlob: receivedBlob})
 	}
@@ -270,6 +292,84 @@ func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob, isSdBlob bool
 		return err
 	}
 
-	_, err = conn.Write(response)
-	return err
+	return s.write(conn, response)
+}
+
+func (s *Server) read(conn net.Conn, v interface{}) error {
+	err := conn.SetReadDeadline(time.Now().Add(s.timeout))
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	return errors.Err(json.NewDecoder(conn).Decode(v))
+}
+
+func (s *Server) readRawBlob(conn net.Conn, blobSize int) ([]byte, error) {
+	err := conn.SetReadDeadline(time.Now().Add(s.timeout))
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	blob := make([]byte, blobSize)
+	_, err = io.ReadFull(bufio.NewReader(conn), blob)
+	return blob, errors.Err(err)
+}
+
+func (s *Server) write(conn net.Conn, b []byte) error {
+	err := conn.SetWriteDeadline(time.Now().Add(s.timeout))
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	n, err := conn.Write(b)
+	if err == nil && n != len(b) {
+		err = io.ErrShortWrite
+	}
+	return errors.Err(err)
+}
+
+func (s *Server) quitting() bool {
+	select {
+	case <-s.grp.Ch():
+		return true
+	default:
+		return false
+	}
+}
+
+func getBlobHash(blob []byte) string {
+	hashBytes := sha512.Sum384(blob)
+	return hex.EncodeToString(hashBytes[:])
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+type handshakeRequestResponse struct {
+	Version int `json:"version"`
+}
+
+type sendBlobRequest struct {
+	BlobHash   string `json:"blob_hash,omitempty"`
+	BlobSize   int    `json:"blob_size,omitempty"`
+	SdBlobHash string `json:"sd_blob_hash,omitempty"`
+	SdBlobSize int    `json:"sd_blob_size,omitempty"`
+}
+
+type sendBlobResponse struct {
+	SendBlob bool `json:"send_blob"`
+}
+
+type sendSdBlobResponse struct {
+	SendSdBlob  bool     `json:"send_sd_blob"`
+	NeededBlobs []string `json:"needed_blobs,omitempty"`
+}
+
+type blobTransferResponse struct {
+	ReceivedBlob bool `json:"received_blob"`
+}
+
+type sdBlobTransferResponse struct {
+	ReceivedSdBlob bool `json:"received_sd_blob"`
 }

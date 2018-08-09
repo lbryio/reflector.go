@@ -29,3 +29,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/uber-go/atomic"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/phayes/freeport"

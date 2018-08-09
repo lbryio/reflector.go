@@ -257,6 +257,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:d38c630298ac75e214f3caa5c240ea2923c7a089824d175ba4107d0650d56579"
+  name = "github.com/phayes/freeport"
+  packages = ["."]
+  pruneopts = ""
+  revision = "e27662a4a9d6b2083dfd7e7b5d0e30985daca925"
+
+[[projects]]
+  branch = "master"
   digest = "1:6ee36f2cea425916d81fdaaf983469fc18f91b3cf090cfe90fa0a9d85b8bfab7"
   name = "github.com/sean-/seed"
   packages = ["."]
@@ -398,6 +406,7 @@
     "github.com/lbryio/lbry.go/stop",
     "github.com/lbryio/lbry.go/util",
     "github.com/lyoshenka/bencode",
+    "github.com/phayes/freeport",
     "github.com/sebdah/goldie",
     "github.com/sirupsen/logrus",
     "github.com/spf13/cast",

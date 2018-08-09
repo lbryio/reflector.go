@@ -9,6 +9,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// ErrBlobExists is a default error for when a blob already exists on the reflector server.
+var ErrBlobExists = errors.Base("blob exists on server")
+
 // Client is an instance of a client connected to a server.
 type Client struct {
 	conn      net.Conn
@@ -18,7 +21,7 @@ type Client struct {
 // Connect connects to a specific clients and errors if it cannot be contacted.
 func (c *Client) Connect(address string) error {
 	var err error
-	c.conn, err = net.Dial("tcp", address)
+	c.conn, err = net.Dial(network, address)
 	if err != nil {
 		return err
 	}
@@ -38,8 +41,10 @@ func (c *Client) SendBlob(blob []byte) error {
 		return errors.Err("not connected")
 	}
 
-	if len(blob) != maxBlobSize {
-		return errors.Err("blob must be exactly " + strconv.Itoa(maxBlobSize) + " bytes")
+	if len(blob) > maxBlobSize {
+		return errors.Err("blob must be at most " + strconv.Itoa(maxBlobSize) + " bytes")
+	} else if len(blob) == 0 {
+		return errors.Err("blob is empty")
 	}
 
 	blobHash := getBlobHash(blob)
@@ -50,6 +55,7 @@ func (c *Client) SendBlob(blob []byte) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = c.conn.Write(sendRequest)
 	if err != nil {
 		return err
@@ -102,8 +108,7 @@ func (c *Client) doHandshake(version int) error {
 	}
 
 	var resp handshakeRequestResponse
-	dec := json.NewDecoder(c.conn)
-	err = dec.Decode(&resp)
+	err = json.NewDecoder(c.conn).Decode(&resp)
 	if err != nil {
 		return err
 	} else if resp.Version != version {
