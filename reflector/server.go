@@ -201,7 +201,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 		// this can also happen if the blob size is wrong, because the server will read the wrong number of bytes from the stream
 	}
 
-	log.Infoln("Got blob " + blobHash[:8])
+	log.Debugln("Got blob " + blobHash[:8])
 
 	if isSdBlob {
 		err = s.store.PutSD(blobHash, blob)
