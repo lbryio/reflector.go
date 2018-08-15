@@ -129,7 +129,7 @@ func TestServer_Timeout(t *testing.T) {
 	}
 
 	srv := NewServer(&store.MemoryBlobStore{})
-	srv.timeout = testTimeout
+	srv.Timeout = testTimeout
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)

@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/meta"
@@ -35,6 +36,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	combo := store.NewDBBackedS3Store(s3, db)
 	reflectorServer := reflector.NewServer(combo)
+	reflectorServer.Timeout = 10 * time.Second
 	err = reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
 	if err != nil {
 		log.Fatal(err)

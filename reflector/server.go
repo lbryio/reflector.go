@@ -32,17 +32,18 @@ const (
 
 // Server is and instance of the reflector server. It houses the blob store and listener.
 type Server struct {
-	store   store.BlobStore
-	timeout time.Duration // timeout to read or write next message
-	grp     *stop.Group
+	Timeout time.Duration // timeout to read or write next message
+
+	store store.BlobStore
+	grp   *stop.Group
 }
 
 // NewServer returns an initialized reflector server pointer.
 func NewServer(store store.BlobStore) *Server {
 	return &Server{
+		Timeout: DefaultTimeout,
 		store:   store,
 		grp:     stop.New(),
-		timeout: DefaultTimeout,
 	}
 }
 
@@ -296,7 +297,7 @@ func (s *Server) sendTransferResponse(conn net.Conn, receivedBlob, isSdBlob bool
 }
 
 func (s *Server) read(conn net.Conn, v interface{}) error {
-	err := conn.SetReadDeadline(time.Now().Add(s.timeout))
+	err := conn.SetReadDeadline(time.Now().Add(s.Timeout))
 	if err != nil {
 		return errors.Err(err)
 	}
@@ -305,7 +306,7 @@ func (s *Server) read(conn net.Conn, v interface{}) error {
 }
 
 func (s *Server) readRawBlob(conn net.Conn, blobSize int) ([]byte, error) {
-	err := conn.SetReadDeadline(time.Now().Add(s.timeout))
+	err := conn.SetReadDeadline(time.Now().Add(s.Timeout))
 	if err != nil {
 		return nil, errors.Err(err)
 	}
@@ -316,7 +317,7 @@ func (s *Server) readRawBlob(conn net.Conn, blobSize int) ([]byte, error) {
 }
 
 func (s *Server) write(conn net.Conn, b []byte) error {
-	err := conn.SetWriteDeadline(time.Now().Add(s.timeout))
+	err := conn.SetWriteDeadline(time.Now().Add(s.Timeout))
 	if err != nil {
 		return errors.Err(err)
 	}
