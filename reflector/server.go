@@ -119,7 +119,7 @@ func (s *Server) handleConn(conn net.Conn) {
 
 	err := s.doHandshake(conn)
 	if err != nil {
-		if err == io.EOF || s.quitting() {
+		if errors.Is(err, io.EOF) || s.quitting() {
 			return
 		}
 		err := s.doError(conn, err)
@@ -132,7 +132,7 @@ func (s *Server) handleConn(conn net.Conn) {
 	for {
 		err = s.receiveBlob(conn)
 		if err != nil {
-			if err == io.EOF || s.quitting() {
+			if errors.Is(err, io.EOF) || s.quitting() {
 				return
 			}
 			err := s.doError(conn, err)
