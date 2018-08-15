@@ -36,7 +36,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	combo := store.NewDBBackedS3Store(s3, db)
 	reflectorServer := reflector.NewServer(combo)
-	reflectorServer.Timeout = 10 * time.Second
+	reflectorServer.Timeout = 15 * time.Second
 	err = reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
 	if err != nil {
 		log.Fatal(err)
