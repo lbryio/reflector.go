@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/lbryio/reflector.go/db"
+	"github.com/lbryio/reflector.go/meta"
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
@@ -24,6 +25,7 @@ func init() {
 }
 
 func reflectorCmd(cmd *cobra.Command, args []string) {
+	log.Printf("reflector version %s", meta.Version)
 	db := new(db.SQL)
 	err := db.Connect(globalConfig.DBConn)
 	if err != nil {

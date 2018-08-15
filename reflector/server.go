@@ -48,18 +48,18 @@ func NewServer(store store.BlobStore) *Server {
 
 // Shutdown shuts down the reflector server gracefully.
 func (s *Server) Shutdown() {
-	log.Debug("shutting down reflector server...")
+	log.Println("shutting down reflector server...")
 	s.grp.StopAndWait()
-	log.Debug("reflector server stopped")
+	log.Println("reflector server stopped")
 }
 
 //Start starts the server to handle connections.
 func (s *Server) Start(address string) error {
-	log.Println("reflector listening on " + address)
 	l, err := net.Listen(network, address)
 	if err != nil {
 		return errors.Err(err)
 	}
+	log.Println("reflector listening on " + address)
 
 	s.grp.Add(1)
 	go func() {
@@ -147,7 +147,7 @@ func (s *Server) handleConn(conn net.Conn) {
 func (s *Server) doError(conn net.Conn, err error) error {
 	log.Errorln(errors.FullTrace(err))
 	if e2, ok := err.(*json.SyntaxError); ok {
-		log.Printf("syntax error at byte offset %d", e2.Offset)
+		log.Errorf("syntax error at byte offset %d", e2.Offset)
 	}
 	resp, err := json.Marshal(errorResponse{Error: err.Error()})
 	if err != nil {
@@ -200,7 +200,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 		// this can also happen if the blob size is wrong, because the server will read the wrong number of bytes from the stream
 	}
 
-	log.Println("Got blob " + blobHash[:8])
+	log.Debugln("Got blob " + blobHash[:8])
 
 	if isSdBlob {
 		err = s.store.PutSD(blobHash, blob)

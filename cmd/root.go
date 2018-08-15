@@ -9,6 +9,7 @@ import (
 	"github.com/lbryio/lbry.go/util"
 	"github.com/lbryio/reflector.go/dht"
 
+	"github.com/johntdyer/slackrus"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -20,6 +21,7 @@ type Config struct {
 	BucketRegion string `json:"bucket_region"`
 	BucketName   string `json:"bucket_name"`
 	DBConn       string `json:"db_conn"`
+	SlackHookURL string `json:"slack_hook_url"`
 }
 
 var verbose []string
@@ -34,39 +36,9 @@ var conf string
 var globalConfig Config
 
 var rootCmd = &cobra.Command{
-	Use:   "prism",
-	Short: "Prism is a single entry point application with multiple sub modules which can be leveraged individually or together",
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		debugLogger := logrus.New()
-		debugLogger.SetLevel(logrus.DebugLevel)
-
-		if util.InSlice(verboseAll, verbose) {
-			logrus.SetLevel(logrus.DebugLevel)
-			verbose = []string{verboseDHT, verboseNodeFinder}
-		}
-
-		for _, debugType := range verbose {
-			switch debugType {
-			case verboseDHT:
-				dht.UseLogger(debugLogger)
-			case verboseNodeFinder:
-				dht.NodeFinderUseLogger(debugLogger)
-			}
-		}
-
-		var err error
-		if conf == "" {
-			logrus.Errorln("--conf flag required")
-			os.Exit(1)
-		} else if conf != "none" {
-			globalConfig, err = loadConfig(conf)
-			if err != nil {
-				logrus.Error(err)
-				os.Exit(1)
-			}
-		}
-	},
-
+	Use:              "prism",
+	Short:            "Prism is a single entry point application with multiple sub modules which can be leveraged individually or together",
+	PersistentPreRun: preRun,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
@@ -84,6 +56,51 @@ func Execute() {
 	if err != nil {
 		logrus.Errorln(err)
 		os.Exit(1)
+	}
+}
+
+func preRun(cmd *cobra.Command, args []string) {
+	debugLogger := logrus.New()
+	debugLogger.SetLevel(logrus.DebugLevel)
+	debugLogger.SetOutput(os.Stderr)
+
+	if util.InSlice(verboseAll, verbose) {
+		logrus.SetLevel(logrus.DebugLevel)
+		verbose = []string{verboseDHT, verboseNodeFinder}
+	}
+
+	for _, debugType := range verbose {
+		switch debugType {
+		case verboseDHT:
+			dht.UseLogger(debugLogger)
+		case verboseNodeFinder:
+			dht.NodeFinderUseLogger(debugLogger)
+		}
+	}
+
+	var err error
+	if conf == "" {
+		logrus.Errorln("--conf flag required")
+		os.Exit(1)
+	} else if conf != "none" {
+		globalConfig, err = loadConfig(conf)
+		if err != nil {
+			logrus.Error(err)
+			os.Exit(1)
+		}
+	}
+
+	if globalConfig.SlackHookURL != "" {
+		hook := &slackrus.SlackrusHook{
+			HookURL:        globalConfig.SlackHookURL,
+			AcceptedLevels: slackrus.LevelThreshold(logrus.InfoLevel),
+			Channel:        "#reflector-logs",
+			//IconEmoji:      ":ghost:",
+			//Username:       "reflector.go",
+		}
+		//logrus.SetFormatter(&logrus.JSONFormatter{})
+		logrus.AddHook(hook)
+		debugLogger.AddHook(hook)
 	}
 }
 

@@ -33,3 +33,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/phayes/freeport"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/johntdyer/slackrus"
