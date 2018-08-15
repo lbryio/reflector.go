@@ -191,16 +191,16 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 
 	blob, err := s.readRawBlob(conn, blobSize)
 	if err != nil {
-		return err
+		return errors.Prefix("error reading blob "+blobHash[:8], err)
 	}
 
-	receivedBlobHash := getBlobHash(blob)
+	receivedBlobHash := BlobHash(blob)
 	if blobHash != receivedBlobHash {
 		return errors.Err("hash of received blob data does not match hash from send request")
 		// this can also happen if the blob size is wrong, because the server will read the wrong number of bytes from the stream
 	}
 
-	log.Debugln("Got blob " + blobHash[:8])
+	log.Infoln("Got blob " + blobHash[:8])
 
 	if isSdBlob {
 		err = s.store.PutSD(blobHash, blob)
@@ -337,7 +337,7 @@ func (s *Server) quitting() bool {
 	}
 }
 
-func getBlobHash(blob []byte) string {
+func BlobHash(blob []byte) string {
 	hashBytes := sha512.Sum384(blob)
 	return hex.EncodeToString(hashBytes[:])
 }

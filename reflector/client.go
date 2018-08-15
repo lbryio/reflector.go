@@ -47,7 +47,7 @@ func (c *Client) SendBlob(blob []byte) error {
 		return errors.Err("blob is empty")
 	}
 
-	blobHash := getBlobHash(blob)
+	blobHash := BlobHash(blob)
 	sendRequest, err := json.Marshal(sendBlobRequest{
 		BlobSize: len(blob),
 		BlobHash: blobHash,
