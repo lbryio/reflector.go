@@ -58,7 +58,7 @@ var rootCmd = &cobra.Command{
 		if conf == "" {
 			logrus.Errorln("--conf flag required")
 			os.Exit(1)
-		} else {
+		} else if conf != "none" {
 			globalConfig, err = loadConfig(conf)
 			if err != nil {
 				logrus.Error(err)
