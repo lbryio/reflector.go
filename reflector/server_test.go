@@ -3,7 +3,6 @@ package reflector
 import (
 	"crypto/rand"
 	"io"
-	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -168,12 +167,14 @@ func TestServer_PartialUpload(t *testing.T) {
 		missing[i] = bits.Rand().String()
 	}
 
-	var st store.BlobStore
-	st = &mockPartialStore{missing: missing}
+	st := store.BlobStore(&mockPartialStore{missing: missing})
 	if _, ok := st.(neededBlobChecker); !ok {
 		t.Fatal("mock does not implement the relevant interface")
 	}
-	st.Put(sdHash, randBlob(10))
+	err = st.Put(sdHash, randBlob(10))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	srv := NewServer(st)
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
@@ -225,15 +226,17 @@ func TestServer_PartialUpload(t *testing.T) {
 	}
 }
 
-func MakeRandStream(size int) ([]byte, [][]byte) {
-	blobs := make([][]byte, int(math.Ceil(float64(size)/maxBlobSize)))
-	for i := 0; i < len(blobs); i++ {
-		blobs[i] = randBlob(int(math.Min(maxBlobSize, float64(size))))
-		size -= maxBlobSize
-	}
-
-	return nil, blobs
-}
+//func MakeRandStream(size int) ([]byte, [][]byte) {
+//	blobs := make([][]byte, int(math.Ceil(float64(size)/maxBlobSize)))
+//	for i := 0; i < len(blobs); i++ {
+//		blobs[i] = randBlob(int(math.Min(maxBlobSize, float64(size))))
+//		size -= maxBlobSize
+//	}
+//
+//  //TODO: create SD blob for the stream
+//
+//	return nil, blobs
+//}
 
 func randBlob(size int) []byte {
 	//if size > maxBlobSize {
