@@ -158,30 +158,47 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 	return exists, nil
 }
 
-// HasFullStream checks if the full stream has been uploaded (i.e. if we have the sd blob and all the content blobs)
-func (s *SQL) HasFullStream(sdHash string) (bool, error) {
+// MissingBlobsForKnownStream returns missing blobs for an existing stream
+// WARNING: if the stream does NOT exist, no blob hashes will be returned, which looks
+// like no blobs are missing
+func (s *SQL) MissingBlobsForKnownStream(sdHash string) ([]string, error) {
 	if s.conn == nil {
-		return false, errors.Err("not connected")
+		return nil, errors.Err("not connected")
 	}
 
-	query := `SELECT EXISTS(
-		SELECT 1 FROM stream s
-		LEFT JOIN stream_blob sb ON s.hash = sb.stream_hash
-		LEFT JOIN blob_ b ON b.hash = sb.blob_hash
-		WHERE s.sd_hash = ?
-		GROUP BY s.sd_hash
-		HAVING min(b.is_stored = 1)
-	);`
+	query := `
+		SELECT b.hash FROM blob_ b
+		INNER JOIN stream_blob sb ON b.hash = sb.blob_hash
+		INNER JOIN stream s ON s.hash = sb.stream_hash AND s.sd_hash = ?
+		WHERE b.is_stored = 0
+	`
 	args := []interface{}{sdHash}
 
 	logQuery(query, args...)
 
-	row := s.conn.QueryRow(query, args...)
+	rows, err := s.conn.Query(query, args...)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	defer closeRows(rows)
 
-	exists := false
-	err := row.Scan(&exists)
+	var missingBlobs []string
+	var hash string
 
-	return exists, errors.Err(err)
+	for rows.Next() {
+		err := rows.Scan(&hash)
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+		missingBlobs = append(missingBlobs, hash)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return missingBlobs, errors.Err(err)
 }
 
 // AddSDBlob takes the SD Hash number of blobs and the set of blobs. In a single db tx it inserts the sdblob information

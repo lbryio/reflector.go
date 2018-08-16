@@ -165,23 +165,27 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 		return err
 	}
 
-	// fullStreamChecker can check if the full stream has been uploaded
-	type fullStreamChecker interface {
-		HasFullStream(string) (bool, error)
-	}
-
-	blobExists := false
-	if fsc, ok := s.store.(fullStreamChecker); ok && isSdBlob {
-		blobExists, err = fsc.HasFullStream(blobHash)
-	} else {
-		// if we can't confirm that we have the full stream, we have to say that the sd blob is missing. if we say we have it, they wont try to send any content blobs
-		blobExists, err = s.store.Has(blobHash)
-	}
+	blobExists, err := s.store.Has(blobHash)
 	if err != nil {
 		return err
 	}
 
-	err = s.sendBlobResponse(conn, blobExists, isSdBlob)
+	var neededBlobs []string
+
+	if isSdBlob && blobExists {
+		if fsc, ok := s.store.(neededBlobChecker); ok {
+			neededBlobs, err = fsc.MissingBlobsForKnownStream(blobHash)
+			if err != nil {
+				return err
+			}
+		} else {
+			// if we can't confirm that we have the full stream, we have to say that the sd blob is
+			// missing. if we say we have it, they wont try to send any content blobs
+			blobExists = false
+		}
+	}
+
+	err = s.sendBlobResponse(conn, blobExists, isSdBlob, neededBlobs)
 	if err != nil {
 		return err
 	}
@@ -264,12 +268,12 @@ func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 	return blobSize, blobHash, isSdBlob, nil
 }
 
-func (s *Server) sendBlobResponse(conn net.Conn, blobExists, isSdBlob bool) error {
+func (s *Server) sendBlobResponse(conn net.Conn, blobExists, isSdBlob bool, neededBlobs []string) error {
 	var response []byte
 	var err error
 
 	if isSdBlob {
-		response, err = json.Marshal(sendSdBlobResponse{SendSdBlob: !blobExists})
+		response, err = json.Marshal(sendSdBlobResponse{SendSdBlob: !blobExists, NeededBlobs: neededBlobs})
 	} else {
 		response, err = json.Marshal(sendBlobResponse{SendBlob: !blobExists})
 	}
@@ -373,4 +377,9 @@ type blobTransferResponse struct {
 
 type sdBlobTransferResponse struct {
 	ReceivedSdBlob bool `json:"received_sd_blob"`
+}
+
+// neededBlobChecker can check which blobs from a known stream are not uploaded yet
+type neededBlobChecker interface {
+	MissingBlobsForKnownStream(string) ([]string, error)
 }
