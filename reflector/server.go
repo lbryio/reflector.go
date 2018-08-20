@@ -150,11 +150,12 @@ func (s *Server) doError(conn net.Conn, err error) error {
 	if e2, ok := err.(*json.SyntaxError); ok {
 		log.Errorf("syntax error at byte offset %d", e2.Offset)
 	}
-	resp, err := json.Marshal(errorResponse{Error: err.Error()})
-	if err != nil {
-		return err
-	}
-	return s.write(conn, resp)
+	//resp, err := json.Marshal(errorResponse{Error: err.Error()})
+	//if err != nil {
+	//	return err
+	//}
+	//return s.write(conn, resp)
+	return nil
 }
 
 func (s *Server) receiveBlob(conn net.Conn) error {
@@ -196,11 +197,19 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 
 	blob, err := s.readRawBlob(conn, blobSize)
 	if err != nil {
+		sendErr := s.sendTransferResponse(conn, false, isSdBlob)
+		if sendErr != nil {
+			return sendErr
+		}
 		return errors.Prefix("error reading blob "+blobHash[:8], err)
 	}
 
 	receivedBlobHash := BlobHash(blob)
 	if blobHash != receivedBlobHash {
+		sendErr := s.sendTransferResponse(conn, false, isSdBlob)
+		if sendErr != nil {
+			return sendErr
+		}
 		return errors.Err("hash of received blob data does not match hash from send request")
 		// this can also happen if the blob size is wrong, because the server will read the wrong number of bytes from the stream
 	}
