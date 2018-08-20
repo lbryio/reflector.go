@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/reflector.go/db"
+
+	"github.com/lbryio/lbry.go/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,12 +23,12 @@ func NewDBBackedS3Store(s3 *S3BlobStore, db *db.SQL) *DBBackedS3Store {
 	return &DBBackedS3Store{s3: s3, db: db}
 }
 
-// Has returns T/F or Error ( if the DB errors ) if store contains the blob.
+// Has returns true if the blob is in the store
 func (d *DBBackedS3Store) Has(hash string) (bool, error) {
 	return d.db.HasBlob(hash)
 }
 
-// Get returns the byte slice of the blob or an error.
+// Get gets the blob
 func (d *DBBackedS3Store) Get(hash string) ([]byte, error) {
 	return d.s3.Get(hash)
 }

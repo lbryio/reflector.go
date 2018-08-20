@@ -19,7 +19,7 @@ type SdBlob struct {
 		Length   int    `json:"length"`
 		BlobNum  int    `json:"blob_num"`
 		BlobHash string `json:"blob_hash,omitempty"`
-		Iv       string `json:"iv"`
+		IV       string `json:"iv"`
 	} `json:"blobs"`
 	StreamType        string `json:"stream_type"`
 	Key               string `json:"key"`

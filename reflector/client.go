@@ -3,9 +3,11 @@ package reflector
 import (
 	"encoding/json"
 	"net"
-	"strconv"
+
+	"github.com/lbryio/reflector.go/stream"
 
 	"github.com/lbryio/lbry.go/errors"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,20 +38,18 @@ func (c *Client) Close() error {
 }
 
 // SendBlob sends a send blob request to the client.
-func (c *Client) SendBlob(blob []byte) error {
+func (c *Client) SendBlob(blob stream.Blob) error {
 	if !c.connected {
 		return errors.Err("not connected")
 	}
 
-	if len(blob) > maxBlobSize {
-		return errors.Err("blob must be at most " + strconv.Itoa(maxBlobSize) + " bytes")
-	} else if len(blob) == 0 {
-		return errors.Err("blob is empty")
+	if err := blob.ValidForSend(); err != nil {
+		return errors.Err(err)
 	}
 
-	blobHash := BlobHash(blob)
+	blobHash := blob.HashHex()
 	sendRequest, err := json.Marshal(sendBlobRequest{
-		BlobSize: len(blob),
+		BlobSize: blob.Size(),
 		BlobHash: blobHash,
 	})
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/store"
+	"github.com/lbryio/reflector.go/stream"
 
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/lbry.go/stop"
@@ -27,7 +28,7 @@ const (
 	network          = "tcp4"
 	protocolVersion1 = 0
 	protocolVersion2 = 1
-	maxBlobSize      = 2 * 1024 * 1024
+	maxBlobSize      = stream.MaxBlobSize
 )
 
 // Server is and instance of the reflector server. It houses the blob store and listener.
@@ -217,8 +218,8 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 				return err
 			}
 		} else {
-			// if we can't confirm that we have the full stream, we have to say that the sd blob is
-			// missing. if we say we have it, they wont try to send any content blobs
+			// if we can't check for blobs in a stream, we have to say that the sd blob is
+			// missing. if we say we have the sd blob, they wont try to send any content blobs
 			wantsBlob = true
 		}
 	}

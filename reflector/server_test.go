@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/lbryio/reflector.go/dht/bits"
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/lbryio/reflector.go/dht/bits"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/phayes/freeport"
 )
 
@@ -223,18 +223,6 @@ func TestServer_PartialUpload(t *testing.T) {
 		}
 	}
 }
-
-//func MakeRandStream(size int) ([]byte, [][]byte) {
-//	blobs := make([][]byte, int(math.Ceil(float64(size)/maxBlobSize)))
-//	for i := 0; i < len(blobs); i++ {
-//		blobs[i] = randBlob(int(math.Min(maxBlobSize, float64(size))))
-//		size -= maxBlobSize
-//	}
-//
-//  //TODO: create SD blob for the stream
-//
-//	return nil, blobs
-//}
 
 func randBlob(size int) []byte {
 	//if size > maxBlobSize {
