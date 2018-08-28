@@ -370,9 +370,9 @@ func BlobHash(blob []byte) string {
 	return hex.EncodeToString(hashBytes[:])
 }
 
-type errorResponse struct {
-	Error string `json:"error"`
-}
+//type errorResponse struct {
+//	Error string `json:"error"`
+//}
 
 type handshakeRequestResponse struct {
 	Version int `json:"version"`
