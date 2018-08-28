@@ -34,8 +34,12 @@ const (
 type Server struct {
 	Timeout time.Duration // timeout to read or write next message
 
+	StatLogger          *log.Logger   // logger to log stats
+	StatReportFrequency time.Duration // how often to log stats
+
 	store store.BlobStore
 	grp   *stop.Group
+	stats *stats
 }
 
 // NewServer returns an initialized reflector server pointer.
@@ -77,6 +81,11 @@ func (s *Server) Start(address string) error {
 		s.listenAndServe(l)
 		s.grp.Done()
 	}()
+
+	s.stats = newStatLogger(s.StatLogger, s.StatReportFrequency, s.grp.Child())
+	if s.StatLogger != nil && s.StatReportFrequency > 0 {
+		s.stats.Start()
+	}
 
 	return nil
 }
@@ -147,6 +156,7 @@ func (s *Server) handleConn(conn net.Conn) {
 
 func (s *Server) doError(conn net.Conn, err error) error {
 	log.Errorln(errors.FullTrace(err))
+	s.stats.AddError(err)
 	if e2, ok := err.(*json.SyntaxError); ok {
 		log.Errorf("syntax error at byte offset %d", e2.Offset)
 	}
@@ -225,6 +235,10 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 		return err
 	}
 
+	s.stats.AddBlob()
+	if isSdBlob {
+		s.stats.AddStream()
+	}
 	return s.sendTransferResponse(conn, true, isSdBlob)
 }
 
