@@ -2,6 +2,7 @@ package reflector
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,14 +55,24 @@ func (s *stats) AddStream() {
 	defer s.mu.Unlock()
 	s.streams += 1
 }
-func (s *stats) AddError(e error) {
+
+func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but whataever
 	if e == nil {
 		return
 	}
 	err := errors.Wrap(e, 0)
+	name := err.TypeName()
+	if strings.Contains(err.Error(), "i/o timeout") {
+		name = "i/o timeout"
+	} else if strings.Contains(err.Error(), "read: connection reset by peer") {
+		name = "read conn reset"
+	}
+
+	shouldLog = true
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.errors[err.TypeName()] += 1
+	s.errors[name] += 1
+	return
 }
 
 func (s *stats) runSlackLogger() {

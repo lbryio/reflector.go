@@ -155,8 +155,10 @@ func (s *Server) handleConn(conn net.Conn) {
 }
 
 func (s *Server) doError(conn net.Conn, err error) error {
-	log.Errorln(errors.FullTrace(err))
-	s.stats.AddError(err)
+	shouldLog := s.stats.AddError(err)
+	if shouldLog {
+		log.Errorln(errors.FullTrace(err))
+	}
 	if e2, ok := err.(*json.SyntaxError); ok {
 		log.Errorf("syntax error at byte offset %d", e2.Offset)
 	}
