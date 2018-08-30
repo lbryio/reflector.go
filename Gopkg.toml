@@ -37,3 +37,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/johntdyer/slackrus"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/inconshreveable/go-update"

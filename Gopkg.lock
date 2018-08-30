@@ -194,6 +194,18 @@
   revision = "984a73625de3138f44deb38d00878fab39eb6447"
 
 [[projects]]
+  branch = "master"
+  digest = "1:0d37c42156531a07a84812a47c27610947b849710ffab6f62be6e98c5112c140"
+  name = "github.com/inconshreveable/go-update"
+  packages = [
+    ".",
+    "internal/binarydist",
+    "internal/osext",
+  ]
+  pruneopts = ""
+  revision = "8152e7eb6ccf8679a64582a66b78519688d156ad"
+
+[[projects]]
   digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
   name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
@@ -415,6 +427,7 @@
     "github.com/gorilla/rpc/v2",
     "github.com/gorilla/rpc/v2/json",
     "github.com/hashicorp/serf/serf",
+    "github.com/inconshreveable/go-update",
     "github.com/johntdyer/slackrus",
     "github.com/lbryio/errors.go",
     "github.com/lbryio/lbry.go/crypto",

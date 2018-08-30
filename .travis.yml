@@ -48,8 +48,6 @@ before_script:
 # script always run to completion (set +e). All of these code checks are must haves
 # in a modern Go project.
 script:
-  # Build Prism successfully
-  - make
   # Fail if a .go file hasn't been formatted with gofmt
   - test -z $(gofmt -s -l $GO_FILES)
   # Run unit tests
@@ -69,6 +67,8 @@ script:
   - unconvert ./...
   # one last linter - ignore autogen code
   #- golint -set_exit_status $(go list ./... | grep -v /vendor/ )
+  # Finally, build the binary
+  - make
 
 deploy:
   - provider: releases
@@ -80,3 +80,15 @@ deploy:
       condition: "$DEPLOY = true"
     api_key:
       secure: epAlhp3SUr8hhISarJ22n6tRw2TEa4s4oNFIvJUb5HGECVp1SYN7ao0ln5NoNLmfJS60pi911i/kMhhi21/uhZ0kCYlEhhIE2pc1zsiAxK9L9ENCssJ205HfVbe5grhwskLGzgjhU9OznO8WtmyOPWXr0it8M8RCTjx6rEC0A33Id3WMYyhP938Sj9CxEYeH4KS8wFvBXkgBVtrgaYwRTCIROFddHFXOb9jyNhqQ1RbfKtllsVtQhVk5WMlomheBNSS4vr6WMS4X4+2okFqnLtiSn1wrn5I/94UQbnrI1juVnQj0K+j32EyQbAOt4T2cLW3GtG0jhaYKyNMT9ycDCdVACPSDELlHWjeyoes9bnhUFftm6kDbQxwA1UsTF1yG8tMKXxBSmYyoT7qDloi6pBifZMrFXL61uTs6yhVB9LS/2oqg4sc0Ne87bRcn4OxsBeVCe3kbBHDTR/NTyF2gNPtRvgMAWULxTVcUm9VYdO0IWvAig5g4Row0DnFzEquD6CzezbRWD9WyZyV/AFyYHeeQ2PO7jTw0/3M7aDX33Fuhh34lehzmrC03cfgD/wZW+spxozIcQCYdiJqVw+u+/NvbNr0kkFzE9zW26JEmUFTyDvKxvnza1Kwtww3EgH6zaOL8r4yVbb54rePRvLw7pl93zlfJnEB2MCPqJOY5ZpU=
+  - provider: s3
+    access_key_id:
+      secure: "LFY+XFzaqsyMr2trdDRgzJ2ZAZlDl+EeCX+pMTyE95plx3k9xYfVd3QO+rGV+bqPYV8LXSdmntxHczuiJ4gUHD5ZYQBwDPrWgJ3nxf62HvRSHLUy2SdS+1rkctZAKM9KC/QrsT37k+v0TuaMdc8Wsv5e3Z9GjhuFCEd48eHl1ChoMc/uqVy37jaAedAhN7DI1Gs9TmLpbsZHHR89CzD9H+4I1s9k4XD1JYc6SvDjTtHNawQ1VGN5kga8DuUFBTKaMRZ1rDwFfxtTZxZYnNpfUkFmyT7zcLu2jGuM7TUcvjGbx4GZ7ISBcK5gm/H4YvrYVOwlZc9pg/2lF06LI+UwEnrEZw69rNZEoH2J8/P4cVfZ0kzX/Lj2dmjgzDjFLuSenfIQ6JMsPYd25e09ni4cLaNldQhOcnKXwnQn1dOV/XGbm0s7sEZubLN5GnejawQLyqxjbXTPAAnwqcQqnryxjV196tjaPrZ+6h+FycCEQwOTntp9pIqc7ZeqYZGx7EoKmqjBABIXkS+ZmoWBlCYeL+pae2eXKw6jVp5p+x5+AGEOdbqb1pOywghx05Iuuvx/dSZ9Ve/SQqo039/t9uar9uk4rCr2OjIIWPBoJhUFRKSv1Ndfhb3GkeX80eLqHkzPzF/9+MD9o8EqDHhN+EMh89wtmNkNhOrhm6I+JgIFujc="
+    secret_access_key:
+      secure: "R9mGN9uZ1eUcWdHohYOQYi925adYOZ+CjCQK0DBiuQiVDyn5M0M38v+SgFO77OigcxOcE3ot2kl2GU1g/7p8XpOMk0DwnO32WwZ2UjfzZjNI52i12ncVcEVf9rw0BipRZQ/z3nrLKQGy5W5ZjBsN/pDVSsgYROr2W57ETZXrXPMOujBVRO7vctw+bdXEE++8zAH66ArMx3tP8wdxn+JnK9JvJSCeeKm9rrwTZbFUCaq980cA9Payju20yodxQr2WIsPE5Ex2kmsJYBB9NhkhyNjLROt/ScuRMISi/9kTEKkTDk/OY4xQSAF+ERTHNeRwRifcGeESb/uGG13LfoZkNvGhJz22yP543dreOKrnPgi7cs1L0cRBhiopmYHRBWYtAkmrK620P5/zHvBn9eOnbt2pvqdXC7HT4w/iVJvpvFvZIA0s/bEjXlI6gLSQrRxqerIiLiL5UjnvLlS0b2vpyahcBX5TWUAkzQHjh+kyX9mgd14Sv0ihCQy3VCd1Lrf+sFYHab+BOmnLghe1gKzFvkjm4KZPAw6h+k/xGpS1Ya2CG6hWKKvrq3iPlnw9N2CEaDoIAnoyz1xvOLQAVwofVf0DH2X1Wwmw0zzD5C/13ubsQ1/18xITjRDm4XTQDBKsC6RuVz+wu4fjuGCjj0ikbfeO0ec4jbtK1ORUZOA9MK0="
+    bucket: "lbry-reflector-binary"
+    skip_cleanup: true
+#    local_dir: ./bin
+    file: prism-bin
+    on:
+      repo: lbryio/reflector.go
+      condition: "$DEPLOY = true"

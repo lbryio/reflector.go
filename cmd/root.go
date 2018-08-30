@@ -8,6 +8,7 @@ import (
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/lbry.go/util"
 	"github.com/lbryio/reflector.go/dht"
+	"github.com/lbryio/reflector.go/updater"
 
 	"github.com/johntdyer/slackrus"
 	"github.com/sirupsen/logrus"
@@ -22,6 +23,8 @@ type Config struct {
 	BucketName   string `json:"bucket_name"`
 	DBConn       string `json:"db_conn"`
 	SlackHookURL string `json:"slack_hook_url"`
+	UpdateBinURL string `json:"update_bin_url"`
+	UpdateCmd    string `json:"update_cmd"`
 }
 
 var verbose []string
@@ -101,6 +104,14 @@ func preRun(cmd *cobra.Command, args []string) {
 		//logrus.SetFormatter(&logrus.JSONFormatter{})
 		logrus.AddHook(hook)
 		debugLogger.AddHook(hook)
+	}
+
+	if globalConfig.UpdateBinURL != "" {
+		if globalConfig.UpdateCmd == "" {
+			logrus.Warnln("update_cmd is empty in conf file")
+		}
+		logrus.Println("starting update checker")
+		go updater.Run(globalConfig.UpdateBinURL, globalConfig.UpdateCmd)
 	}
 }
 
