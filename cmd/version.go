@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
+	"time"
 
 	"github.com/lbryio/reflector.go/meta"
-
 	"github.com/spf13/cobra"
 )
 
@@ -18,5 +18,5 @@ func init() {
 }
 
 func versionCmd(cmd *cobra.Command, args []string) {
-	log.Printf("version %s\n", meta.Version)
+	fmt.Printf("version %s (%s)\n", meta.Version, meta.BuildTime.Format(time.RFC3339))
 }

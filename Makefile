@@ -5,7 +5,7 @@ VENDOR_DIR = vendor
 IMPORT_PATH = github.com/lbryio/reflector.go
 
 VERSION = $(shell git --git-dir=${DIR}/.git describe --dirty --always --long --abbrev=7)
-LDFLAGS = -ldflags "-X ${IMPORT_PATH}/meta.Version=${VERSION}"
+LDFLAGS = -ldflags "-X ${IMPORT_PATH}/meta.Version=${VERSION} -X ${IMPORT_PATH}/meta.Time=$(shell date +%s)"
 
 
 .PHONY: build dep clean test
