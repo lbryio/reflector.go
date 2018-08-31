@@ -102,8 +102,10 @@ func (s *stats) log() {
 		delete(s.errors, name)
 	}
 	s.mu.Unlock()
-	s.logger.Printf(
-		"Stats: %d blobs, %d streams, errors: %s",
-		blobs, streams, errStr[:len(errStr)-2], // trim last comma and space
-	)
+
+	if len(errStr) > 2 {
+		errStr = errStr[:len(errStr)-2] // trim last comma and space
+	}
+
+	s.logger.Printf("Stats: %d blobs, %d streams, errors: %s", blobs, streams, errStr)
 }

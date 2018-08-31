@@ -15,8 +15,9 @@ import (
 // TODO: this needs to be shut down cleanly
 
 func Run(url, updateCmd string) {
+	t := time.NewTicker(1 * time.Minute)
 	for {
-		<-time.After(1 * time.Minute)
+		<-t.C
 
 		r, err := http.Head(url)
 		if err != nil {
