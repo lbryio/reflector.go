@@ -12,6 +12,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// TODO: send stats on shutdown
+
+// TODO: store daily stats too. and maybe other intervals
+
 type stats struct {
 	mu      *sync.Mutex
 	blobs   int
