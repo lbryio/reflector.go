@@ -60,7 +60,7 @@ func (s *stats) AddStream() {
 	s.streams++
 }
 
-func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but whataever
+func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but whatever
 	if e == nil {
 		return
 	}
@@ -70,9 +70,10 @@ func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but
 		name = "i/o timeout"
 	} else if strings.Contains(err.Error(), "read: connection reset by peer") {
 		name = "read conn reset"
+	} else {
+		shouldLog = true
 	}
 
-	shouldLog = true
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.errors[name]++
