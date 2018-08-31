@@ -1,4 +1,4 @@
-package lbryumx
+package wallet
 
 // copied from https://github.com/d4l3k/go-electrum
 

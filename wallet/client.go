@@ -1,4 +1,4 @@
-package lbryumx
+package wallet
 
 // ServerVersion returns the server's version.
 // https://electrumx.readthedocs.io/en/latest/protocol-methods.html#server-version
