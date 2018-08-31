@@ -48,12 +48,12 @@ func (s *stats) Shutdown() {
 func (s *stats) AddBlob() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.blobs += 1
+	s.blobs++
 }
 func (s *stats) AddStream() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.streams += 1
+	s.streams++
 }
 
 func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but whataever
@@ -71,7 +71,7 @@ func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but
 	shouldLog = true
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.errors[name] += 1
+	s.errors[name]++
 	return
 }
 

@@ -17,7 +17,7 @@ import (
 
 var dhtNodeID string
 var dhtPort int
-var dhtRpcPort int
+var dhtRPCPort int
 var dhtSeeds []string
 
 func init() {
@@ -30,7 +30,7 @@ func init() {
 	}
 	cmd.PersistentFlags().StringVar(&dhtNodeID, "nodeID", "", "nodeID in hex")
 	cmd.PersistentFlags().IntVar(&dhtPort, "port", 4567, "Port to start DHT on")
-	cmd.PersistentFlags().IntVar(&dhtRpcPort, "rpcPort", 0, "Port to listen for rpc commands on")
+	cmd.PersistentFlags().IntVar(&dhtRPCPort, "rpcPort", 0, "Port to listen for rpc commands on")
 	cmd.PersistentFlags().StringSliceVar(&dhtSeeds, "seeds", []string{}, "Addresses of seed nodes")
 	rootCmd.AddCommand(cmd)
 }
@@ -56,7 +56,7 @@ func dhtCmd(cmd *cobra.Command, args []string) {
 
 		dhtConf := dht.NewStandardConfig()
 		dhtConf.Address = "0.0.0.0:" + strconv.Itoa(dhtPort)
-		dhtConf.RPCPort = dhtRpcPort
+		dhtConf.RPCPort = dhtRPCPort
 		if len(dhtSeeds) > 0 {
 			dhtConf.SeedNodes = dhtSeeds
 		}

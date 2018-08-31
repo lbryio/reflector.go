@@ -93,4 +93,3 @@ deploy:
     secret_access_key:
       secure: "AxYRTy/GnjeTJKQdeJ/AEeAd+yXs783bFDKdyKNswtsHlU8sWPQgNcvTLpVqnSQMpiwkGDGi/70rvR5C+AT3SIWNw13RYrgBRpduQU0J+B2JS+3dN2DIePu25uvs++Wo22OfS8I+UjZ1mWY1SSHI2spPXvDCq5tb+Ih8nlYflEyAtxU9Oq2R3Kus2tkIlRnL25sP/2fY7RvuJFYIV63z8ZIJRzB5WzOeERqnXq2zfwos+hycAqyo/VevJnWAYTEDsvBuSODOpZF+QfKtIQ2rYSoqy8Lq1M6UOZimnC3Ulea4euBVf2ssBCnI7csGNG5UzkTiwrPDi2xIP8nM01rHW1yHJ7tQsJaghnUsfw2t6ui4ZofvbbOFTN/YCloHITifEi8Tc1/17isi3y+kX5yQ/Nk5UNry0Wbt91CP+nkL/ZmA5grkBXDL7VJMmB60TnO3ap24CtwBQartN3LoWs7h+4ov+LqbCt6IqpJVWQWlwJeb2MFPFByALtBpsqAyL1SxXlGNpPa94CuXxfQ6Bv436PtefA5FlTzR8uMmqsjWciv06bVnSvVlFEVovN2Fkplrjt7AASJ/8KJs4THDg4k61nfd8roAHx6ewQzl4wCWKCikQ0MuFd2mVHwdrbnCH1mIHuPRyvWMMIAK0ooc1/rmKiJlpgumjxoFYNE10MXtt+I="
     bucket: "lbry-reflector-binary"
-#    local_dir: ./bin
