@@ -54,6 +54,9 @@ func NewServer(store store.BlobStore) *Server {
 // Shutdown shuts down the reflector server gracefully.
 func (s *Server) Shutdown() {
 	log.Println("shutting down reflector server...")
+	if s.isReportStats() {
+		s.stats.Shutdown()
+	}
 	s.grp.StopAndWait()
 	log.Println("reflector server stopped")
 }
@@ -83,7 +86,7 @@ func (s *Server) Start(address string) error {
 	}()
 
 	s.stats = newStatLogger(s.StatLogger, s.StatReportFrequency, s.grp.Child())
-	if s.StatLogger != nil && s.StatReportFrequency > 0 {
+	if s.isReportStats() {
 		s.stats.Start()
 	}
 
@@ -365,6 +368,10 @@ func (s *Server) quitting() bool {
 	default:
 		return false
 	}
+}
+
+func (s *Server) isReportStats() bool {
+	return s.StatLogger != nil && s.StatReportFrequency > 0
 }
 
 func BlobHash(blob []byte) string {

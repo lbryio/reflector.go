@@ -12,8 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// TODO: send stats on shutdown
-
 // TODO: store daily stats too. and maybe other intervals
 
 type stats struct {
@@ -46,6 +44,7 @@ func (s *stats) Start() {
 }
 
 func (s *stats) Shutdown() {
+	s.log()
 	s.grp.StopAndWait()
 }
 
