@@ -40,7 +40,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	reflectorServer.Timeout = 30 * time.Second
 	if globalConfig.SlackHookURL != "" {
 		reflectorServer.StatLogger = log.StandardLogger()
-		reflectorServer.StatReportFrequency = 10 * time.Minute
+		reflectorServer.StatReportFrequency = 1 * time.Hour
 	}
 
 	err = reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
