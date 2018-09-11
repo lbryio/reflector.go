@@ -5,8 +5,9 @@ package wallet
 import (
 	"bufio"
 	"crypto/tls"
-	"log"
 	"net"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type TCPTransport struct {
@@ -44,7 +45,7 @@ func NewSSLTransport(addr string, config *tls.Config) (*TCPTransport, error) {
 }
 
 func (t *TCPTransport) SendMessage(body []byte) error {
-	log.Printf("%s <- %s", t.conn.RemoteAddr(), body)
+	log.Debugf("%s <- %s", t.conn.RemoteAddr(), body)
 	_, err := t.conn.Write(body)
 	return err
 }
@@ -58,10 +59,10 @@ func (t *TCPTransport) listen() {
 		line, err := reader.ReadBytes(delim)
 		if err != nil {
 			t.errors <- err
-			log.Printf("error %s", err)
+			log.Error(err)
 			break
 		}
-		log.Printf("%s -> %s", t.conn.RemoteAddr(), line)
+		log.Debugf("%s -> %s", t.conn.RemoteAddr(), line)
 		t.responses <- line
 	}
 }

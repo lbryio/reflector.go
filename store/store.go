@@ -8,6 +8,7 @@ type BlobStore interface {
 	Get(string) ([]byte, error)
 	Put(string, []byte) error
 	PutSD(string, []byte) error
+	Delete(string) error
 }
 
 //ErrBlobNotFound is a standard error when a blob is not found in the store.

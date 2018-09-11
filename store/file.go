@@ -95,3 +95,21 @@ func (f *FileBlobStore) Put(hash string, blob []byte) error {
 func (f *FileBlobStore) PutSD(hash string, blob []byte) error {
 	return f.Put(hash, blob)
 }
+
+// Delete deletes the blob from the store
+func (f *FileBlobStore) Delete(hash string) error {
+	err := f.initOnce()
+	if err != nil {
+		return err
+	}
+
+	has, err := f.Has(hash)
+	if err != nil {
+		return err
+	}
+	if !has {
+		return nil
+	}
+
+	return os.Remove(f.path(hash))
+}

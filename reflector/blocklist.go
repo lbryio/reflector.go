@@ -25,9 +25,7 @@ type blockListResponse struct {
 	} `json:"data"`
 }
 
-func BlockedSdHashes() (map[string]string, error) {
-	blocked := make(map[string]string)
-
+func BlockedSdHashes() (map[string]ValueResp, error) {
 	resp, err := http.Get(blocklistURL)
 	if err != nil {
 		return nil, errors.Err(err)
@@ -43,70 +41,86 @@ func BlockedSdHashes() (map[string]string, error) {
 		return nil, errors.Prefix("list_blocked API call", r.Error)
 	}
 
-	for _, outpoint := range r.Data.Outpoints {
-		sdHash, err := sdHashForOutpoint(outpoint)
-		if err != nil {
-			blocked[outpoint] = err.Error()
-		} else {
-			blocked[outpoint] = sdHash
-		}
-	}
-
-	return blocked, nil
+	return sdHashesForOutpoints(r.Data.Outpoints)
 }
 
+type ValueResp struct {
+	Value string
+	Err   error
+}
+
+// sdHashForOutpoint queries wallet server for the sd hash in a given outpoint
 func sdHashForOutpoint(outpoint string) (string, error) {
-	val, err := valueForOutpoint(outpoint)
+	vals, err := sdHashesForOutpoints([]string{outpoint})
 	if err != nil {
 		return "", err
 	}
 
-	return sdHashForValue(val)
+	val, ok := vals[outpoint]
+	if !ok {
+		return "", errors.Err("outpoint not in response")
+	}
+
+	return val.Value, val.Err
 }
 
-// decodeValue decodes a protobuf-encoded claim and returns the sd hash
-func sdHashForValue(value []byte) (string, error) {
-	claim := &types.Claim{}
-	err := proto.Unmarshal(value, claim)
-	if err != nil {
-		return "", errors.Err(err)
-	}
-
-	if claim.GetStream().GetSource().GetSourceType() != types.Source_lbry_sd_hash {
-		return "", errors.Err("source is nil or source type is not lbry_sd_hash")
-	}
-
-	return hex.EncodeToString(claim.GetStream().GetSource().GetSource()), nil
-}
-
-// valueForOutpoint queries wallet server for the value of the claim at the given outpoint
-func valueForOutpoint(outpoint string) ([]byte, error) {
-	parts := strings.Split(outpoint, ":")
-	if len(parts) != 2 {
-		return nil, errors.Err("invalid outpoint format")
-	}
-
-	nout, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return nil, errors.Prefix("invalid nout", err)
-	}
+// sdHashesForOutpoints queries wallet server for the sd hashes in a given outpoints
+func sdHashesForOutpoints(outpoints []string) (map[string]ValueResp, error) {
+	values := make(map[string]ValueResp)
 
 	node := wallet.NewNode()
-	err = node.ConnectTCP("victor.lbry.tech:50001")
+	err := node.ConnectTCP("victor.lbry.tech:50001")
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := node.GetClaimsInTx(parts[0])
-	if err != nil {
-		return nil, err
-	}
-
-	for _, tx := range resp.Result {
-		if tx.Nout == nout {
-			return hex.DecodeString(tx.Value)
+	for _, outpoint := range outpoints {
+		parts := strings.Split(outpoint, ":")
+		if len(parts) != 2 {
+			values[outpoint] = ValueResp{Err: errors.Err("invalid outpoint format")}
+			continue
 		}
+
+		nout, err := strconv.Atoi(parts[1])
+		if err != nil {
+			values[outpoint] = ValueResp{Err: errors.Prefix("invalid nout", err)}
+			continue
+		}
+
+		resp, err := node.GetClaimsInTx(parts[0])
+		if err != nil {
+			values[outpoint] = ValueResp{Err: err}
+			continue
+		}
+
+		var value []byte
+		for _, tx := range resp.Result {
+			if tx.Nout != nout {
+				continue
+			}
+
+			value, err = hex.DecodeString(tx.Value)
+			break
+		}
+		if err != nil {
+			values[outpoint] = ValueResp{Err: err}
+			continue
+		}
+
+		claim := &types.Claim{}
+		err = proto.Unmarshal(value, claim)
+		if err != nil {
+			values[outpoint] = ValueResp{Err: err}
+			continue
+		}
+
+		if claim.GetStream().GetSource().GetSourceType() != types.Source_lbry_sd_hash {
+			values[outpoint] = ValueResp{Err: errors.Err("source is nil or source type is not lbry_sd_hash")}
+			continue
+		}
+
+		values[outpoint] = ValueResp{Value: hex.EncodeToString(claim.GetStream().GetSource().GetSource())}
 	}
 
-	return nil, errors.Err("outpoint not found")
+	return values, nil
 }

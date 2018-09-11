@@ -58,6 +58,15 @@ func (d *DBBackedS3Store) PutSD(hash string, blob []byte) error {
 	return d.db.AddSDBlob(hash, len(blob), blobContents)
 }
 
+func (d *DBBackedS3Store) Delete(hash string) error {
+	err := d.s3.Delete(hash)
+	if err != nil {
+		return err
+	}
+
+	return d.db.Delete(hash)
+}
+
 // MissingBlobsForKnownStream returns missing blobs for an existing stream
 // WARNING: if the stream does NOT exist, no blob hashes will be returned, which looks
 // like no blobs are missing

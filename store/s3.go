@@ -133,3 +133,19 @@ func (s *S3BlobStore) PutSD(hash string, blob []byte) error {
 	//Todo - handle missing stream for consistency
 	return s.Put(hash, blob)
 }
+
+func (s *S3BlobStore) Delete(hash string) error {
+	err := s.initOnce()
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("Deleting %s from S3", hash[:8])
+
+	_, err = s3.New(s.session).DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(hash),
+	})
+
+	return err
+}

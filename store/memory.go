@@ -41,3 +41,9 @@ func (m *MemoryBlobStore) Put(hash string, blob []byte) error {
 func (m *MemoryBlobStore) PutSD(hash string, blob []byte) error {
 	return m.Put(hash, blob)
 }
+
+// Delete deletes the blob from the store
+func (m *MemoryBlobStore) Delete(hash string) error {
+	delete(m.blobs, hash)
+	return nil
+}

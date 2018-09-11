@@ -89,7 +89,10 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 		return false, errors.Err("not connected")
 	}
 
-	query := "SELECT EXISTS(SELECT 1 FROM blob_ WHERE hash = ? AND is_stored = ?)"
+	query := `SELECT EXISTS(SELECT 1
+		FROM blob_ b
+		LEFT JOIN blocked bl ON b.hash = bl.hash
+		WHERE b.hash = ? AND b.is_stored = ? AND bl.hash IS NULL)`
 	args := []interface{}{hash, true}
 
 	logQuery(query, args...)
@@ -156,6 +159,32 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 	}
 
 	return exists, nil
+}
+
+// Delete will remove the blob from the db
+func (s *SQL) Delete(hash string) error {
+	args := []interface{}{hash}
+
+	query := "DELETE FROM stream WHERE sd_hash = ?"
+	logQuery(query, args...)
+	_, err := s.conn.Exec(query, args...)
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	query = "DELETE FROM blob_ WHERE hash = ?"
+	logQuery(query, args...)
+	_, err = s.conn.Exec(query, args...)
+	return errors.Err(err)
+}
+
+// Block will mark a blob as blocked
+func (s *SQL) Block(hash string) error {
+	query := "INSERT IGNORE INTO blocked SET hash = ?"
+	args := []interface{}{hash}
+	logQuery(query, args...)
+	_, err := s.conn.Exec(query, args...)
+	return errors.Err(err)
 }
 
 // MissingBlobsForKnownStream returns missing blobs for an existing stream
@@ -394,6 +423,11 @@ CREATE TABLE stream_blob (
   PRIMARY KEY (stream_hash, blob_hash),
   FOREIGN KEY (stream_hash) REFERENCES stream (hash) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (blob_hash) REFERENCES blob_ (hash) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE blocked (
+  hash char(96) NOT NULL,
+  PRIMARY KEY (hash)
 );
 
 could add UNIQUE KEY (stream_hash, num) to stream_blob ...
