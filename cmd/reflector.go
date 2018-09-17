@@ -37,7 +37,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	combo := store.NewDBBackedS3Store(s3, db)
 
 	reflectorServer := reflector.NewServer(combo)
-	reflectorServer.Timeout = 30 * time.Second
+	reflectorServer.Timeout = 3 * time.Minute
 	if globalConfig.SlackHookURL != "" {
 		reflectorServer.StatLogger = log.StandardLogger()
 		reflectorServer.StatReportFrequency = 1 * time.Hour
