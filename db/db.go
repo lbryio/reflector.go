@@ -74,7 +74,7 @@ func addBlob(tx *sql.Tx, hash string, length int, isStored bool) error {
 
 	err := execTx(tx,
 		"INSERT INTO blob_ (hash, is_stored, length) VALUES (?,?,?) ON DUPLICATE KEY UPDATE is_stored = (is_stored or VALUES(is_stored))",
-		[]interface{}{hash, isStored, length},
+		hash, isStored, length,
 	)
 	if err != nil {
 		return errors.Err(err)
@@ -153,19 +153,15 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 // Delete will remove the blob from the db
 func (s *SQL) Delete(hash string) error {
-	args := []interface{}{hash}
+	return withTx(s.conn, func(tx *sql.Tx) error {
+		err := execTx(tx, "DELETE FROM stream WHERE sd_hash = ?", hash)
+		if err != nil {
+			return errors.Err(err)
+		}
 
-	query := "DELETE FROM stream WHERE sd_hash = ?"
-	logQuery(query, args...)
-	_, err := s.conn.Exec(query, args...)
-	if err != nil {
+		err = execTx(tx, "DELETE FROM blob_ WHERE hash = ?", hash)
 		return errors.Err(err)
-	}
-
-	query = "DELETE FROM blob_ WHERE hash = ?"
-	logQuery(query, args...)
-	_, err = s.conn.Exec(query, args...)
-	return errors.Err(err)
+	})
 }
 
 // Block will mark a blob as blocked
@@ -267,7 +263,7 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 		// insert stream
 		err = execTx(tx,
 			"INSERT IGNORE INTO stream (hash, sd_hash) VALUES (?,?)",
-			[]interface{}{sdBlob.StreamHash, sdHash},
+			sdBlob.StreamHash, sdHash,
 		)
 		if err != nil {
 			return errors.Err(err)
@@ -287,7 +283,7 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 
 			err = execTx(tx,
 				"INSERT IGNORE INTO stream_blob (stream_hash, blob_hash, num) VALUES (?,?,?)",
-				[]interface{}{sdBlob.StreamHash, contentBlob.BlobHash, contentBlob.BlobNum},
+				sdBlob.StreamHash, contentBlob.BlobHash, contentBlob.BlobNum,
 			)
 			if err != nil {
 				return errors.Err(err)
@@ -412,7 +408,7 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
-func execTx(tx *sql.Tx, query string, args []interface{}) error {
+func execTx(tx *sql.Tx, query string, args ...interface{}) error {
 	logQuery(query, args...)
 	_, err := tx.Exec(query, args...)
 	return errors.Err(err)

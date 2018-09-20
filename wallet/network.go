@@ -48,19 +48,21 @@ type Node struct {
 	nextId    atomic.Uint32
 	grp       *stop.Group
 
-	handlersMu sync.RWMutex
+	handlersMu *sync.RWMutex
 	handlers   map[uint32]chan []byte
 
-	pushHandlersMu sync.RWMutex
+	pushHandlersMu *sync.RWMutex
 	pushHandlers   map[string][]chan []byte
 }
 
 // NewNode creates a new node.
 func NewNode() *Node {
 	return &Node{
-		handlers:     make(map[uint32]chan []byte),
-		pushHandlers: make(map[string][]chan []byte),
-		grp:          stop.New(),
+		handlers:       make(map[uint32]chan []byte),
+		pushHandlers:   make(map[string][]chan []byte),
+		handlersMu:     &sync.RWMutex{},
+		pushHandlersMu: &sync.RWMutex{},
+		grp:            stop.New(),
 	}
 }
 
