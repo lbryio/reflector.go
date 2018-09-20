@@ -6,33 +6,67 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/lbryio/reflector.go/store"
 	"github.com/lbryio/reflector.go/wallet"
 
 	"github.com/lbryio/lbry.go/errors"
 	types "github.com/lbryio/types/go"
 
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 )
 
 const blocklistURL = "https://api.lbry.io/file/list_blocked"
 
-type blockListResponse struct {
-	Success bool   `json:"success"`
-	Error   string `json:"error"`
-	Data    struct {
-		Outpoints []string `json:"outpoints"`
-	} `json:"data"`
+func (s *Server) enableBlocklist(b store.Blocklister) {
+	updateBlocklist(b)
+	t := time.NewTicker(12 * time.Hour)
+	for {
+		select {
+		case <-s.grp.Ch():
+			return
+		case <-t.C:
+			updateBlocklist(b)
+		}
+	}
 }
 
-func BlockedSdHashes() (map[string]ValueResp, error) {
+func updateBlocklist(b store.Blocklister) {
+	values, err := blockedSdHashes()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, v := range values {
+		if v.Err != nil {
+			continue
+		}
+
+		err = b.Block(v.Value)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+}
+
+func blockedSdHashes() (map[string]ValueResp, error) {
 	resp, err := http.Get(blocklistURL)
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 	defer resp.Body.Close()
 
-	var r blockListResponse
+	var r struct {
+		Success bool   `json:"success"`
+		Error   string `json:"error"`
+		Data    struct {
+			Outpoints []string `json:"outpoints"`
+		} `json:"data"`
+	}
+
 	if err = json.NewDecoder(resp.Body).Decode(&r); err != nil {
 		return nil, errors.Err(err)
 	}
@@ -49,27 +83,16 @@ type ValueResp struct {
 	Err   error
 }
 
-// sdHashForOutpoint queries wallet server for the sd hash in a given outpoint
-func sdHashForOutpoint(outpoint string) (string, error) {
-	vals, err := sdHashesForOutpoints([]string{outpoint})
-	if err != nil {
-		return "", err
-	}
-
-	val, ok := vals[outpoint]
-	if !ok {
-		return "", errors.Err("outpoint not in response")
-	}
-
-	return val.Value, val.Err
-}
-
 // sdHashesForOutpoints queries wallet server for the sd hashes in a given outpoints
 func sdHashesForOutpoints(outpoints []string) (map[string]ValueResp, error) {
 	values := make(map[string]ValueResp)
 
 	node := wallet.NewNode()
-	err := node.ConnectTCP("victor.lbry.tech:50001")
+	err := node.Connect([]string{
+		"victor.lbry.tech:50001",
+		//"lbryumx1.lbry.io:50001", // cant use real servers until victor pushes bugfix
+		//"lbryumx2.lbry.io:50001",
+	}, nil)
 	if err != nil {
 		return nil, err
 	}

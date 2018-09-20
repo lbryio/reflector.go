@@ -85,24 +85,11 @@ func addBlob(tx *sql.Tx, hash string, length int, isStored bool) error {
 
 // HasBlob checks if the database contains the blob information.
 func (s *SQL) HasBlob(hash string) (bool, error) {
-	if s.conn == nil {
-		return false, errors.Err("not connected")
+	exists, err := s.HasBlobs([]string{hash})
+	if err != nil {
+		return false, err
 	}
-
-	query := `SELECT EXISTS(SELECT 1
-		FROM blob_ b
-		LEFT JOIN blocked bl ON b.hash = bl.hash
-		WHERE b.hash = ? AND b.is_stored = ? AND bl.hash IS NULL)`
-	args := []interface{}{hash, true}
-
-	logQuery(query, args...)
-
-	row := s.conn.QueryRow(query, args...)
-
-	exists := false
-	err := row.Scan(&exists)
-
-	return exists, errors.Err(err)
+	return exists[hash], nil
 }
 
 // HasBlobs checks if the database contains the set of blobs and returns a bool map.
@@ -133,29 +120,32 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 		logQuery(query, args...)
 
-		rows, err := s.conn.Query(query, args...)
-		if err != nil {
-			closeRows(rows)
-			return exists, err
-		}
-
-		for rows.Next() {
-			err := rows.Scan(&hash)
+		err := func() error {
+			rows, err := s.conn.Query(query, args...)
 			if err != nil {
-				closeRows(rows)
-				return exists, err
+				return errors.Err(err)
 			}
-			exists[hash] = true
-		}
+			defer closeRows(rows)
 
-		err = rows.Err()
+			for rows.Next() {
+				err := rows.Scan(&hash)
+				if err != nil {
+					return errors.Err(err)
+				}
+				exists[hash] = true
+			}
+
+			err = rows.Err()
+			if err != nil {
+				return errors.Err(err)
+			}
+
+			doneIndex += len(batch)
+			return nil
+		}()
 		if err != nil {
-			closeRows(rows)
-			return exists, err
+			return nil, err
 		}
-
-		closeRows(rows)
-		doneIndex += len(batch)
 	}
 
 	return exists, nil
@@ -185,6 +175,35 @@ func (s *SQL) Block(hash string) error {
 	logQuery(query, args...)
 	_, err := s.conn.Exec(query, args...)
 	return errors.Err(err)
+}
+
+// GetBlocked will return a list of blocked hashes
+func (s *SQL) GetBlocked() (map[string]bool, error) {
+	query := "SELECT hash FROM blocked"
+	logQuery(query)
+	rows, err := s.conn.Query(query)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	defer closeRows(rows)
+
+	blocked := make(map[string]bool)
+
+	var hash string
+	for rows.Next() {
+		err := rows.Scan(&hash)
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+		blocked[hash] = true
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return blocked, nil
 }
 
 // MissingBlobsForKnownStream returns missing blobs for an existing stream

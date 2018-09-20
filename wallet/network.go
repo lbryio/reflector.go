@@ -7,8 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"math/rand"
+	"net"
 	"sync"
+	"time"
+
+	"github.com/lbryio/lbry.go/stop"
+	log "github.com/sirupsen/logrus"
+	"github.com/uber-go/atomic"
 )
 
 const (
@@ -19,16 +25,11 @@ const (
 var (
 	ErrNotImplemented = errors.New("not implemented")
 	ErrNodeConnected  = errors.New("node already connected")
+	ErrConnectFailed  = errors.New("failed to connect")
 )
 
-type Transport interface {
-	SendMessage([]byte) error
-	Responses() <-chan []byte
-	Errors() <-chan error
-}
-
-type respMetadata struct {
-	Id     int    `json:"id"`
+type response struct {
+	Id     uint32 `json:"id"`
 	Method string `json:"method"`
 	Error  struct {
 		Code    int    `json:"code"`
@@ -37,90 +38,125 @@ type respMetadata struct {
 }
 
 type request struct {
-	Id     int      `json:"id"`
+	Id     uint32   `json:"id"`
 	Method string   `json:"method"`
 	Params []string `json:"params"`
 }
 
 type Node struct {
-	Address string
+	transport *TCPTransport
+	nextId    atomic.Uint32
+	grp       *stop.Group
 
-	transport    Transport
-	handlers     map[int]chan []byte
-	handlersLock sync.RWMutex
+	handlersMu sync.RWMutex
+	handlers   map[uint32]chan []byte
 
-	pushHandlers     map[string][]chan []byte
-	pushHandlersLock sync.RWMutex
-
-	nextId int
+	pushHandlersMu sync.RWMutex
+	pushHandlers   map[string][]chan []byte
 }
 
 // NewNode creates a new node.
 func NewNode() *Node {
-	n := &Node{
-		handlers:     make(map[int]chan []byte),
+	return &Node{
+		handlers:     make(map[uint32]chan []byte),
 		pushHandlers: make(map[string][]chan []byte),
+		grp:          stop.New(),
 	}
-	return n
 }
 
-// ConnectTCP creates a new TCP connection to the specified address.
-func (n *Node) ConnectTCP(addr string) error {
+// Connect creates a new connection to the specified address.
+func (n *Node) Connect(addrs []string, config *tls.Config) error {
 	if n.transport != nil {
 		return ErrNodeConnected
 	}
-	n.Address = addr
-	transport, err := NewTCPTransport(addr)
-	if err != nil {
+
+	// shuffle addresses for load balancing
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(addrs), func(i, j int) { addrs[i], addrs[j] = addrs[j], addrs[i] })
+
+	var err error
+
+	for _, addr := range addrs {
+		n.transport, err = NewTransport(addr, config)
+		if err == nil {
+			break
+		}
+		if e, ok := err.(*net.OpError); ok && e.Err.Error() == "no such host" {
+			// net.errNoSuchHost is not exported, so we have to string-match
+			continue
+		}
 		return err
 	}
-	n.transport = transport
-	go n.listen()
+
+	if n.transport == nil {
+		return ErrConnectFailed
+	}
+
+	log.Debugf("wallet connected to %s", n.transport.conn.RemoteAddr())
+
+	n.grp.Add(1)
+	go func() {
+		defer n.grp.Done()
+		<-n.grp.Ch()
+		n.transport.Shutdown()
+	}()
+
+	n.grp.Add(1)
+	go func() {
+		defer n.grp.Done()
+		n.handleErrors()
+	}()
+
+	n.grp.Add(1)
+	go func() {
+		defer n.grp.Done()
+		n.listen()
+	}()
+
 	return nil
 }
 
-// ConnectSLL creates a new SLL connection to the specified address.
-func (n *Node) ConnectSSL(addr string, config *tls.Config) error {
-	if n.transport != nil {
-		return ErrNodeConnected
+func (n *Node) Shutdown() {
+	n.grp.StopAndWait()
+}
+
+func (n *Node) handleErrors() {
+	for {
+		select {
+		case <-n.grp.Ch():
+			return
+		case err := <-n.transport.Errors():
+			n.err(err)
+		}
 	}
-	n.Address = addr
-	transport, err := NewSSLTransport(addr, config)
-	if err != nil {
-		return err
-	}
-	n.transport = transport
-	go n.listen()
-	return nil
 }
 
 // err handles errors produced by the foreign node.
 func (n *Node) err(err error) {
 	// TODO: Better error handling.
-	log.Fatal(err)
+	log.Error(err)
 }
 
 // listen processes messages from the server.
 func (n *Node) listen() {
 	for {
 		select {
-		case err := <-n.transport.Errors():
-			n.err(err)
+		case <-n.grp.Ch():
 			return
 		case bytes := <-n.transport.Responses():
-			msg := &respMetadata{}
+			msg := &response{}
 			if err := json.Unmarshal(bytes, msg); err != nil {
 				n.err(err)
-				return
+				continue
 			}
 			if len(msg.Error.Message) > 0 {
 				n.err(fmt.Errorf("error from server: %#v", msg.Error.Message))
-				return
+				continue
 			}
 			if len(msg.Method) > 0 {
-				n.pushHandlersLock.RLock()
+				n.pushHandlersMu.RLock()
 				handlers := n.pushHandlers[msg.Method]
-				n.pushHandlersLock.RUnlock()
+				n.pushHandlersMu.RUnlock()
 
 				for _, handler := range handlers {
 					select {
@@ -130,10 +166,9 @@ func (n *Node) listen() {
 				}
 			}
 
-			n.handlersLock.RLock()
+			n.handlersMu.RLock()
 			c, ok := n.handlers[msg.Id]
-			n.handlersLock.RUnlock()
-
+			n.handlersMu.RUnlock()
 			if ok {
 				c <- bytes
 			}
@@ -144,8 +179,8 @@ func (n *Node) listen() {
 // listenPush returns a channel of messages matching the method.
 func (n *Node) listenPush(method string) <-chan []byte {
 	c := make(chan []byte, 1)
-	n.pushHandlersLock.Lock()
-	defer n.pushHandlersLock.Unlock()
+	n.pushHandlersMu.Lock()
+	defer n.pushHandlersMu.Unlock()
 	n.pushHandlers[method] = append(n.pushHandlers[method], c)
 	return c
 }
@@ -153,34 +188,34 @@ func (n *Node) listenPush(method string) <-chan []byte {
 // request makes a request to the server and unmarshals the response into v.
 func (n *Node) request(method string, params []string, v interface{}) error {
 	msg := request{
-		Id:     n.nextId,
+		Id:     n.nextId.Load(),
 		Method: method,
 		Params: params,
 	}
-	n.nextId++
+	n.nextId.Inc()
+
 	bytes, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
-	bytes = append(bytes, delim)
-	if err := n.transport.SendMessage(bytes); err != nil {
+	bytes = append(bytes, delimiter)
+
+	err = n.transport.Send(bytes)
+	if err != nil {
 		return err
 	}
 
 	c := make(chan []byte, 1)
 
-	n.handlersLock.Lock()
+	n.handlersMu.Lock()
 	n.handlers[msg.Id] = c
-	n.handlersLock.Unlock()
+	n.handlersMu.Unlock()
 
 	resp := <-c
 
-	n.handlersLock.Lock()
-	defer n.handlersLock.Unlock()
+	n.handlersMu.Lock()
 	delete(n.handlers, msg.Id)
+	n.handlersMu.Unlock()
 
-	if err := json.Unmarshal(resp, v); err != nil {
-		return nil
-	}
-	return nil
+	return json.Unmarshal(resp, v)
 }

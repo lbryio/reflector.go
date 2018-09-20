@@ -37,6 +37,8 @@ type Server struct {
 	StatLogger          *log.Logger   // logger to log stats
 	StatReportFrequency time.Duration // how often to log stats
 
+	EnableBlocklist bool // if true, blocklist checking and blob deletion will be enabled
+
 	store store.BlobStore
 	grp   *stop.Group
 	stats *stats
@@ -88,6 +90,19 @@ func (s *Server) Start(address string) error {
 	s.stats = newStatLogger(s.StatLogger, s.StatReportFrequency, s.grp.Child())
 	if s.isReportStats() {
 		s.stats.Start()
+	}
+
+	if s.EnableBlocklist {
+		if b, ok := s.store.(store.Blocklister); ok {
+			s.grp.Add(1)
+			go func() {
+				s.enableBlocklist(b)
+				s.grp.Done()
+			}()
+		} else {
+			//s.Shutdown()
+			return errors.Err("blocklist is enabled but blob store does not support blocklisting")
+		}
 	}
 
 	return nil
@@ -174,39 +189,46 @@ func (s *Server) doError(conn net.Conn, err error) error {
 }
 
 func (s *Server) receiveBlob(conn net.Conn) error {
-	var err error
-
 	blobSize, blobHash, isSdBlob, err := s.readBlobRequest(conn)
 	if err != nil {
 		return err
 	}
 
-	blobExists, err := s.store.Has(blobHash)
-	if err != nil {
-		return err
+	var wantsBlob bool
+	if bl, ok := s.store.(store.Blocklister); ok {
+		wantsBlob, err = bl.Wants(blobHash)
+		if err != nil {
+			return err
+		}
+	} else {
+		blobExists, err := s.store.Has(blobHash)
+		if err != nil {
+			return err
+		}
+		wantsBlob = !blobExists
 	}
 
 	var neededBlobs []string
 
-	if isSdBlob && blobExists {
-		if fsc, ok := s.store.(neededBlobChecker); ok {
-			neededBlobs, err = fsc.MissingBlobsForKnownStream(blobHash)
+	if isSdBlob && !wantsBlob {
+		if nbc, ok := s.store.(neededBlobChecker); ok {
+			neededBlobs, err = nbc.MissingBlobsForKnownStream(blobHash)
 			if err != nil {
 				return err
 			}
 		} else {
 			// if we can't confirm that we have the full stream, we have to say that the sd blob is
 			// missing. if we say we have it, they wont try to send any content blobs
-			blobExists = false
+			wantsBlob = true
 		}
 	}
 
-	err = s.sendBlobResponse(conn, blobExists, isSdBlob, neededBlobs)
+	err = s.sendBlobResponse(conn, wantsBlob, isSdBlob, neededBlobs)
 	if err != nil {
 		return err
 	}
 
-	if blobExists {
+	if !wantsBlob {
 		return nil
 	}
 
@@ -296,14 +318,14 @@ func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 	return blobSize, blobHash, isSdBlob, nil
 }
 
-func (s *Server) sendBlobResponse(conn net.Conn, blobExists, isSdBlob bool, neededBlobs []string) error {
+func (s *Server) sendBlobResponse(conn net.Conn, shouldSendBlob, isSdBlob bool, neededBlobs []string) error {
 	var response []byte
 	var err error
 
 	if isSdBlob {
-		response, err = json.Marshal(sendSdBlobResponse{SendSdBlob: !blobExists, NeededBlobs: neededBlobs})
+		response, err = json.Marshal(sendSdBlobResponse{SendSdBlob: shouldSendBlob, NeededBlobs: neededBlobs})
 	} else {
-		response, err = json.Marshal(sendBlobResponse{SendBlob: !blobExists})
+		response, err = json.Marshal(sendBlobResponse{SendBlob: shouldSendBlob})
 	}
 	if err != nil {
 		return err

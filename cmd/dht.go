@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 	"github.com/lbryio/reflector.go/dht"
 	"github.com/lbryio/reflector.go/dht/bits"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
