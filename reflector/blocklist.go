@@ -57,7 +57,12 @@ func blockedSdHashes() (map[string]valOrErr, error) {
 	if err != nil {
 		return nil, errors.Err(err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			log.Errorln(err)
+		}
+	}()
 
 	var r struct {
 		Success bool   `json:"success"`

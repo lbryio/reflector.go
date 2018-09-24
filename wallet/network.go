@@ -179,13 +179,13 @@ func (n *Node) listen() {
 }
 
 // listenPush returns a channel of messages matching the method.
-func (n *Node) listenPush(method string) <-chan []byte {
-	c := make(chan []byte, 1)
-	n.pushHandlersMu.Lock()
-	defer n.pushHandlersMu.Unlock()
-	n.pushHandlers[method] = append(n.pushHandlers[method], c)
-	return c
-}
+//func (n *Node) listenPush(method string) <-chan []byte {
+//	c := make(chan []byte, 1)
+//	n.pushHandlersMu.Lock()
+//	defer n.pushHandlersMu.Unlock()
+//	n.pushHandlers[method] = append(n.pushHandlers[method], c)
+//	return c
+//}
 
 // request makes a request to the server and unmarshals the response into v.
 func (n *Node) request(method string, params []string, v interface{}) error {
