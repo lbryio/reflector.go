@@ -74,7 +74,7 @@ func addBlob(tx *sql.Tx, hash string, length int, isStored bool) error {
 
 	err := execTx(tx,
 		"INSERT INTO blob_ (hash, is_stored, length) VALUES (?,?,?) ON DUPLICATE KEY UPDATE is_stored = (is_stored or VALUES(is_stored))",
-		[]interface{}{hash, isStored, length},
+		hash, isStored, length,
 	)
 	if err != nil {
 		return errors.Err(err)
@@ -85,21 +85,11 @@ func addBlob(tx *sql.Tx, hash string, length int, isStored bool) error {
 
 // HasBlob checks if the database contains the blob information.
 func (s *SQL) HasBlob(hash string) (bool, error) {
-	if s.conn == nil {
-		return false, errors.Err("not connected")
+	exists, err := s.HasBlobs([]string{hash})
+	if err != nil {
+		return false, err
 	}
-
-	query := "SELECT EXISTS(SELECT 1 FROM blob_ WHERE hash = ? AND is_stored = ?)"
-	args := []interface{}{hash, true}
-
-	logQuery(query, args...)
-
-	row := s.conn.QueryRow(query, args...)
-
-	exists := false
-	err := row.Scan(&exists)
-
-	return exists, errors.Err(err)
+	return exists[hash], nil
 }
 
 // HasBlobs checks if the database contains the set of blobs and returns a bool map.
@@ -130,32 +120,86 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 		logQuery(query, args...)
 
-		rows, err := s.conn.Query(query, args...)
-		if err != nil {
-			closeRows(rows)
-			return exists, err
-		}
-
-		for rows.Next() {
-			err := rows.Scan(&hash)
+		err := func() error {
+			rows, err := s.conn.Query(query, args...)
 			if err != nil {
-				closeRows(rows)
-				return exists, err
+				return errors.Err(err)
 			}
-			exists[hash] = true
-		}
+			defer closeRows(rows)
 
-		err = rows.Err()
+			for rows.Next() {
+				err := rows.Scan(&hash)
+				if err != nil {
+					return errors.Err(err)
+				}
+				exists[hash] = true
+			}
+
+			err = rows.Err()
+			if err != nil {
+				return errors.Err(err)
+			}
+
+			doneIndex += len(batch)
+			return nil
+		}()
 		if err != nil {
-			closeRows(rows)
-			return exists, err
+			return nil, err
 		}
-
-		closeRows(rows)
-		doneIndex += len(batch)
 	}
 
 	return exists, nil
+}
+
+// Delete will remove the blob from the db
+func (s *SQL) Delete(hash string) error {
+	return withTx(s.conn, func(tx *sql.Tx) error {
+		err := execTx(tx, "DELETE FROM stream WHERE sd_hash = ?", hash)
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		err = execTx(tx, "DELETE FROM blob_ WHERE hash = ?", hash)
+		return errors.Err(err)
+	})
+}
+
+// Block will mark a blob as blocked
+func (s *SQL) Block(hash string) error {
+	query := "INSERT IGNORE INTO blocked SET hash = ?"
+	args := []interface{}{hash}
+	logQuery(query, args...)
+	_, err := s.conn.Exec(query, args...)
+	return errors.Err(err)
+}
+
+// GetBlocked will return a list of blocked hashes
+func (s *SQL) GetBlocked() (map[string]bool, error) {
+	query := "SELECT hash FROM blocked"
+	logQuery(query)
+	rows, err := s.conn.Query(query)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	defer closeRows(rows)
+
+	blocked := make(map[string]bool)
+
+	var hash string
+	for rows.Next() {
+		err := rows.Scan(&hash)
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+		blocked[hash] = true
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return blocked, nil
 }
 
 // MissingBlobsForKnownStream returns missing blobs for an existing stream
@@ -219,7 +263,7 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 		// insert stream
 		err = execTx(tx,
 			"INSERT IGNORE INTO stream (hash, sd_hash) VALUES (?,?)",
-			[]interface{}{sdBlob.StreamHash, sdHash},
+			sdBlob.StreamHash, sdHash,
 		)
 		if err != nil {
 			return errors.Err(err)
@@ -239,7 +283,7 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 
 			err = execTx(tx,
 				"INSERT IGNORE INTO stream_blob (stream_hash, blob_hash, num) VALUES (?,?,?)",
-				[]interface{}{sdBlob.StreamHash, contentBlob.BlobHash, contentBlob.BlobNum},
+				sdBlob.StreamHash, contentBlob.BlobHash, contentBlob.BlobNum,
 			)
 			if err != nil {
 				return errors.Err(err)
@@ -364,7 +408,7 @@ func closeRows(rows *sql.Rows) {
 	}
 }
 
-func execTx(tx *sql.Tx, query string, args []interface{}) error {
+func execTx(tx *sql.Tx, query string, args ...interface{}) error {
 	logQuery(query, args...)
 	_, err := tx.Exec(query, args...)
 	return errors.Err(err)
@@ -394,6 +438,11 @@ CREATE TABLE stream_blob (
   PRIMARY KEY (stream_hash, blob_hash),
   FOREIGN KEY (stream_hash) REFERENCES stream (hash) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (blob_hash) REFERENCES blob_ (hash) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE blocked (
+  hash char(96) NOT NULL,
+  PRIMARY KEY (hash)
 );
 
 could add UNIQUE KEY (stream_hash, num) to stream_blob ...

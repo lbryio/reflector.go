@@ -41,3 +41,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/inconshreveable/go-update"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/lbryio/types"

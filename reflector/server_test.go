@@ -2,17 +2,15 @@ package reflector
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"io"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/lbryio/reflector.go/store"
-
-	"encoding/json"
-
-	"sort"
 
 	"github.com/lbryio/reflector.go/dht/bits"
 	"github.com/phayes/freeport"

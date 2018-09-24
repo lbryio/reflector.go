@@ -42,6 +42,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		reflectorServer.StatLogger = log.StandardLogger()
 		reflectorServer.StatReportFrequency = 1 * time.Hour
 	}
+	reflectorServer.EnableBlocklist = true
 
 	err = reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
 	if err != nil {

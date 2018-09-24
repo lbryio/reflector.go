@@ -2,15 +2,19 @@ package store
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/lbryio/lbry.go/errors"
 	"github.com/lbryio/reflector.go/db"
+	log "github.com/sirupsen/logrus"
 )
 
 // DBBackedS3Store is an instance of an S3 Store that is backed by a DB for what is stored.
 type DBBackedS3Store struct {
-	s3 *S3BlobStore
-	db *db.SQL
+	s3        *S3BlobStore
+	db        *db.SQL
+	blockedMu sync.RWMutex
+	blocked   map[string]bool
 }
 
 // NewDBBackedS3Store returns an initialized store pointer.
@@ -58,9 +62,107 @@ func (d *DBBackedS3Store) PutSD(hash string, blob []byte) error {
 	return d.db.AddSDBlob(hash, len(blob), blobContents)
 }
 
+func (d *DBBackedS3Store) Delete(hash string) error {
+	err := d.s3.Delete(hash)
+	if err != nil {
+		return err
+	}
+
+	return d.db.Delete(hash)
+}
+
+// Block deletes the blob and prevents it from being uploaded in the future
+func (d *DBBackedS3Store) Block(hash string) error {
+	if blocked, err := d.isBlocked(hash); blocked || err != nil {
+		return err
+	}
+
+	log.Debugf("blocking %s", hash)
+
+	err := d.db.Block(hash)
+	if err != nil {
+		return err
+	}
+
+	has, err := d.db.HasBlob(hash)
+	if err != nil {
+		return err
+	}
+
+	if has {
+		err = d.s3.Delete(hash)
+		if err != nil {
+			return err
+		}
+
+		err = d.db.Delete(hash)
+		if err != nil {
+			return err
+		}
+	}
+
+	return d.markBlocked(hash)
+}
+
+// Wants returns false if the hash exists or is blocked, true otherwise
+func (d *DBBackedS3Store) Wants(hash string) (bool, error) {
+	has, err := d.Has(hash)
+	if has || err != nil {
+		return false, err
+	}
+
+	blocked, err := d.isBlocked(hash)
+	return !blocked, err
+}
+
 // MissingBlobsForKnownStream returns missing blobs for an existing stream
 // WARNING: if the stream does NOT exist, no blob hashes will be returned, which looks
 // like no blobs are missing
 func (d *DBBackedS3Store) MissingBlobsForKnownStream(sdHash string) ([]string, error) {
 	return d.db.MissingBlobsForKnownStream(sdHash)
+}
+
+func (d *DBBackedS3Store) markBlocked(hash string) error {
+	err := d.initBlocked()
+	if err != nil {
+		return err
+	}
+
+	d.blockedMu.Lock()
+	defer d.blockedMu.Unlock()
+
+	d.blocked[hash] = true
+	return nil
+}
+
+func (d *DBBackedS3Store) isBlocked(hash string) (bool, error) {
+	err := d.initBlocked()
+	if err != nil {
+		return false, err
+	}
+
+	d.blockedMu.RLock()
+	defer d.blockedMu.RUnlock()
+
+	return d.blocked[hash], nil
+}
+
+func (d *DBBackedS3Store) initBlocked() error {
+	// first check without blocking since this is the most likely scenario
+	if d.blocked != nil {
+		return nil
+	}
+
+	d.blockedMu.Lock()
+	defer d.blockedMu.Unlock()
+
+	// check again in case of race condition
+	if d.blocked != nil {
+		return nil
+	}
+
+	var err error
+	d.blocked, err = d.db.GetBlocked()
+
+	return err
 }
