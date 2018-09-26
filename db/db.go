@@ -416,6 +416,8 @@ func execTx(tx *sql.Tx, query string, args ...interface{}) error {
 
 /*  SQL schema
 
+in prod, set tx_isolation to READ-COMMITTED to improve db performance
+
 CREATE TABLE blob_ (
   hash char(96) NOT NULL,
   is_stored TINYINT(1) NOT NULL DEFAULT 0,

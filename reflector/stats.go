@@ -69,6 +69,10 @@ func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but
 		name = "i/o timeout"
 	} else if strings.Contains(err.Error(), "read: connection reset by peer") {
 		name = "read conn reset"
+	} else if strings.Contains(err.Error(), "unexpected EOF") {
+		name = "unexpected EOF"
+	} else if strings.Contains(err.Error(), "write: broken pipe") {
+		name = "write broken pipe"
 	} else {
 		shouldLog = true
 	}
