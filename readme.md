@@ -19,7 +19,7 @@ This project requires [Go v1.10](https://golang.org/doc/install) or higher.
 go get -u github.com/lbryio/reflector.go
 cd "$(go env GOPATH)/src/github.com/lbryio/reflector.go"
 make
-./prism
+./bin/prism-bin
 ```
 
 ## Contributing
