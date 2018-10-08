@@ -7,7 +7,7 @@ type BlobStore interface {
 	// Does blob exist in the store
 	Has(hash string) (bool, error)
 	// Get the blob from the store
-	Get(hase string) ([]byte, error)
+	Get(hash string) ([]byte, error)
 	// Put the blob into the store
 	Put(hash string, blob []byte) error
 	// Put an SD blob into the store
