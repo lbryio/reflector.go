@@ -18,5 +18,5 @@ func init() {
 }
 
 func versionCmd(cmd *cobra.Command, args []string) {
-	fmt.Printf("version %s (%s)\n", meta.Version, meta.BuildTime.Format(time.RFC3339))
+	fmt.Printf("version %s (built at %s)\n", meta.Version, meta.BuildTime.Format(time.RFC3339))
 }

@@ -2,30 +2,16 @@ os: linux
 dist: trusty
 language: go
 
-# Only the last two Go releases are supported by the Go team with security
-# updates. Any versions older than that should be considered deprecated.
-# Don't bother testing with them. tip builds your code with the latest
-# development version of Go. This can warn you that your code will break
-# in the next version of Go. Don't worry! Later we declare that test runs
-# are allowed to fail on Go tip.
-matrix:
-  include:
-    - go: 1.10.2
-      env: DEPLOY=true # dont deploy tip build
-    - go: master
-      env: DEPLOY=false # dont deploy tip build
-  allow_failures:
-    - go: master
-  # Don't wait for tip tests to finish. Mark the test run green if the
-  # tests pass on the stable versions of Go.
-  fast_finish: true
+env:
+  - GO111MODULE=on
 
-# Don't email me the results of the test runs.
+go:
+  - 1.11.x
+
 notifications:
   email: false
 
-# Skip the install step. Don't `go get` dependencies. Only build with the
-# code in vendor/
+# Skip the install step. Don't `go get` dependencies. Only build with the code in vendor/
 install: true
 
 # Anything in before_script that returns a nonzero exit code will
@@ -48,8 +34,6 @@ before_script:
 # script always run to completion (set +e). All of these code checks are must haves
 # in a modern Go project.
 script:
-  # install deps
-  - make dep
   # Fail if a .go file hasn't been formatted with gofmt
   - test -z $(gofmt -s -l $GO_FILES)
   # Run unit tests
@@ -62,11 +46,11 @@ script:
   # forbid code with huge functions
   #- gocyclo -ignore "_test.go" -avg -over 19 $GO_FILES
   # checks for unhandled errors
-  - errcheck ./...
+  # - errcheck ./... # COMMENTED OUT UNTIL https://github.com/kisielk/errcheck/issues/155 is fixed
   # "go vet on steroids" + linter - ignore autogen code
-  - megacheck -simple.exit-non-zero=true ./...
+  # - megacheck -simple.exit-non-zero=true ./... # DISABLED UNTIL https://github.com/dominikh/go-tools/issues/328 is fixed
   # check for unnecessary conversions - ignore autogen code
-  - unconvert ./...
+  # - unconvert ./... # SEEMS TO BE BROKEN WITH GO MODULES
   # one last linter - ignore autogen code
   #- golint -set_exit_status $(go list ./... | grep -v /vendor/ )
   # Finally, build the binary
@@ -79,7 +63,6 @@ deploy:
     on:
       repo: lbryio/reflector.go
       tags: true
-      condition: "$DEPLOY = true"
     api_key:
       secure: epAlhp3SUr8hhISarJ22n6tRw2TEa4s4oNFIvJUb5HGECVp1SYN7ao0ln5NoNLmfJS60pi911i/kMhhi21/uhZ0kCYlEhhIE2pc1zsiAxK9L9ENCssJ205HfVbe5grhwskLGzgjhU9OznO8WtmyOPWXr0it8M8RCTjx6rEC0A33Id3WMYyhP938Sj9CxEYeH4KS8wFvBXkgBVtrgaYwRTCIROFddHFXOb9jyNhqQ1RbfKtllsVtQhVk5WMlomheBNSS4vr6WMS4X4+2okFqnLtiSn1wrn5I/94UQbnrI1juVnQj0K+j32EyQbAOt4T2cLW3GtG0jhaYKyNMT9ycDCdVACPSDELlHWjeyoes9bnhUFftm6kDbQxwA1UsTF1yG8tMKXxBSmYyoT7qDloi6pBifZMrFXL61uTs6yhVB9LS/2oqg4sc0Ne87bRcn4OxsBeVCe3kbBHDTR/NTyF2gNPtRvgMAWULxTVcUm9VYdO0IWvAig5g4Row0DnFzEquD6CzezbRWD9WyZyV/AFyYHeeQ2PO7jTw0/3M7aDX33Fuhh34lehzmrC03cfgD/wZW+spxozIcQCYdiJqVw+u+/NvbNr0kkFzE9zW26JEmUFTyDvKxvnza1Kwtww3EgH6zaOL8r4yVbb54rePRvLw7pl93zlfJnEB2MCPqJOY5ZpU=
   - provider: s3
@@ -87,7 +70,6 @@ deploy:
     skip_cleanup: true
     on:
       repo: lbryio/reflector.go
-      condition: "$DEPLOY = true"
     access_key_id:
       secure: "ABmoSTxTee1GubJmmi+MlyBcnqRT0ywEOtTL4hrH7T+Vj5UPcNBhjqGRiMXzO3MdrVWom19OnqMvsvAdehrB4uQJVlX/+zB26gTpEiiU5dWJgerNAYmfxDGNz/p9pyYWLvVY/cymSlJ4HkggJVg+dMTBTOP+gTNgQUhHL7pAd/Z5HMPmPW/rlNlQgDdczoY44OdiniuHny4Lr7mo8dcT4dcyJysPpHLCPGWp3kXcffIEbgO02aQZ14BbX9oU9xm1BacYnr4t8gRCU+uK0mt7TREHUzZ8bQBRXUymmpeeEQshXdifdwtk6sdRGIZiTi0NmQ7kYter6oh6623TH6rpNy/lkxKi823FbSPC1XZGH7CwcbnSIEwY++7e9PT0EA14VuDUF7+iXC/gpRkVQwUoMcoC9rHBjkXW+SiwHWoUeDKXrfVO9QGEJTi5bDRNwklwu2zkYWeRIPzfDaVayUBYwjunjT1eST997ygmJwJTJ6DeOWLx+WFlmwBJfQpBwbrlMrceiNjreMwGB6ffXEBzuM6S5inXGIChllGDpNyJeFVcH9zPpU0JsIpWoRjwLNFOiEhFsnzK5rvA2SKmlOOnSlgOCBQnFi2SmLDM790KoY8qjan2s984chQz2qsKnhYuVpJhG6LKgrI1QwE0KHr80spVFfewq11AU4Q+lfA9aAQ="
     secret_access_key:
