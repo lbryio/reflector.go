@@ -120,9 +120,10 @@ func (s *S3BlobStore) Put(hash string, blob []byte) error {
 	}(time.Now())
 
 	_, err = s3manager.NewUploader(s.session).Upload(&s3manager.UploadInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(hash),
-		Body:   bytes.NewBuffer(blob),
+		Bucket:       aws.String(s.bucket),
+		Key:          aws.String(hash),
+		Body:         bytes.NewBuffer(blob),
+		StorageClass: aws.String(s3.StorageClassIntelligentTiering),
 	})
 
 	return err

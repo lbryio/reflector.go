@@ -2,7 +2,7 @@ module github.com/lbryio/reflector.go
 
 require (
 	github.com/armon/go-metrics v0.0.0-20180713145231-3c58d8115a78
-	github.com/aws/aws-sdk-go v0.0.0-20180806205706-c0447dbaaf19
+	github.com/aws/aws-sdk-go v1.16.11
 	github.com/btcsuite/btcutil v0.0.0-20180706230648-ab6388e0c60a
 	github.com/davecgh/go-spew v1.1.0
 	github.com/go-errors/errors v1.0.1
@@ -23,7 +23,7 @@ require (
 	github.com/hashicorp/serf v0.0.0-20180530155958-984a73625de3
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/inconshreveable/mousetrap v1.0.0
-	github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8
+	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
 	github.com/johntdyer/slack-go v0.0.0-20180213144715-95fac1160b22
 	github.com/johntdyer/slackrus v0.0.0-20180518184837-f7aae3243a07
 	github.com/lbryio/errors.go v0.0.0-20180223142025-ad03d3cc6a5c
