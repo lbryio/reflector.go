@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 
 	"github.com/lbryio/reflector.go/reflector"
+	"github.com/lbryio/reflector.go/stream"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -28,7 +29,7 @@ func sendBlobCmd(cmd *cobra.Command, args []string) {
 		log.Fatal("error connecting client to server", err)
 	}
 
-	blob := make([]byte, 1024)
+	blob := make(stream.Blob, 1024)
 	_, err = rand.Read(blob)
 	if err != nil {
 		log.Fatal("failed to make random blob", err)
