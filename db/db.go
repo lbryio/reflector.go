@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/lbryio/lbry.go/errors"
-	"github.com/lbryio/lbry.go/querytools"
-	"github.com/lbryio/reflector.go/dht/bits"
+	"github.com/lbryio/lbry.go/dht/bits"
+	"github.com/lbryio/lbry.go/extras/errors"
+	qt "github.com/lbryio/lbry.go/extras/query"
 
 	_ "github.com/go-sql-driver/mysql" // blank import for db driver
 	log "github.com/sirupsen/logrus"
@@ -33,7 +33,7 @@ type SQL struct {
 }
 
 func logQuery(query string, args ...interface{}) {
-	s, err := querytools.InterpolateParams(query, args...)
+	s, err := qt.InterpolateParams(query, args...)
 	if err != nil {
 		log.Errorln(err)
 	} else {
@@ -111,7 +111,7 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 		log.Debugf("getting hashes[%d:%d] of %d", doneIndex, sliceEnd, len(hashes))
 		batch := hashes[doneIndex:sliceEnd]
 
-		query := "SELECT hash FROM blob_ WHERE is_stored = ? && hash IN (" + querytools.Qs(len(batch)) + ")"
+		query := "SELECT hash FROM blob_ WHERE is_stored = ? && hash IN (" + qt.Qs(len(batch)) + ")"
 		args := make([]interface{}, len(batch)+1)
 		args[0] = true
 		for i := range batch {

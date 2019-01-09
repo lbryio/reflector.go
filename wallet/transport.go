@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/lbryio/lbry.go/stop"
+	"github.com/lbryio/lbry.go/extras/stop"
 	log "github.com/sirupsen/logrus"
 )
 

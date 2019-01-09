@@ -7,10 +7,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lbryio/lbry.go/dht"
+	"github.com/lbryio/lbry.go/dht/bits"
 	"github.com/lbryio/reflector.go/cluster"
 	"github.com/lbryio/reflector.go/db"
-	"github.com/lbryio/reflector.go/dht"
-	"github.com/lbryio/reflector.go/dht/bits"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/prism"
 	"github.com/lbryio/reflector.go/reflector"

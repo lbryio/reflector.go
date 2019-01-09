@@ -1,6 +1,6 @@
 package store
 
-import "github.com/lbryio/lbry.go/errors"
+import "github.com/lbryio/lbry.go/extras/errors"
 
 // BlobStore is an interface with methods for consistently handling blob storage.
 type BlobStore interface {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lbryio/reflector.go/dht/bits"
+	"github.com/lbryio/lbry.go/dht/bits"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/davecgh/go-spew/spew"

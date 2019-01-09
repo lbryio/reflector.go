@@ -1,6 +1,6 @@
 package store
 
-import "github.com/lbryio/lbry.go/errors"
+import "github.com/lbryio/lbry.go/extras/errors"
 
 // MemoryBlobStore is an in memory only blob store with no persistence.
 type MemoryBlobStore struct {

@@ -5,16 +5,16 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/lbryio/lbry.go/dht"
+	"github.com/lbryio/lbry.go/dht/bits"
 	"github.com/lbryio/reflector.go/cluster"
 	"github.com/lbryio/reflector.go/db"
-	"github.com/lbryio/reflector.go/dht"
-	"github.com/lbryio/reflector.go/dht/bits"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/lbryio/lbry.go/errors"
-	"github.com/lbryio/lbry.go/stop"
+	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/extras/stop"
 
 	log "github.com/sirupsen/logrus"
 )

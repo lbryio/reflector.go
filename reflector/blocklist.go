@@ -11,7 +11,7 @@ import (
 	"github.com/lbryio/reflector.go/store"
 	"github.com/lbryio/reflector.go/wallet"
 
-	"github.com/lbryio/lbry.go/errors"
+	"github.com/lbryio/lbry.go/extras/errors"
 	types "github.com/lbryio/types/go"
 
 	"github.com/golang/protobuf/proto"

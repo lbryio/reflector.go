@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/lbryio/lbry.go/errors"
+	"github.com/lbryio/lbry.go/extras/errors"
 )
 
 // FileBlobStore is a local disk store.

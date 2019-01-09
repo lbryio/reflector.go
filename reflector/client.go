@@ -6,7 +6,7 @@ import (
 
 	"github.com/lbryio/reflector.go/stream"
 
-	"github.com/lbryio/lbry.go/errors"
+	"github.com/lbryio/lbry.go/extras/errors"
 
 	log "github.com/sirupsen/logrus"
 )

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lbryio/lbry.go/stop"
+	"github.com/lbryio/lbry.go/extras/stop"
 	log "github.com/sirupsen/logrus"
 	"github.com/uber-go/atomic"
 )
