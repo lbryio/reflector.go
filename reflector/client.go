@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"net"
 
-	"github.com/lbryio/reflector.go/stream"
-
 	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
 
 	log "github.com/sirupsen/logrus"
 )

@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/store"
-	"github.com/lbryio/reflector.go/stream"
 
 	"github.com/lbryio/lbry.go/extras/errors"
 	"github.com/lbryio/lbry.go/extras/stop"
+	"github.com/lbryio/lbry.go/stream"
 
 	log "github.com/sirupsen/logrus"
 )

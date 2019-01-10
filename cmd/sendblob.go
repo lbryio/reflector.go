@@ -4,7 +4,8 @@ import (
 	"crypto/rand"
 
 	"github.com/lbryio/reflector.go/reflector"
-	"github.com/lbryio/reflector.go/stream"
+
+	"github.com/lbryio/lbry.go/stream"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
