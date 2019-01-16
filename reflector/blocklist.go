@@ -21,6 +21,7 @@ import (
 const blocklistURL = "https://api.lbry.io/file/list_blocked"
 
 func (s *Server) enableBlocklist(b store.Blocklister) {
+	// TODO: updateBlocklist should be killed when server is shutting down
 	updateBlocklist(b)
 	t := time.NewTicker(12 * time.Hour)
 	for {
@@ -93,6 +94,7 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 	values := make(map[string]valOrErr)
 
 	node := wallet.NewNode()
+	defer node.Shutdown()
 	err := node.Connect([]string{
 		"victor.lbry.tech:50001",
 		//"lbryumx1.lbry.io:50001", // cant use real servers until victor pushes bugfix
