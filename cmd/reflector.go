@@ -9,6 +9,7 @@ import (
 
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/meta"
+	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
@@ -49,8 +50,15 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
+	peerServer := peer.NewServer(combo)
+	err = peerServer.Start(":5567")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	<-interruptChan
+	peerServer.Shutdown()
 	reflectorServer.Shutdown()
 }
