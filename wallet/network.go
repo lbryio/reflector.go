@@ -5,7 +5,6 @@ package wallet
 import (
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"math/rand"
 	"net"
 	"sync"
@@ -30,28 +29,9 @@ var (
 	ErrTimeout        = errors.Base("timeout")
 )
 
-type responseError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-func (r responseError) Error() string { return fmt.Sprintf("%d: %s", r.Code, r.Message) }
-
-type resp struct {
+type response struct {
 	data []byte
 	err  error
-}
-
-type response struct {
-	Id     uint32        `json:"id"`
-	Method string        `json:"method"`
-	Error  responseError `json:"error"`
-}
-
-type request struct {
-	Id     uint32   `json:"id"`
-	Method string   `json:"method"`
-	Params []string `json:"params"`
 }
 
 type Node struct {
@@ -60,10 +40,10 @@ type Node struct {
 	grp       *stop.Group
 
 	handlersMu *sync.RWMutex
-	handlers   map[uint32]chan resp
+	handlers   map[uint32]chan response
 
 	pushHandlersMu *sync.RWMutex
-	pushHandlers   map[string][]chan resp
+	pushHandlers   map[string][]chan response
 
 	timeout time.Duration
 }
@@ -71,8 +51,8 @@ type Node struct {
 // NewNode creates a new node.
 func NewNode() *Node {
 	return &Node{
-		handlers:       make(map[uint32]chan resp),
-		pushHandlers:   make(map[string][]chan resp),
+		handlers:       make(map[uint32]chan response),
+		pushHandlers:   make(map[string][]chan response),
 		handlersMu:     &sync.RWMutex{},
 		pushHandlersMu: &sync.RWMutex{},
 		grp:            stop.New(),
@@ -160,15 +140,22 @@ func (n *Node) listen() {
 		case <-n.grp.Ch():
 			return
 		case bytes := <-n.transport.Responses():
-			msg := &response{}
+			msg := &struct {
+				Id     uint32 `json:"id"`
+				Method string `json:"method"`
+				Error  struct {
+					Code    int    `json:"code"`
+					Message string `json:"message"`
+				} `json:"error"`
+			}{}
 			if err := json.Unmarshal(bytes, msg); err != nil {
 				n.err(err)
 				continue
 			}
 
-			r := resp{}
+			r := response{}
 			if len(msg.Error.Message) > 0 {
-				r.err = msg.Error
+				r.err = errors.Base("%d: %s", msg.Error.Code, msg.Error.Message)
 			} else {
 				r.data = bytes
 			}
@@ -207,7 +194,11 @@ func (n *Node) listen() {
 
 // request makes a request to the server and unmarshals the response into v.
 func (n *Node) request(method string, params []string, v interface{}) error {
-	msg := request{
+	msg := struct {
+		Id     uint32   `json:"id"`
+		Method string   `json:"method"`
+		Params []string `json:"params"`
+	}{
 		Id:     n.nextId.Load(),
 		Method: method,
 		Params: params,
@@ -220,7 +211,7 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 	}
 	bytes = append(bytes, delimiter)
 
-	c := make(chan resp, 1)
+	c := make(chan response, 1)
 
 	n.handlersMu.Lock()
 	n.handlers[msg.Id] = c
@@ -231,11 +222,11 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 		return err
 	}
 
-	var r resp
+	var r response
 	select {
 	case r = <-c:
 	case <-time.After(n.timeout):
-		r = resp{err: errors.Err(ErrTimeout)}
+		r = response{err: errors.Err(ErrTimeout)}
 	}
 
 	n.handlersMu.Lock()
