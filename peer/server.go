@@ -196,7 +196,7 @@ func (s *Server) handleBlobRequest(data []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	log.Println("Sending blob " + request.RequestedBlob[:8])
+	log.Debugln("Sending blob " + request.RequestedBlob[:8])
 
 	blob, err := s.store.Get(request.RequestedBlob)
 	if err != nil {
@@ -246,7 +246,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 
 	var blob []byte
 	if request.RequestedBlob != "" {
-		log.Println("Sending blob " + request.RequestedBlob[:8])
+		log.Debugln("Sending blob " + request.RequestedBlob[:8])
 
 		blob, err = s.store.Get(request.RequestedBlob)
 		if errors.Is(err, store.ErrBlobNotFound) {
