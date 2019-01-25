@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/lbryio/lbry.go/extras/errors"
@@ -112,7 +113,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		request, err = readNextRequest(conn)
 		if err != nil {
 			if err != io.EOF {
-				log.Errorln(err)
+				s.logError(err)
 			}
 			return
 		}
@@ -142,13 +143,23 @@ func (s *Server) handleConnection(conn net.Conn) {
 			return
 		}
 
+		err = conn.SetWriteDeadline(time.Now().Add(timeoutDuration))
+		if err != nil {
+			log.Error(errors.FullTrace(err))
+		}
+
 		n, err := conn.Write(response)
 		if err != nil {
-			log.Errorln(err)
+			s.logError(err)
 			return
 		} else if n != len(response) {
 			log.Errorln(io.ErrShortWrite)
 			return
+		}
+
+		err = conn.SetWriteDeadline(time.Time{})
+		if err != nil {
+			log.Error(errors.FullTrace(err))
 		}
 	}
 }
@@ -269,6 +280,24 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 	}
 
 	return append(respData, blob...), nil
+}
+
+func (s *Server) logError(e error) {
+	if e == nil {
+		return
+	}
+
+	err := errors.Wrap(e, 0)
+
+	// these happen because the peer protocol does not have a way to cancel blob downloads
+	// so the client will just close the connection if its in the middle of downloading a blob
+	// but receives the blob from a different peer first
+	if strings.Contains(err.Error(), "read: connection reset by peer") ||
+		strings.Contains(err.Error(), "write: broken pipe") {
+		return
+	}
+
+	log.Error(errors.FullTrace(e))
 }
 
 func readNextRequest(conn net.Conn) ([]byte, error) {
