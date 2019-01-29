@@ -47,3 +47,8 @@ func (m *MemoryBlobStore) Delete(hash string) error {
 	delete(m.blobs, hash)
 	return nil
 }
+
+// Debug returns the blobs in memory. It's useful for testing and debugging.
+func (m *MemoryBlobStore) Debug() map[string][]byte {
+	return m.blobs
+}

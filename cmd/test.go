@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"strconv"
@@ -12,7 +13,6 @@ import (
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -50,5 +50,9 @@ func testCmd(cmd *cobra.Command, args []string) {
 	<-interruptChan
 	peerServer.Shutdown()
 	reflectorServer.Shutdown()
-	spew.Dump(memStore)
+
+	fmt.Println("Blobs in store")
+	for hash, blob := range memStore.Debug() {
+		fmt.Printf("%s: %d bytes\n", hash, len(blob))
+	}
 }
