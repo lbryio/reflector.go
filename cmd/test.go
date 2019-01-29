@@ -40,7 +40,7 @@ func testCmd(cmd *cobra.Command, args []string) {
 	}
 
 	peerServer := peer.NewServer(memStore)
-	err = peerServer.Start(":5567")
+	err = peerServer.Start(":" + strconv.Itoa(reflector.DefaultPort+1))
 	if err != nil {
 		log.Fatal(err)
 	}
