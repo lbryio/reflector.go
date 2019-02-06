@@ -291,9 +291,10 @@ func (s *Server) logError(e error) {
 
 	// these happen because the peer protocol does not have a way to cancel blob downloads
 	// so the client will just close the connection if its in the middle of downloading a blob
-	// but receives the blob from a different peer first
-	if strings.Contains(err.Error(), "read: connection reset by peer") ||
-		strings.Contains(err.Error(), "write: broken pipe") {
+	// but receives the blob from a different peer first or simply goes offline (timeout)
+	if strings.Contains(err.Error(), "connection reset by peer") ||
+		strings.Contains(err.Error(), "i/o timeout") ||
+		strings.Contains(err.Error(), "broken pipe") {
 		return
 	}
 
