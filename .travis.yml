@@ -8,6 +8,11 @@ env:
 go:
   - 1.11.x
 
+cache:
+  directories:
+    - $HOME/.cache/go-build
+    - $HOME/gopath/pkg/mod
+
 notifications:
   email: false
 
