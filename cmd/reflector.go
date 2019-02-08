@@ -51,6 +51,10 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 
 	peerServer := peer.NewServer(combo)
+	if globalConfig.SlackHookURL != "" {
+		peerServer.StatLogger = log.StandardLogger()
+		peerServer.StatReportFrequency = 1 * time.Hour
+	}
 	err = peerServer.Start(":5567")
 	if err != nil {
 		log.Fatal(err)

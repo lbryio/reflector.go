@@ -10,9 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lbryio/reflector.go/reflector"
+	"github.com/lbryio/reflector.go/store"
+
 	"github.com/lbryio/lbry.go/extras/errors"
 	"github.com/lbryio/lbry.go/extras/stop"
-	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -26,10 +28,14 @@ const (
 
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
+	StatLogger          *log.Logger   // logger to log stats
+	StatReportFrequency time.Duration // how often to log stats
+
 	store  store.BlobStore
 	closed bool
 
-	grp *stop.Group
+	grp   *stop.Group
+	stats *reflector.Stats
 }
 
 // NewServer returns an initialized Server pointer.
@@ -43,6 +49,7 @@ func NewServer(store store.BlobStore) *Server {
 // Shutdown gracefully shuts down the peer server.
 func (s *Server) Shutdown() {
 	log.Debug("shutting down peer server...")
+	s.stats.Shutdown()
 	s.grp.StopAndWait()
 	log.Debug("peer server stopped")
 }
@@ -61,6 +68,11 @@ func (s *Server) Start(address string) error {
 		s.listenAndServe(l)
 		s.grp.Done()
 	}()
+
+	s.stats = reflector.NewStatLogger("DOWNLOAD", s.StatLogger, s.StatReportFrequency, s.grp.Child())
+	if s.StatLogger != nil && s.StatReportFrequency > 0 {
+		s.stats.Start()
+	}
 
 	return nil
 }
@@ -286,6 +298,14 @@ func (s *Server) logError(e error) {
 	if e == nil {
 		return
 	}
+	shouldLog := s.stats.AddError(e)
+	if shouldLog {
+		log.Errorln(errors.FullTrace(e))
+	}
+
+	return
+
+	// old stuff below. its here for posterity, because we're gonna have to deal with these errors someday for real
 
 	err := errors.Wrap(e, 0)
 

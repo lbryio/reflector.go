@@ -14,28 +14,32 @@ import (
 
 // TODO: store daily stats too. and maybe other intervals
 
-type stats struct {
+type Stats struct {
 	mu      *sync.Mutex
 	blobs   int
 	streams int
 	errors  map[string]int
+	started bool
 
+	name    string
 	logger  *log.Logger
 	logFreq time.Duration
 	grp     *stop.Group
 }
 
-func newStatLogger(logger *log.Logger, logFreq time.Duration, parentGrp *stop.Group) *stats {
-	return &stats{
+func NewStatLogger(name string, logger *log.Logger, logFreq time.Duration, parentGrp *stop.Group) *Stats {
+	return &Stats{
 		mu:      &sync.Mutex{},
 		grp:     stop.New(parentGrp),
 		logger:  logger,
 		logFreq: logFreq,
 		errors:  make(map[string]int),
+		name:    name,
 	}
 }
 
-func (s *stats) Start() {
+func (s *Stats) Start() {
+	s.started = true
 	s.grp.Add(1)
 	go func() {
 		defer s.grp.Done()
@@ -43,23 +47,27 @@ func (s *stats) Start() {
 	}()
 }
 
-func (s *stats) Shutdown() {
+func (s *Stats) Shutdown() {
+	if !s.started {
+		return
+	}
 	s.log()
 	s.grp.StopAndWait()
+	s.started = false
 }
 
-func (s *stats) AddBlob() {
+func (s *Stats) AddBlob() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.blobs++
 }
-func (s *stats) AddStream() {
+func (s *Stats) AddStream() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.streams++
 }
 
-func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but whatever
+func (s *Stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but whatever
 	if e == nil {
 		return
 	}
@@ -83,7 +91,7 @@ func (s *stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but
 	return
 }
 
-func (s *stats) runSlackLogger() {
+func (s *Stats) runSlackLogger() {
 	t := time.NewTicker(s.logFreq)
 	for {
 		select {
@@ -95,7 +103,7 @@ func (s *stats) runSlackLogger() {
 	}
 }
 
-func (s *stats) log() {
+func (s *Stats) log() {
 	s.mu.Lock()
 	blobs, streams := s.blobs, s.streams
 	s.blobs, s.streams = 0, 0
@@ -110,5 +118,5 @@ func (s *stats) log() {
 		errStr = errStr[:len(errStr)-2] // trim last comma and space
 	}
 
-	s.logger.Printf("Stats: %d blobs, %d streams, errors: %s", blobs, streams, errStr)
+	s.logger.Printf("%s stats: %d blobs, %d streams, errors: %s", s.name, blobs, streams, errStr)
 }
