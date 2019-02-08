@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"io"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/lbryio/reflector.go/reflector"
@@ -307,18 +306,18 @@ func (s *Server) logError(e error) {
 
 	// old stuff below. its here for posterity, because we're gonna have to deal with these errors someday for real
 
-	err := errors.Wrap(e, 0)
+	//err := errors.Wrap(e, 0)
 
 	// these happen because the peer protocol does not have a way to cancel blob downloads
 	// so the client will just close the connection if its in the middle of downloading a blob
 	// but receives the blob from a different peer first or simply goes offline (timeout)
-	if strings.Contains(err.Error(), "connection reset by peer") ||
-		strings.Contains(err.Error(), "i/o timeout") ||
-		strings.Contains(err.Error(), "broken pipe") {
-		return
-	}
-
-	log.Error(errors.FullTrace(e))
+	//if strings.Contains(err.Error(), "connection reset by peer") ||
+	//	strings.Contains(err.Error(), "i/o timeout") ||
+	//	strings.Contains(err.Error(), "broken pipe") {
+	//	return
+	//}
+	//
+	//log.Error(errors.FullTrace(e))
 }
 
 func readNextRequest(conn net.Conn) ([]byte, error) {
