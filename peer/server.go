@@ -93,7 +93,7 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			if s.closed {
 				return
 			}
-			log.Error(err)
+			log.Error(errors.Prefix("accepting conn", err))
 		} else {
 			s.grp.Add(1)
 			go func() {
@@ -330,7 +330,7 @@ func readNextRequest(conn net.Conn) ([]byte, error) {
 		chunk, err := buf.ReadBytes('}')
 		if err != nil {
 			if err != io.EOF {
-				log.Errorln("read error:", err)
+				log.Errorln("readBytes error:", err)
 				return request, err
 			}
 			eof = true
