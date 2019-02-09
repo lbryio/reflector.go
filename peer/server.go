@@ -329,7 +329,7 @@ func readNextRequest(conn net.Conn) ([]byte, error) {
 		chunk, err := buf.ReadBytes('}')
 		if err != nil {
 			if err != io.EOF {
-				log.Errorln("readBytes error:", err)
+				//log.Errorln("readBytes error:", err) // logged by caller
 				return request, err
 			}
 			eof = true
