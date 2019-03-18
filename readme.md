@@ -32,9 +32,9 @@ This project is MIT licensed.
 
 ## Security
 
-We take security seriously. Please contact security@lbry.io regarding any security issues.
+We take security seriously. Please contact security@lbry.com regarding any security issues.
 Our PGP key is [here](https://keybase.io/lbry/key.asc) if you need it.
 
 ## Contact
 
-The primary contact for this project is [@lyoshenka](https://github.com/lyoshenka) (grin@lbry.io)
+The primary contact for this project is [@lyoshenka](https://github.com/lyoshenka) (grin@lbry.com)
