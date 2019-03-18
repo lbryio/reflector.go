@@ -73,13 +73,13 @@ func (s *Stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but
 	}
 	err := errors.Wrap(e, 0)
 	name := err.TypeName()
-	if strings.Contains(err.Error(), "i/o timeout") {
+	if strings.Contains(err.Error(), "i/o timeout") { // hit a read or write deadline
 		name = "i/o timeout"
-	} else if strings.Contains(err.Error(), "read: connection reset by peer") {
+	} else if strings.Contains(err.Error(), "read: connection reset by peer") { // the other side closed the connection using TCP reset
 		name = "read conn reset"
-	} else if strings.Contains(err.Error(), "unexpected EOF") {
+	} else if strings.Contains(err.Error(), "unexpected EOF") { // tried to read from closed pipe or socket
 		name = "unexpected EOF"
-	} else if strings.Contains(err.Error(), "write: broken pipe") {
+	} else if strings.Contains(err.Error(), "write: broken pipe") { // tried to write to a pipe or socket that was closed by the peer
 		name = "write broken pipe"
 	} else {
 		shouldLog = true

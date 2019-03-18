@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/lbryio/reflector.go/reflector"
@@ -134,20 +135,6 @@ func (s *Server) handleConnection(conn net.Conn) {
 			log.Error(errors.FullTrace(err))
 		}
 
-		//if strings.Contains(string(request), `"requested_blobs"`) {
-		//	log.Debugln("received availability request")
-		//	response, err = s.handleAvailabilityRequest(request)
-		//} else if strings.Contains(string(request), `"blob_data_payment_rate"`) {
-		//	log.Debugln("received rate negotiation request")
-		//	response, err = s.handlePaymentRateNegotiation(request)
-		//} else if strings.Contains(string(request), `"requested_blob"`) {
-		//	log.Debugln("received blob request")
-		//	response, err = s.handleBlobRequest(request)
-		//} else {
-		//	log.Errorln("invalid request")
-		//	spew.Dump(request)
-		//	return
-		//}
 		response, err = s.handleCompositeRequest(request)
 		if err != nil {
 			log.Error(err)
@@ -161,7 +148,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 		n, err := conn.Write(response)
 		if err != nil {
-			s.logError(err)
+			if !strings.Contains(err.Error(), "connection reset by peer") { // means the other side closed the connection using TCP reset
+				s.logError(err)
+			}
 			return
 		} else if n != len(response) {
 			log.Errorln(io.ErrShortWrite)
