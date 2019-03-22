@@ -111,7 +111,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		}
 	}()
 
-	timeoutDuration := 5 * time.Second
+	timeoutDuration := 1 * time.Minute
 
 	for {
 		var request []byte
