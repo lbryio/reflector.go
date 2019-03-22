@@ -62,14 +62,6 @@ script:
   - make
 
 deploy:
-  - provider: releases
-    file: ./bin/prism-bin
-    skip_cleanup: true
-    on:
-      repo: lbryio/reflector.go
-      tags: true
-    api_key:
-      secure: epAlhp3SUr8hhISarJ22n6tRw2TEa4s4oNFIvJUb5HGECVp1SYN7ao0ln5NoNLmfJS60pi911i/kMhhi21/uhZ0kCYlEhhIE2pc1zsiAxK9L9ENCssJ205HfVbe5grhwskLGzgjhU9OznO8WtmyOPWXr0it8M8RCTjx6rEC0A33Id3WMYyhP938Sj9CxEYeH4KS8wFvBXkgBVtrgaYwRTCIROFddHFXOb9jyNhqQ1RbfKtllsVtQhVk5WMlomheBNSS4vr6WMS4X4+2okFqnLtiSn1wrn5I/94UQbnrI1juVnQj0K+j32EyQbAOt4T2cLW3GtG0jhaYKyNMT9ycDCdVACPSDELlHWjeyoes9bnhUFftm6kDbQxwA1UsTF1yG8tMKXxBSmYyoT7qDloi6pBifZMrFXL61uTs6yhVB9LS/2oqg4sc0Ne87bRcn4OxsBeVCe3kbBHDTR/NTyF2gNPtRvgMAWULxTVcUm9VYdO0IWvAig5g4Row0DnFzEquD6CzezbRWD9WyZyV/AFyYHeeQ2PO7jTw0/3M7aDX33Fuhh34lehzmrC03cfgD/wZW+spxozIcQCYdiJqVw+u+/NvbNr0kkFzE9zW26JEmUFTyDvKxvnza1Kwtww3EgH6zaOL8r4yVbb54rePRvLw7pl93zlfJnEB2MCPqJOY5ZpU=
   - provider: s3
     local_dir: ./bin
     skip_cleanup: true
@@ -80,3 +72,12 @@ deploy:
     secret_access_key:
       secure: "AxYRTy/GnjeTJKQdeJ/AEeAd+yXs783bFDKdyKNswtsHlU8sWPQgNcvTLpVqnSQMpiwkGDGi/70rvR5C+AT3SIWNw13RYrgBRpduQU0J+B2JS+3dN2DIePu25uvs++Wo22OfS8I+UjZ1mWY1SSHI2spPXvDCq5tb+Ih8nlYflEyAtxU9Oq2R3Kus2tkIlRnL25sP/2fY7RvuJFYIV63z8ZIJRzB5WzOeERqnXq2zfwos+hycAqyo/VevJnWAYTEDsvBuSODOpZF+QfKtIQ2rYSoqy8Lq1M6UOZimnC3Ulea4euBVf2ssBCnI7csGNG5UzkTiwrPDi2xIP8nM01rHW1yHJ7tQsJaghnUsfw2t6ui4ZofvbbOFTN/YCloHITifEi8Tc1/17isi3y+kX5yQ/Nk5UNry0Wbt91CP+nkL/ZmA5grkBXDL7VJMmB60TnO3ap24CtwBQartN3LoWs7h+4ov+LqbCt6IqpJVWQWlwJeb2MFPFByALtBpsqAyL1SxXlGNpPa94CuXxfQ6Bv436PtefA5FlTzR8uMmqsjWciv06bVnSvVlFEVovN2Fkplrjt7AASJ/8KJs4THDg4k61nfd8roAHx6ewQzl4wCWKCikQ0MuFd2mVHwdrbnCH1mIHuPRyvWMMIAK0ooc1/rmKiJlpgumjxoFYNE10MXtt+I="
     bucket: "lbry-reflector-binary"
+
+  - provider: releases
+    file: ./bin/prism-bin
+    skip_cleanup: true
+    on:
+      repo: lbryio/reflector.go
+      tags: true
+    api_key:
+      secure: epAlhp3SUr8hhISarJ22n6tRw2TEa4s4oNFIvJUb5HGECVp1SYN7ao0ln5NoNLmfJS60pi911i/kMhhi21/uhZ0kCYlEhhIE2pc1zsiAxK9L9ENCssJ205HfVbe5grhwskLGzgjhU9OznO8WtmyOPWXr0it8M8RCTjx6rEC0A33Id3WMYyhP938Sj9CxEYeH4KS8wFvBXkgBVtrgaYwRTCIROFddHFXOb9jyNhqQ1RbfKtllsVtQhVk5WMlomheBNSS4vr6WMS4X4+2okFqnLtiSn1wrn5I/94UQbnrI1juVnQj0K+j32EyQbAOt4T2cLW3GtG0jhaYKyNMT9ycDCdVACPSDELlHWjeyoes9bnhUFftm6kDbQxwA1UsTF1yG8tMKXxBSmYyoT7qDloi6pBifZMrFXL61uTs6yhVB9LS/2oqg4sc0Ne87bRcn4OxsBeVCe3kbBHDTR/NTyF2gNPtRvgMAWULxTVcUm9VYdO0IWvAig5g4Row0DnFzEquD6CzezbRWD9WyZyV/AFyYHeeQ2PO7jTw0/3M7aDX33Fuhh34lehzmrC03cfgD/wZW+spxozIcQCYdiJqVw+u+/NvbNr0kkFzE9zW26JEmUFTyDvKxvnza1Kwtww3EgH6zaOL8r4yVbb54rePRvLw7pl93zlfJnEB2MCPqJOY5ZpU=
