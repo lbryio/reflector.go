@@ -12,7 +12,7 @@ require (
 	github.com/go-ini/ini v1.41.0
 	github.com/go-sql-driver/mysql v0.0.0-20180719071942-99ff426eb706
 	github.com/golang/mock v1.2.0 // indirect
-	github.com/golang/protobuf v1.2.0
+	github.com/golang/protobuf v1.3.1
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.6.2
 	github.com/gorilla/rpc v1.1.0
@@ -34,7 +34,7 @@ require (
 	github.com/kkdai/bstream v0.0.0-20181106074824-b3251f7901ec // indirect
 	github.com/lbryio/errors.go v0.0.0-20180223142025-ad03d3cc6a5c
 	github.com/lbryio/lbry.go v0.0.0-20190109223729-30c312501602
-	github.com/lbryio/types v0.0.0-20181001180206-594241d24e00
+	github.com/lbryio/types v0.0.0-20190422033210-321fb2abda9c
 	github.com/lyoshenka/bencode v0.0.0-20180323155644-b7abd7672df5
 	github.com/miekg/dns v1.0.8
 	github.com/mitchellh/mapstructure v1.1.2 // indirect

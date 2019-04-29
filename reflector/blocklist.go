@@ -12,7 +12,8 @@ import (
 	"github.com/lbryio/reflector.go/wallet"
 
 	"github.com/lbryio/lbry.go/extras/errors"
-	types "github.com/lbryio/types/go"
+	types1 "github.com/lbryio/types/v1/go"
+	types2 "github.com/lbryio/types/v2/go"
 
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
@@ -96,9 +97,8 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 	node := wallet.NewNode()
 	defer node.Shutdown()
 	err := node.Connect([]string{
-		"victor.lbry.tech:50001",
-		//"lbryumx1.lbry.io:50001", // cant use real servers until victor pushes bugfix
-		//"lbryumx2.lbry.io:50001",
+		"lbryumx1.lbry.io:50001",
+		"lbryumx2.lbry.io:50001",
 	}, nil)
 	if err != nil {
 		return nil, err
@@ -135,22 +135,39 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 		if err != nil {
 			values[outpoint] = valOrErr{Err: err}
 			continue
-		}
-
-		claim := &types.Claim{}
-		err = proto.Unmarshal(value, claim)
-		if err != nil {
-			values[outpoint] = valOrErr{Err: err}
+		} else if value == nil {
+			values[outpoint] = valOrErr{Err: errors.Err("outpoint not found")}
 			continue
 		}
 
-		if claim.GetStream().GetSource().GetSourceType() != types.Source_lbry_sd_hash {
-			values[outpoint] = valOrErr{Err: errors.Err("source is nil or source type is not lbry_sd_hash")}
-			continue
-		}
-
-		values[outpoint] = valOrErr{Value: hex.EncodeToString(claim.GetStream().GetSource().GetSource())}
+		hash, err := hashFromClaim(value)
+		values[outpoint] = valOrErr{Value: hash, Err: err}
 	}
 
 	return values, nil
+}
+
+func hashFromClaim(value []byte) (string, error) {
+	claim := &types1.Claim{}
+	err := proto.Unmarshal(value, claim)
+	if err != nil {
+		return "", err
+	}
+
+	if claim.GetStream().GetSource().GetSourceType() == types1.Source_lbry_sd_hash && claim.GetStream().GetSource().GetSource() != nil {
+		return hex.EncodeToString(claim.GetStream().GetSource().GetSource()), nil
+	}
+
+	claim2 := &types2.Claim{}
+	err = proto.Unmarshal(value, claim2)
+	if err != nil {
+		return "", err
+	}
+
+	stream, ok := claim2.GetType().(*types2.Claim_Stream)
+	if !ok || stream == nil {
+		return "", errors.Err("not a stream claim")
+	}
+
+	return hex.EncodeToString(claim2.GetStream().GetSource().GetSdHash()), nil
 }
