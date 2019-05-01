@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net"
 	"strconv"
 	"time"
@@ -355,7 +356,16 @@ func (s *Server) read(conn net.Conn, v interface{}) error {
 		return errors.Err(err)
 	}
 
-	return errors.Err(json.NewDecoder(conn).Decode(v))
+	dec := json.NewDecoder(conn)
+	err = dec.Decode(v)
+	if err != nil {
+		data, _ := ioutil.ReadAll(dec.Buffered())
+		if len(data) > 0 {
+			return errors.Err("%s. Data: %s", err.Error(), hex.EncodeToString(data))
+		}
+		return errors.Err(err)
+	}
+	return nil
 }
 
 func (s *Server) readRawBlob(conn net.Conn, blobSize int) ([]byte, error) {

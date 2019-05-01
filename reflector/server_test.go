@@ -144,6 +144,22 @@ func TestServer_Timeout(t *testing.T) {
 	}
 }
 
+//func TestServer_InvalidJSONHandshake(t *testing.T) {
+//	srv, port := startServerOnRandomPort(t)
+//	defer srv.Shutdown()
+//
+//	c := Client{}
+//	err := c.Connect(":" + strconv.Itoa(port))
+//	if err != nil {
+//		t.Fatal("error connecting client to server", err)
+//	}
+//
+//	_, err = c.conn.Write([]byte(`{"stuff":4,tf}"`))
+//	if err == nil {
+//		t.Error("expected an error")
+//	}
+//}
+
 type mockPartialStore struct {
 	store.MemoryBlobStore
 	missing []string
