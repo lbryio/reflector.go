@@ -271,6 +271,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 				BlobHash: GetBlobHash(blob),
 				Length:   len(blob),
 			}
+			s.stats.AddBlob()
 		}
 	}
 
