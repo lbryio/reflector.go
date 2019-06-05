@@ -67,7 +67,6 @@ func (n *Node) Connect(addrs []string, config *tls.Config) error {
 	}
 
 	// shuffle addresses for load balancing
-	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(addrs), func(i, j int) { addrs[i], addrs[j] = addrs[j], addrs[i] })
 
 	var err error

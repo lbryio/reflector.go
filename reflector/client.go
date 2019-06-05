@@ -69,7 +69,7 @@ func (c *Client) SendBlob(blob stream.Blob) error {
 	}
 
 	if !sendResp.SendBlob {
-		return ErrBlobExists
+		return errors.Prefix(blobHash[:8], ErrBlobExists)
 	}
 
 	log.Println("Sending blob " + blobHash[:8])
@@ -96,7 +96,7 @@ func (c *Client) doHandshake(version int) error {
 		return errors.Err("not connected")
 	}
 
-	handshake, err := json.Marshal(handshakeRequestResponse{Version: version})
+	handshake, err := json.Marshal(handshakeRequestResponse{Version: &version})
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,9 @@ func (c *Client) doHandshake(version int) error {
 	err = json.NewDecoder(c.conn).Decode(&resp)
 	if err != nil {
 		return err
-	} else if resp.Version != version {
+	} else if resp.Version == nil {
+		return errors.Err("invalid handshake")
+	} else if *resp.Version != version {
 		return errors.Err("handshake version mismatch")
 	}
 

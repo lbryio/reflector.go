@@ -274,7 +274,9 @@ func (s *Server) doHandshake(conn net.Conn) error {
 	err := s.read(conn, &handshake)
 	if err != nil {
 		return err
-	} else if handshake.Version != protocolVersion1 && handshake.Version != protocolVersion2 {
+	} else if handshake.Version == nil {
+		return errors.Err("handshake is missing protocol version")
+	} else if *handshake.Version != protocolVersion1 && *handshake.Version != protocolVersion2 {
 		return errors.Err("protocol version not supported")
 	}
 
@@ -411,7 +413,7 @@ func BlobHash(blob []byte) string {
 //}
 
 type handshakeRequestResponse struct {
-	Version int `json:"version"`
+	Version *int `json:"version"`
 }
 
 type sendBlobRequest struct {

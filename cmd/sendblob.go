@@ -27,13 +27,13 @@ func sendBlobCmd(cmd *cobra.Command, args []string) {
 	c := reflector.Client{}
 	err := c.Connect(addr)
 	if err != nil {
-		log.Fatal("error connecting client to server", err)
+		log.Fatal("error connecting client to server: ", err)
 	}
 
 	blob := make(stream.Blob, 1024)
 	_, err = rand.Read(blob)
 	if err != nil {
-		log.Fatal("failed to make random blob", err)
+		log.Fatal("failed to make random blob: ", err)
 	}
 
 	err = c.SendBlob(blob)
