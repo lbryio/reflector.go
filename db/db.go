@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/lbryio/lbry.go/dht/bits"
 	"github.com/lbryio/lbry.go/extras/errors"
@@ -121,7 +122,9 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 		logQuery(query, args...)
 
 		err := func() error {
+			startTime := time.Now()
 			rows, err := s.conn.Query(query, args...)
+			log.Debugf("hashes query took %s", time.Since(startTime))
 			if err != nil {
 				return errors.Err(err)
 			}
