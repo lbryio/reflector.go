@@ -100,7 +100,7 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 	var hash string
 	exists := make(map[string]bool)
-	maxBatchSize := 100
+	maxBatchSize := 10000
 	doneIndex := 0
 
 	for len(hashes) > doneIndex {
