@@ -27,7 +27,7 @@ func init() {
 }
 
 func reflectorCmd(cmd *cobra.Command, args []string) {
-	log.Printf("reflector version %s", meta.Version)
+	log.Printf("reflector version %s, built %s", meta.Version, meta.BuildTime.Format(time.RFC3339))
 	db := new(db.SQL)
 	err := db.Connect(globalConfig.DBConn)
 	if err != nil {
