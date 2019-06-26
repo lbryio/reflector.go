@@ -9,7 +9,8 @@ import (
 	"github.com/lbryio/lbry.go/extras/errors"
 	qt "github.com/lbryio/lbry.go/extras/query"
 
-	_ "github.com/go-sql-driver/mysql" // blank import for db driver
+	"github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql" // blank import for db driver ensures its imported even if its not used
 	log "github.com/sirupsen/logrus"
 )
 
@@ -415,7 +416,15 @@ func closeRows(rows *sql.Rows) {
 
 func execTx(tx *sql.Tx, query string, args ...interface{}) error {
 	logQuery(query, args...)
-	_, err := tx.Exec(query, args...)
+	attempt, maxAttempts := 0, 3
+	var err error
+Retry:
+	attempt++
+	_, err = tx.Exec(query, args...)
+	if e, ok := err.(*mysql.MySQLError); ok && attempt <= maxAttempts && e.Number == 1205 {
+		//Error 1205: Lock wait timeout exceeded; try restarting transaction
+		goto Retry
+	}
 	return errors.Err(err)
 }
 
