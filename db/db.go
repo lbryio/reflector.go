@@ -54,6 +54,8 @@ func (s *SQL) Connect(dsn string) error {
 		return errors.Err(err)
 	}
 
+	s.conn.SetMaxIdleConns(12)
+
 	return errors.Err(s.conn.Ping())
 }
 
