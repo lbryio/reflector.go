@@ -419,9 +419,12 @@ func exec(e Executor, query string, args ...interface{}) error {
 Retry:
 	attempt++
 	_, err = e.Exec(query, args...)
-	if e, ok := err.(*mysql.MySQLError); ok && attempt <= maxAttempts && e.Number == 1205 {
-		//Error 1205: Lock wait timeout exceeded; try restarting transaction
-		goto Retry
+	if e, ok := err.(*mysql.MySQLError); ok && e.Number == 1205 {
+		if attempt <= maxAttempts {
+			//Error 1205: Lock wait timeout exceeded; try restarting transaction
+			goto Retry
+		}
+		err = errors.Prefix("Timed out query "+query, err)
 	}
 	return errors.Err(err)
 }
