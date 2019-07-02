@@ -403,9 +403,15 @@ func (s *Server) quitting() bool {
 	}
 }
 
+// BlobHash returns the sha512 hash hex encoded string of the blob byte slice.
 func BlobHash(blob []byte) string {
 	hashBytes := sha512.Sum384(blob)
 	return hex.EncodeToString(hashBytes[:])
+}
+
+func IsValidJSON(b []byte) bool {
+	var r json.RawMessage
+	return json.Unmarshal(b, &r) == nil
 }
 
 //type errorResponse struct {

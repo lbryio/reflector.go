@@ -2,8 +2,6 @@ package peer
 
 import (
 	"bufio"
-	"crypto/sha512"
-	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net"
@@ -215,7 +213,7 @@ func (s *Server) handleBlobRequest(data []byte) ([]byte, error) {
 	}
 
 	response, err := json.Marshal(blobResponse{IncomingBlob: incomingBlob{
-		BlobHash: GetBlobHash(blob),
+		BlobHash: reflector.BlobHash(blob),
 		Length:   len(blob),
 	}})
 	if err != nil {
@@ -268,7 +266,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 			return []byte{}, err
 		} else {
 			response.IncomingBlob = incomingBlob{
-				BlobHash: GetBlobHash(blob),
+				BlobHash: reflector.BlobHash(blob),
 				Length:   len(blob),
 			}
 			s.stats.AddBlob()
@@ -336,7 +334,7 @@ func readNextRequest(conn net.Conn) ([]byte, error) {
 			}
 
 			// yes, this is how the peer protocol knows when the request finishes
-			if isValidJSON(request) {
+			if reflector.IsValidJSON(request) {
 				break
 			}
 		}
@@ -356,17 +354,6 @@ func readNextRequest(conn net.Conn) ([]byte, error) {
 	}
 
 	return request, nil
-}
-
-func isValidJSON(b []byte) bool {
-	var r json.RawMessage
-	return json.Unmarshal(b, &r) == nil
-}
-
-// GetBlobHash returns the sha512 hash hex encoded string of the blob byte slice.
-func GetBlobHash(blob []byte) string {
-	hashBytes := sha512.Sum384(blob)
-	return hex.EncodeToString(hashBytes[:])
 }
 
 const (
