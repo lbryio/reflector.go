@@ -7,10 +7,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lbryio/reflector.go/reflector"
+
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/meta"
 	"github.com/lbryio/reflector.go/peer"
-	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
@@ -35,22 +36,32 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
-	combo := store.NewDBBackedS3Store(s3, db)
 
-	reflectorServer := reflector.NewServer(combo)
-	reflectorServer.Timeout = 3 * time.Minute
-	if globalConfig.SlackHookURL != "" {
-		reflectorServer.StatLogger = log.StandardLogger()
-		reflectorServer.StatReportFrequency = 1 * time.Hour
+	// flip this flag to false when doing db maintenance. uploads will not work (as reflector server wont be running)
+	// but downloads will still work straight from s3
+	useDB := true
+
+	var reflectorServer *reflector.Server
+	var blobStore store.BlobStore = s3
+
+	if useDB {
+		blobStore = store.NewDBBackedS3Store(s3, db)
+
+		reflectorServer = reflector.NewServer(blobStore)
+		reflectorServer.Timeout = 3 * time.Minute
+		if globalConfig.SlackHookURL != "" {
+			reflectorServer.StatLogger = log.StandardLogger()
+			reflectorServer.StatReportFrequency = 1 * time.Hour
+		}
+		reflectorServer.EnableBlocklist = true
+
+		err = reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	reflectorServer.EnableBlocklist = true
 
-	err = reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	peerServer := peer.NewServer(combo)
+	peerServer := peer.NewServer(blobStore)
 	if globalConfig.SlackHookURL != "" {
 		peerServer.StatLogger = log.StandardLogger()
 		peerServer.StatReportFrequency = 1 * time.Hour
@@ -64,5 +75,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	<-interruptChan
 	peerServer.Shutdown()
-	reflectorServer.Shutdown()
+	if reflectorServer != nil {
+		reflectorServer.Shutdown()
+	}
 }
