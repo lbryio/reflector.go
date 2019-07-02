@@ -107,13 +107,13 @@ func (d *DBBackedS3Store) Block(hash string) error {
 
 // Wants returns false if the hash exists or is blocked, true otherwise
 func (d *DBBackedS3Store) Wants(hash string) (bool, error) {
-	has, err := d.Has(hash)
-	if has || err != nil {
+	blocked, err := d.isBlocked(hash)
+	if blocked || err != nil {
 		return false, err
 	}
 
-	blocked, err := d.isBlocked(hash)
-	return !blocked, err
+	has, err := d.Has(hash)
+	return !has, err
 }
 
 // MissingBlobsForKnownStream returns missing blobs for an existing stream
