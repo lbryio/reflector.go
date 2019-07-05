@@ -39,7 +39,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 
 	// flip this flag to false when doing db maintenance. uploads will not work (as reflector server wont be running)
 	// but downloads will still work straight from s3
-	useDB := false
+	useDB := true
 
 	var reflectorServer *reflector.Server
 	var blobStore store.BlobStore = s3
