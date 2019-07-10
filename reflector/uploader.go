@@ -25,7 +25,7 @@ const (
 )
 
 type Summary struct {
-	total, alreadyStored, sd, blob, err int
+	Total, AlreadyStored, Sd, Blob, Err int
 }
 
 type Uploader struct {
@@ -61,7 +61,7 @@ func (u *Uploader) Upload(dirOrFilePath string) error {
 		return err
 	}
 
-	u.count.total = len(paths)
+	u.count.Total = len(paths)
 
 	hashes := make([]string, len(paths))
 	for i, p := range paths {
@@ -76,10 +76,10 @@ func (u *Uploader) Upload(dirOrFilePath string) error {
 		if err != nil {
 			return err
 		}
-		u.count.alreadyStored = len(exists)
+		u.count.AlreadyStored = len(exists)
 	}
 
-	log.Infof("%d new blobs to upload", u.count.total-u.count.alreadyStored)
+	log.Infof("%d new blobs to upload", u.count.Total-u.count.AlreadyStored)
 
 	workerWG := sync.WaitGroup{}
 	pathChan := make(chan string)
@@ -120,11 +120,11 @@ Upload:
 	u.stopper.Stop()
 
 	log.Infoln("SUMMARY")
-	log.Infof("%d blobs total", u.count.total)
-	log.Infof("%d blobs already stored", u.count.alreadyStored)
-	log.Infof("%d SD blobs uploaded", u.count.sd)
-	log.Infof("%d content blobs uploaded", u.count.blob)
-	log.Infof("%d errors encountered", u.count.err)
+	log.Infof("%d blobs total", u.count.Total)
+	log.Infof("%d blobs already stored", u.count.AlreadyStored)
+	log.Infof("%d SD blobs uploaded", u.count.Sd)
+	log.Infof("%d content blobs uploaded", u.count.Blob)
+	log.Infof("%d errors encountered", u.count.Err)
 
 	return nil
 }
@@ -200,15 +200,15 @@ func (u *Uploader) counter() {
 			}
 			switch incrementType {
 			case sdInc:
-				u.count.sd++
+				u.count.Sd++
 			case blobInc:
-				u.count.blob++
+				u.count.Blob++
 			case errInc:
-				u.count.err++
+				u.count.Err++
 			}
 		}
-		if (u.count.sd+u.count.blob)%50 == 0 {
-			log.Infof("%d of %d done (%s elapsed, %.3fs per blob)", u.count.sd+u.count.blob, u.count.total-u.count.alreadyStored, time.Since(start).String(), time.Since(start).Seconds()/float64(u.count.sd+u.count.blob))
+		if (u.count.Sd+u.count.Blob)%50 == 0 {
+			log.Infof("%d of %d done (%s elapsed, %.3fs per blob)", u.count.Sd+u.count.Blob, u.count.Total-u.count.AlreadyStored, time.Since(start).String(), time.Since(start).Seconds()/float64(u.count.Sd+u.count.Blob))
 		}
 	}
 }
