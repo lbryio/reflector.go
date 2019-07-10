@@ -29,22 +29,25 @@ func init() {
 
 func reflectorCmd(cmd *cobra.Command, args []string) {
 	log.Printf("reflector version %s, built %s", meta.Version, meta.BuildTime.Format(time.RFC3339))
-	db := new(db.SQL)
-	err := db.Connect(globalConfig.DBConn)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 
 	// flip this flag to false when doing db maintenance. uploads will not work (as reflector server wont be running)
 	// but downloads will still work straight from s3
 	useDB := false
 
-	var reflectorServer *reflector.Server
+	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+
+	var err error
+
 	var blobStore store.BlobStore = s3
+	var reflectorServer *reflector.Server
 
 	if useDB {
+		db := new(db.SQL)
+		err = db.Connect(globalConfig.DBConn)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		blobStore = store.NewDBBackedS3Store(s3, db)
 
 		reflectorServer = reflector.NewServer(blobStore)
