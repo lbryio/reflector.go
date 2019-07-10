@@ -96,10 +96,10 @@ func (s *SQL) insertBlob(hash string, length int, isStored bool) (int64, error) 
 	return blobID, nil
 }
 
-func (s *SQL) insertStream(hash string, sdBlobID int64) (int64, error) {
+func (s *SQL) insertStream(hash, sdHash string, sdBlobID int64) (int64, error) {
 	streamID, err := s.exec(
-		"INSERT IGNORE INTO stream (hash, sd_blob_id) VALUES (?,?)",
-		hash, sdBlobID,
+		"INSERT IGNORE INTO stream (hash, sd_hash, sd_blob_id) VALUES (?,?, ?)",
+		hash, sdHash, sdBlobID,
 	)
 	if err != nil {
 		return 0, errors.Err(err)
@@ -189,7 +189,7 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 
 // Delete will remove the blob from the db
 func (s *SQL) Delete(hash string) error {
-	_, err := s.exec("DELETE FROM stream WHERE sd_blob_id = (SELECT id FROM blob_ WHERE hash = ?)", hash)
+	_, err := s.exec("DELETE FROM stream WHERE sd_hash = ?", hash)
 	if err != nil {
 		return errors.Err(err)
 	}
@@ -246,9 +246,8 @@ func (s *SQL) MissingBlobsForKnownStream(sdHash string) ([]string, error) {
 
 	query := `
 		SELECT b.hash FROM blob_ b
-		INNER JOIN stream_blob sb ON b.id = sb.blob_id
-		INNER JOIN stream s ON s.id = sb.stream_id
-		INNER JOIN blob_ sdb ON sdb.id = s.sd_blob_id AND sdb.hash = ?
+		INNER JOIN stream_blob sb ON b.hash = sb.blob_hash
+		INNER JOIN stream s ON s.hash = sb.stream_hash AND s.sd_hash = ?
 		WHERE b.is_stored = 0
 	`
 	args := []interface{}{sdHash}
@@ -292,7 +291,7 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 		return err
 	}
 
-	streamID, err := s.insertStream(sdBlob.StreamHash, sdBlobID)
+	streamID, err := s.insertStream(sdBlob.StreamHash, sdHash, sdBlobID)
 	if err != nil {
 		return err
 	}
@@ -310,8 +309,8 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 		}
 
 		_, err = s.exec(
-			"INSERT IGNORE INTO stream_blob (stream_id, blob_id, num) VALUES (?,?,?)",
-			streamID, blobID, contentBlob.BlobNum,
+			"INSERT IGNORE INTO stream_blob (stream_id, stream_hash, blob_id, blob_hash, num) VALUES (?,?,?,?,?)",
+			streamID, sdBlob.StreamHash, blobID, contentBlob.BlobHash, contentBlob.BlobNum,
 		)
 		if err != nil {
 			return errors.Err(err)
