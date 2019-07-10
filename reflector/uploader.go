@@ -24,6 +24,10 @@ const (
 	errInc
 )
 
+type Summary struct {
+	total, alreadyStored, sd, blob, err int
+}
+
 type Uploader struct {
 	db              *db.SQL
 	store           *store.DBBackedS3Store // could just be store.BlobStore interface
@@ -32,9 +36,7 @@ type Uploader struct {
 	stopper         *stop.Group
 	countChan       chan increment
 
-	count struct {
-		total, alreadyStored, sd, blob, err int
-	}
+	count Summary
 }
 
 func NewUploader(db *db.SQL, store *store.DBBackedS3Store, workers int, skipExistsCheck bool) *Uploader {
@@ -209,6 +211,10 @@ func (u *Uploader) counter() {
 			log.Infof("%d of %d done (%s elapsed, %.3fs per blob)", u.count.sd+u.count.blob, u.count.total-u.count.alreadyStored, time.Since(start).String(), time.Since(start).Seconds()/float64(u.count.sd+u.count.blob))
 		}
 	}
+}
+
+func (u *Uploader) GetSummary() Summary {
+	return u.count
 }
 
 func (u *Uploader) inc(t increment) {
