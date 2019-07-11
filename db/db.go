@@ -502,4 +502,47 @@ CREATE TABLE blocked (
   PRIMARY KEY (hash)
 );
 
+
+FOR THE MIGRATION, USE THESE TRIGGERS
+
+CREATE TRIGGER tgr_stream_insert AFTER INSERT ON stream FOR EACH ROW INSERT INTO stream_new SET id = NEW.id, hash = NEW.hash, sd_blob_id = (SELECT id from blob_ where hash = NEW.sd_hash);
+CREATE TRIGGER tgr_stream_delete AFTER DELETE ON stream FOR EACH ROW DELETE FROM stream_new WHERE id = OLD.id;
+
+CREATE TRIGGER tgr_blob_insert AFTER INSERT ON blob_ FOR EACH ROW INSERT INTO blob_new SET id = NEW.id, hash = NEW.hash, is_stored = NEW.is_stored, length = NEW.length;
+CREATE TRIGGER tgr_blob_update AFTER UPDATE ON blob_ FOR EACH ROW UPDATE blob_new SET hash = NEW.hash, is_stored = NEW.is_stored, length = NEW.length WHERE id = NEW.id;
+CREATE TRIGGER tgr_blob_delete AFTER DELETE ON blob_ FOR EACH ROW DELETE FROM blob_new WHERE id = OLD.id;
+
+CREATE TRIGGER tgr_stream_blob_insert AFTER INSERT ON stream_blob FOR EACH ROW INSERT INTO stream_blob_new SET stream_id = NEW.stream_id, blob_id = NEW.blob_id, num = NEW.num;
+CREATE TRIGGER tgr_stream_blob_delete AFTER DELETE ON stream_blob FOR EACH ROW DELETE FROM stream_blob_new WHERE stream_id = OLD.stream_id AND blob_id = OLD.blob_id;
+
+
+
+DROP PROCEDURE IF EXISTS moveit;
+DELIMITER $$
+CREATE PROCEDURE moveit()
+BEGIN
+  DECLARE first_trigger_blob_id INT DEFAULT 124802284; # ID of first blob that was copied using the triggers. dont copy anything after that.
+  DECLARE i INT DEFAULT 0;
+  DECLARE minid BIGINT UNSIGNED DEFAULT 0;
+  SELECT min(id) INTO minid FROM blob_ WHERE id < first_trigger_blob_id AND id > (SELECT coalesce(max(id),0) from blob_new where id < first_trigger_blob_id);
+  wloop: WHILE minid is not null DO
+    #IF (i >= 100000) THEN
+    #  LEAVE wloop;
+    #END IF;
+    SET i = i + 1;
+    IF (i % 5000 = 0) THEN
+	  SELECT concat('loop ', i, ', id ', minid) as progress;
+    END IF;
+
+
+    START TRANSACTION;
+    INSERT INTO blob_new (id, hash, is_stored, length) SELECT id, hash, is_stored, length from blob_ where id = minid;
+    COMMIT;
+    SELECT min(id) INTO minid FROM blob_ WHERE id < first_trigger_blob_id AND id > minid;
+  END WHILE wloop;
+END$$
+DELIMITER ;
+
+
+
 */
