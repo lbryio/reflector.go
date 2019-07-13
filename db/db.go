@@ -526,18 +526,25 @@ BEGIN
   DECLARE minid BIGINT UNSIGNED DEFAULT 0;
   SELECT min(id) INTO minid FROM blob_ WHERE id < first_trigger_blob_id AND id > (SELECT coalesce(max(id),0) from blob_new where id < first_trigger_blob_id);
   wloop: WHILE minid is not null DO
-    #IF (i >= 100000) THEN
+    #IF (i >= 100) THEN
     #  LEAVE wloop;
     #END IF;
     SET i = i + 1;
     IF (i % 5000 = 0) THEN
-	  SELECT concat('loop ', i, ', id ', minid) as progress;
+      SELECT concat('loop ', i, ', id ', minid) as progress;
     END IF;
 
 
-    START TRANSACTION;
+    IF (i % 10 = 1) THEN  # we start our loops on 1, like normal people
+      START TRANSACTION;
+    END IF;
+
     INSERT INTO blob_new (id, hash, is_stored, length) SELECT id, hash, is_stored, length from blob_ where id = minid;
-    COMMIT;
+
+    IF (i % 10 = 0) THEN
+      COMMIT;
+    END IF;
+
     SELECT min(id) INTO minid FROM blob_ WHERE id < first_trigger_blob_id AND id > minid;
   END WHILE wloop;
 END$$
