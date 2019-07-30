@@ -19,7 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const blocklistURL = "https://api.lbry.io/file/list_blocked"
+const blocklistURL = "https://api.lbry.com/file/list_blocked"
 
 func (s *Server) enableBlocklist(b store.Blocklister) {
 	// TODO: updateBlocklist should be killed when server is shutting down
