@@ -517,9 +517,9 @@ CREATE TRIGGER tgr_stream_blob_delete AFTER DELETE ON stream_blob FOR EACH ROW D
 
 
 
-DROP PROCEDURE IF EXISTS moveit;
+DROP PROCEDURE IF EXISTS copyblobs;
 DELIMITER $$
-CREATE PROCEDURE moveit()
+CREATE PROCEDURE copyblobs()
 BEGIN
   DECLARE first_trigger_blob_id INT DEFAULT 124802284; # ID of first blob that was copied using the triggers. dont copy anything after that.
   DECLARE i INT DEFAULT 0;
@@ -547,9 +547,48 @@ BEGIN
 
     SELECT min(id) INTO minid FROM blob_ WHERE id < first_trigger_blob_id AND id > minid;
   END WHILE wloop;
+  COMMIT;
 END$$
 DELIMITER ;
 
+
+
+DROP PROCEDURE IF EXISTS copystreams;
+DELIMITER $$
+CREATE PROCEDURE copystreams()
+BEGIN
+  DECLARE first_trigger_stream_id INT DEFAULT 1465749; # ID of first stream that was copied using the triggers. dont copy anything after that.
+  DECLARE i INT DEFAULT 0;
+  DECLARE minid BIGINT UNSIGNED DEFAULT 0;
+  DECLARE streamhash char(96);
+  SELECT min(id) INTO minid FROM stream WHERE id < first_trigger_stream_id AND id > (SELECT coalesce(max(id),0) from stream_new where id < first_trigger_stream_id);
+  wloop: WHILE minid is not null DO
+    #IF (i >= 10) THEN
+    #  LEAVE wloop;
+    #END IF;
+    SET i = i + 1;
+
+    IF (i % 5000 = 0) THEN
+      SELECT concat('loop ', i, ', id ', minid) as progress;
+    END IF;
+
+    IF (i % 10 = 1) THEN  # we start our loops on 1, like normal people
+      START TRANSACTION;
+    END IF;
+
+	SELECT hash INTO streamhash FROM stream WHERE id = minid;
+    INSERT INTO stream_new (id, hash, sd_blob_id) SELECT s.id, s.hash, b.id FROM stream s INNER JOIN blob_ b ON s.sd_hash = b.hash WHERE s.id = minid;
+    INSERT INTO stream_blob_new SELECT minid, b.id, sb.num FROM stream_blob sb INNER JOIN blob_ b ON sb.blob_hash = b.hash WHERE sb.stream_hash = streamhash;
+
+    IF (i % 10 = 0) THEN
+      COMMIT;
+    END IF;
+
+    SELECT min(id) INTO minid FROM stream WHERE id < first_trigger_stream_id AND id > minid;
+  END WHILE wloop;
+  COMMIT;
+END$$
+DELIMITER ;
 
 
 */
