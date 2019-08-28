@@ -3,7 +3,6 @@ module github.com/lbryio/reflector.go
 require (
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/aws/aws-sdk-go v1.16.11
-	github.com/btcsuite/btcutil v0.0.0-20180706230648-ab6388e0c60a // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-sql-driver/mysql v0.0.0-20180719071942-99ff426eb706
 	github.com/golang/protobuf v1.3.1
@@ -15,9 +14,8 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/johntdyer/slack-go v0.0.0-20180213144715-95fac1160b22 // indirect
 	github.com/johntdyer/slackrus v0.0.0-20180518184837-f7aae3243a07
-	github.com/lbryio/lbry.go v0.0.0-20190109223729-30c312501602
+	github.com/lbryio/lbry.go v0.0.0-20190828131228-f3a1fbdd5303
 	github.com/lbryio/types v0.0.0-20190422033210-321fb2abda9c
-	github.com/nlopes/slack v0.4.0 // indirect
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
 	github.com/sirupsen/logrus v1.3.0
 	github.com/spf13/cast v1.3.0 // indirect
