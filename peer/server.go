@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lbryio/lbry.go/stream"
+
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
@@ -255,6 +257,10 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 
 	var blob []byte
 	if request.RequestedBlob != "" {
+		if len(request.RequestedBlob) != stream.BlobHashHexLength {
+			return nil, errors.Err("Invalid blob hash length")
+		}
+
 		log.Debugln("Sending blob " + request.RequestedBlob[:8])
 
 		blob, err = s.store.Get(request.RequestedBlob)
