@@ -14,23 +14,32 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var peerNoDB bool
+
 func init() {
 	var cmd = &cobra.Command{
 		Use:   "peer",
 		Short: "Run peer server",
 		Run:   peerCmd,
 	}
+	cmd.Flags().BoolVar(&peerNoDB, "nodb", false, "Don't connect to a db and don't use a db-backed blob store")
 	rootCmd.AddCommand(cmd)
 }
 
 func peerCmd(cmd *cobra.Command, args []string) {
-	db := new(db.SQL)
-	err := db.Connect(globalConfig.DBConn)
-	checkErr(err)
+	var err error
 
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
-	combo := store.NewDBBackedS3Store(s3, db)
-	peerServer := peer.NewServer(combo)
+	peerServer := peer.NewServer(s3)
+
+	if !peerNoDB {
+		db := new(db.SQL)
+		err = db.Connect(globalConfig.DBConn)
+		checkErr(err)
+
+		combo := store.NewDBBackedS3Store(s3, db)
+		peerServer = peer.NewServer(combo)
+	}
 
 	err = peerServer.Start(":" + strconv.Itoa(peer.DefaultPort))
 	if err != nil {

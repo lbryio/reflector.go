@@ -112,6 +112,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 	}()
 
 	timeoutDuration := 1 * time.Minute
+	buf := bufio.NewReader(conn)
 
 	for {
 		var request []byte
@@ -122,7 +123,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			log.Error(errors.FullTrace(err))
 		}
 
-		request, err = readNextRequest(conn)
+		request, err = readNextMessage(buf)
 		if err != nil {
 			if err != io.EOF {
 				s.logError(err)
@@ -314,10 +315,9 @@ func (s *Server) logError(e error) {
 	//log.Error(errors.FullTrace(e))
 }
 
-func readNextRequest(conn net.Conn) ([]byte, error) {
+func readNextMessage(buf *bufio.Reader) ([]byte, error) {
 	request := make([]byte, 0)
 	eof := false
-	buf := bufio.NewReader(conn)
 
 	for {
 		chunk, err := buf.ReadBytes('}')
