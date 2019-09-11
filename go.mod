@@ -32,6 +32,7 @@ require (
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pty v1.1.8 // indirect
 	github.com/lbryio/lbry.go v0.0.0-20190910204236-fd916d9eae76
+	github.com/lbryio/lbryschema.go v0.0.0-20190602173230-6d2f69a36f46
 	github.com/lbryio/types v0.0.0-20190715201353-fe180635eafe
 	github.com/lusis/slack-test v0.0.0-20190426140909-c40012f20018 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
