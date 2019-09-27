@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"io/ioutil"
 	"os"
 
-	"github.com/lbryio/lbry.go/stream"
+	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/extras/errors"
 	"github.com/lbryio/reflector.go/peer"
@@ -33,39 +32,16 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 		log.Fatal("error connecting client to server: ", err)
 	}
 
-	s, err := c.GetStream(sdHash)
-	if err != nil {
-		log.Error(errors.FullTrace(err))
-		return
-	}
-
-	var sd stream.SDBlob
-	err = sd.FromBlob(s[0])
-	if err != nil {
-		log.Error(errors.FullTrace(err))
-		return
-	}
-
-	log.Printf("Downloading %d blobs for %s", len(sd.BlobInfos)-1, sd.SuggestedFileName)
-
-	data, err := s.Data()
-	if err != nil {
-		log.Error(errors.FullTrace(err))
-		return
-	}
+	cache := store.NewFileBlobStore("/tmp/lbry_downloaded_blobs")
 
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Error(errors.FullTrace(err))
-		return
+		log.Fatal(err)
 	}
 
-	filename := wd + "/" + sd.SuggestedFileName
-	err = ioutil.WriteFile(filename, data, 0644)
+	err = c.WriteStream(sdHash, wd, cache)
 	if err != nil {
 		log.Error(errors.FullTrace(err))
 		return
 	}
-
-	log.Printf("Wrote %d bytes to %s\n", len(data), filename)
 }

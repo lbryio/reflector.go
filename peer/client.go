@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"os"
 	"time"
+
+	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/stream"
 
@@ -47,15 +50,65 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// WriteStream downloads and writes a stream to file
+func (c *Client) WriteStream(sdHash, dir string, blobStore store.BlobStore) error {
+	if !c.connected {
+		return errors.Err("not connected")
+	}
+
+	var sd stream.SDBlob
+
+	sdb, err := c.getBlobWithCache(sdHash, blobStore)
+	if err != nil {
+		return err
+	}
+
+	err = sd.FromBlob(sdb)
+	if err != nil {
+		return err
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		return errors.Prefix("cannot stat "+dir, err)
+	} else if !info.IsDir() {
+		return errors.Err(dir + " must be a directory")
+	}
+
+	f, err := os.Create(dir + "/" + sd.SuggestedFileName)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(sd.BlobInfos)-1; i++ {
+		b, err := c.getBlobWithCache(hex.EncodeToString(sd.BlobInfos[i].BlobHash), blobStore)
+		if err != nil {
+			return err
+		}
+
+		data, err := b.Plaintext(sd.Key, sd.BlobInfos[i].IV)
+		if err != nil {
+			return err
+		}
+
+		_, err = f.Write(data)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // GetStream gets a stream
-func (c *Client) GetStream(sdHash string) (stream.Stream, error) {
+func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Stream, error) {
 	if !c.connected {
 		return nil, errors.Err("not connected")
 	}
 
 	var sd stream.SDBlob
 
-	b, err := c.GetBlob(sdHash)
+	b, err := c.getBlobWithCache(sdHash, blobCache)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +122,7 @@ func (c *Client) GetStream(sdHash string) (stream.Stream, error) {
 	s[0] = b
 
 	for i := 0; i < len(sd.BlobInfos)-1; i++ {
-		s[i+1], err = c.GetBlob(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
+		s[i+1], err = c.getBlobWithCache(hex.EncodeToString(sd.BlobInfos[i].BlobHash), blobCache)
 		if err != nil {
 			return nil, err
 		}
@@ -78,14 +131,34 @@ func (c *Client) GetStream(sdHash string) (stream.Stream, error) {
 	return s, nil
 }
 
+func (c *Client) getBlobWithCache(hash string, blobCache store.BlobStore) (stream.Blob, error) {
+	if blobCache == nil {
+		return c.GetBlob(hash)
+	}
+
+	blob, err := blobCache.Get(hash)
+	if err == nil || !errors.Is(err, store.ErrBlobNotFound) {
+		return blob, err
+	}
+
+	blob, err = c.GetBlob(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	err = blobCache.Put(hash, blob)
+
+	return blob, err
+}
+
 // GetBlob gets a blob
-func (c *Client) GetBlob(blobHash string) (stream.Blob, error) {
+func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 	if !c.connected {
 		return nil, errors.Err("not connected")
 	}
 
 	sendRequest, err := json.Marshal(blobRequest{
-		RequestedBlob: blobHash,
+		RequestedBlob: hash,
 	})
 	if err != nil {
 		return nil, err
@@ -103,16 +176,16 @@ func (c *Client) GetBlob(blobHash string) (stream.Blob, error) {
 	}
 
 	if resp.IncomingBlob.Error != "" {
-		return nil, errors.Prefix(blobHash[:8], resp.IncomingBlob.Error)
+		return nil, errors.Prefix(hash[:8], resp.IncomingBlob.Error)
 	}
-	if resp.IncomingBlob.BlobHash != blobHash {
-		return nil, errors.Prefix(blobHash[:8], "Blob hash in response does not match requested hash")
+	if resp.IncomingBlob.BlobHash != hash {
+		return nil, errors.Prefix(hash[:8], "Blob hash in response does not match requested hash")
 	}
 	if resp.IncomingBlob.Length <= 0 {
-		return nil, errors.Prefix(blobHash[:8], "Length reported as <= 0")
+		return nil, errors.Prefix(hash[:8], "Length reported as <= 0")
 	}
 
-	log.Println("Receiving blob " + blobHash[:8])
+	log.Println("Receiving blob " + hash[:8])
 
 	blob, err := c.readRawBlob(resp.IncomingBlob.Length)
 	if err != nil {
