@@ -12,32 +12,32 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// DBBackedS3Store is an instance of an S3 Store that is backed by a DB for what is stored.
-type DBBackedS3Store struct {
-	s3        *S3BlobStore
+// DBBackedStore is a store that's backed by a DB. The DB contains data about what's in the store.
+type DBBackedStore struct {
+	blobs     BlobStore
 	db        *db.SQL
 	blockedMu sync.RWMutex
 	blocked   map[string]bool
 }
 
-// NewDBBackedS3Store returns an initialized store pointer.
-func NewDBBackedS3Store(s3 *S3BlobStore, db *db.SQL) *DBBackedS3Store {
-	return &DBBackedS3Store{s3: s3, db: db}
+// NewDBBackedStore returns an initialized store pointer.
+func NewDBBackedStore(blobs BlobStore, db *db.SQL) *DBBackedStore {
+	return &DBBackedStore{blobs: blobs, db: db}
 }
 
 // Has returns true if the blob is in the store
-func (d *DBBackedS3Store) Has(hash string) (bool, error) {
+func (d *DBBackedStore) Has(hash string) (bool, error) {
 	return d.db.HasBlob(hash)
 }
 
 // Get gets the blob
-func (d *DBBackedS3Store) Get(hash string) (stream.Blob, error) {
-	return d.s3.Get(hash)
+func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
+	return d.blobs.Get(hash)
 }
 
 // Put stores the blob in the S3 store and stores the blob information in the DB.
-func (d *DBBackedS3Store) Put(hash string, blob stream.Blob) error {
-	err := d.s3.Put(hash, blob)
+func (d *DBBackedStore) Put(hash string, blob stream.Blob) error {
+	err := d.blobs.Put(hash, blob)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (d *DBBackedS3Store) Put(hash string, blob stream.Blob) error {
 
 // PutSD stores the SDBlob in the S3 store. It will return an error if the sd blob is missing the stream hash or if
 // there is an error storing the blob information in the DB.
-func (d *DBBackedS3Store) PutSD(hash string, blob stream.Blob) error {
+func (d *DBBackedStore) PutSD(hash string, blob stream.Blob) error {
 	var blobContents db.SdBlob
 	err := json.Unmarshal(blob, &blobContents)
 	if err != nil {
@@ -57,7 +57,7 @@ func (d *DBBackedS3Store) PutSD(hash string, blob stream.Blob) error {
 		return errors.Err("sd blob is missing stream hash")
 	}
 
-	err = d.s3.PutSD(hash, blob)
+	err = d.blobs.PutSD(hash, blob)
 	if err != nil {
 		return err
 	}
@@ -65,8 +65,8 @@ func (d *DBBackedS3Store) PutSD(hash string, blob stream.Blob) error {
 	return d.db.AddSDBlob(hash, len(blob), blobContents)
 }
 
-func (d *DBBackedS3Store) Delete(hash string) error {
-	err := d.s3.Delete(hash)
+func (d *DBBackedStore) Delete(hash string) error {
+	err := d.blobs.Delete(hash)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (d *DBBackedS3Store) Delete(hash string) error {
 }
 
 // Block deletes the blob and prevents it from being uploaded in the future
-func (d *DBBackedS3Store) Block(hash string) error {
+func (d *DBBackedStore) Block(hash string) error {
 	if blocked, err := d.isBlocked(hash); blocked || err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (d *DBBackedS3Store) Block(hash string) error {
 	}
 
 	if has {
-		err = d.s3.Delete(hash)
+		err = d.blobs.Delete(hash)
 		if err != nil {
 			return err
 		}
@@ -108,7 +108,7 @@ func (d *DBBackedS3Store) Block(hash string) error {
 }
 
 // Wants returns false if the hash exists or is blocked, true otherwise
-func (d *DBBackedS3Store) Wants(hash string) (bool, error) {
+func (d *DBBackedStore) Wants(hash string) (bool, error) {
 	blocked, err := d.isBlocked(hash)
 	if blocked || err != nil {
 		return false, err
@@ -121,11 +121,11 @@ func (d *DBBackedS3Store) Wants(hash string) (bool, error) {
 // MissingBlobsForKnownStream returns missing blobs for an existing stream
 // WARNING: if the stream does NOT exist, no blob hashes will be returned, which looks
 // like no blobs are missing
-func (d *DBBackedS3Store) MissingBlobsForKnownStream(sdHash string) ([]string, error) {
+func (d *DBBackedStore) MissingBlobsForKnownStream(sdHash string) ([]string, error) {
 	return d.db.MissingBlobsForKnownStream(sdHash)
 }
 
-func (d *DBBackedS3Store) markBlocked(hash string) error {
+func (d *DBBackedStore) markBlocked(hash string) error {
 	err := d.initBlocked()
 	if err != nil {
 		return err
@@ -138,7 +138,7 @@ func (d *DBBackedS3Store) markBlocked(hash string) error {
 	return nil
 }
 
-func (d *DBBackedS3Store) isBlocked(hash string) (bool, error) {
+func (d *DBBackedStore) isBlocked(hash string) (bool, error) {
 	err := d.initBlocked()
 	if err != nil {
 		return false, err
@@ -150,7 +150,7 @@ func (d *DBBackedS3Store) isBlocked(hash string) (bool, error) {
 	return d.blocked[hash], nil
 }
 
-func (d *DBBackedS3Store) initBlocked() error {
+func (d *DBBackedStore) initBlocked() error {
 	// first check without blocking since this is the most likely scenario
 	if d.blocked != nil {
 		return nil

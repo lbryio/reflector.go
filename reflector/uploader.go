@@ -30,7 +30,7 @@ type Summary struct {
 
 type Uploader struct {
 	db              *db.SQL
-	store           *store.DBBackedS3Store // could just be store.BlobStore interface
+	store           *store.DBBackedStore // could just be store.BlobStore interface
 	workers         int
 	skipExistsCheck bool
 	stopper         *stop.Group
@@ -39,7 +39,7 @@ type Uploader struct {
 	count Summary
 }
 
-func NewUploader(db *db.SQL, store *store.DBBackedS3Store, workers int, skipExistsCheck bool) *Uploader {
+func NewUploader(db *db.SQL, store *store.DBBackedStore, workers int, skipExistsCheck bool) *Uploader {
 	return &Uploader{
 		db:              db,
 		store:           store,

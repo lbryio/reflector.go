@@ -48,7 +48,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 			log.Fatal(err)
 		}
 
-		blobStore = store.NewDBBackedS3Store(s3, db)
+		blobStore = store.NewDBBackedStore(s3, db)
 
 		reflectorServer = reflector.NewServer(blobStore)
 		reflectorServer.Timeout = 3 * time.Minute
