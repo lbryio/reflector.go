@@ -13,11 +13,11 @@ coming soon
 
 ## Running from Source
 
-This project requires [Go v1.10](https://golang.org/doc/install) or higher.
+This project requires [Go v1.11](https://golang.org/doc/install) or higher because it uses Go modules.
 
 ```
-go get -u github.com/lbryio/reflector.go
-cd "$(go env GOPATH)/src/github.com/lbryio/reflector.go"
+git clone git@github.com:lbryio/reflector.go.git
+cd reflector.go
 make
 ./bin/prism-bin
 ```
