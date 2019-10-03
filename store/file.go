@@ -10,18 +10,32 @@ import (
 
 // FileBlobStore is a local disk store.
 type FileBlobStore struct {
-	dir string
+	// the location of blobs on disk
+	blobDir string
+	// store files in subdirectories based on the first N chars in the filename. 0 = don't create subdirectories.
+	prefixLength int
 
 	initialized bool
 }
 
 // NewFileBlobStore returns an initialized file disk store pointer.
-func NewFileBlobStore(dir string) *FileBlobStore {
-	return &FileBlobStore{dir: dir}
+func NewFileBlobStore(dir string, prefixLength int) *FileBlobStore {
+	return &FileBlobStore{blobDir: dir, prefixLength: prefixLength}
+}
+
+func (f *FileBlobStore) dir(hash string) string {
+	if f.prefixLength <= 0 || len(hash) < f.prefixLength {
+		return f.blobDir
+	}
+	return path.Join(f.blobDir, hash[:f.prefixLength])
 }
 
 func (f *FileBlobStore) path(hash string) string {
-	return path.Join(f.dir, hash)
+	return path.Join(f.dir(hash), hash)
+}
+
+func (f *FileBlobStore) ensureDirExists(dir string) error {
+	return errors.Err(os.MkdirAll(dir, 0755))
 }
 
 func (f *FileBlobStore) initOnce() error {
@@ -29,17 +43,9 @@ func (f *FileBlobStore) initOnce() error {
 		return nil
 	}
 
-	if stat, err := os.Stat(f.dir); err != nil {
-		if os.IsNotExist(err) {
-			err2 := os.Mkdir(f.dir, 0755)
-			if err2 != nil {
-				return err2
-			}
-		} else {
-			return err
-		}
-	} else if !stat.IsDir() {
-		return errors.Err("blob dir exists but is not a dir")
+	err := f.ensureDirExists(f.blobDir)
+	if err != nil {
+		return err
 	}
 
 	f.initialized = true
@@ -67,15 +73,15 @@ func (f *FileBlobStore) Has(hash string) (bool, error) {
 func (f *FileBlobStore) Get(hash string) ([]byte, error) {
 	err := f.initOnce()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	file, err := os.Open(f.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []byte{}, errors.Err(ErrBlobNotFound)
+			return nil, errors.Err(ErrBlobNotFound)
 		}
-		return []byte{}, err
+		return nil, err
 	}
 
 	return ioutil.ReadAll(file)
@@ -84,6 +90,11 @@ func (f *FileBlobStore) Get(hash string) ([]byte, error) {
 // Put stores the blob on disk
 func (f *FileBlobStore) Put(hash string, blob []byte) error {
 	err := f.initOnce()
+	if err != nil {
+		return err
+	}
+
+	err = f.ensureDirExists(f.dir(hash))
 	if err != nil {
 		return err
 	}
