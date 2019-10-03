@@ -16,10 +16,11 @@ type BlobStore interface {
 	Delete(hash string) error
 }
 
+// Blocklister is a store that supports blocking blobs to prevent their inclusion in the store.
 type Blocklister interface {
 	// Block deletes the blob and prevents it from being uploaded in the future
 	Block(hash string) error
-	// Wants returns false if the hash exists or is blocked, true otherwise
+	// Wants returns false if the hash exists in store or is blocked, true otherwise
 	Wants(hash string) (bool, error)
 }
 
