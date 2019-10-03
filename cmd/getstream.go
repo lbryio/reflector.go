@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"encoding/hex"
 	"os"
 
-	"github.com/lbryio/reflector.go/store"
-
-	"github.com/lbryio/lbry.go/extras/errors"
 	"github.com/lbryio/reflector.go/peer"
+
+	"github.com/lbryio/lbry.go/stream"
+
+	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,22 +28,48 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 	addr := args[0]
 	sdHash := args[1]
 
-	c := peer.Client{}
-	err := c.Connect(addr)
-	if err != nil {
-		log.Fatal("error connecting client to server: ", err)
-	}
-
-	cache := store.NewFileBlobStore("/tmp/lbry_downloaded_blobs")
+	s := store.NewCachingBlobStore(
+		peer.NewStore(addr),
+		store.NewFileBlobStore("/tmp/lbry_downloaded_blobs", 2),
+	)
 
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = c.WriteStream(sdHash, wd, cache)
+	var sd stream.SDBlob
+
+	sdb, err := s.Get(sdHash)
 	if err != nil {
-		log.Error(errors.FullTrace(err))
-		return
+		log.Fatal(err)
+	}
+
+	err = sd.FromBlob(sdb)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	f, err := os.Create(wd + "/" + sd.SuggestedFileName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for i := 0; i < len(sd.BlobInfos)-1; i++ {
+		bb, err := s.Get(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
+		if err != nil {
+			log.Fatal(err)
+		}
+		b := stream.Blob(bb)
+
+		data, err := b.Plaintext(sd.Key, sd.BlobInfos[i].IV)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		_, err = f.Write(data)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }

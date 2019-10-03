@@ -186,45 +186,45 @@ func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 	return json.Marshal(availabilityResponse{LbrycrdAddress: LbrycrdAddress, AvailableBlobs: availableBlobs})
 }
 
-func (s *Server) handlePaymentRateNegotiation(data []byte) ([]byte, error) {
-	var request paymentRateRequest
-	err := json.Unmarshal(data, &request)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	offerReply := paymentRateAccepted
-	if request.BlobDataPaymentRate < 0 {
-		offerReply = paymentRateTooLow
-	}
-
-	return json.Marshal(paymentRateResponse{BlobDataPaymentRate: offerReply})
-}
-
-func (s *Server) handleBlobRequest(data []byte) ([]byte, error) {
-	var request blobRequest
-	err := json.Unmarshal(data, &request)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	log.Debugln("Sending blob " + request.RequestedBlob[:8])
-
-	blob, err := s.store.Get(request.RequestedBlob)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	response, err := json.Marshal(blobResponse{IncomingBlob: incomingBlob{
-		BlobHash: reflector.BlobHash(blob),
-		Length:   len(blob),
-	}})
-	if err != nil {
-		return []byte{}, err
-	}
-
-	return append(response, blob...), nil
-}
+//func (s *Server) handlePaymentRateNegotiation(data []byte) ([]byte, error) {
+//	var request paymentRateRequest
+//	err := json.Unmarshal(data, &request)
+//	if err != nil {
+//		return []byte{}, err
+//	}
+//
+//	offerReply := paymentRateAccepted
+//	if request.BlobDataPaymentRate < 0 {
+//		offerReply = paymentRateTooLow
+//	}
+//
+//	return json.Marshal(paymentRateResponse{BlobDataPaymentRate: offerReply})
+//}
+//
+//func (s *Server) handleBlobRequest(data []byte) ([]byte, error) {
+//	var request blobRequest
+//	err := json.Unmarshal(data, &request)
+//	if err != nil {
+//		return []byte{}, err
+//	}
+//
+//	log.Debugln("Sending blob " + request.RequestedBlob[:8])
+//
+//	blob, err := s.store.Get(request.RequestedBlob)
+//	if err != nil {
+//		return []byte{}, err
+//	}
+//
+//	response, err := json.Marshal(blobResponse{IncomingBlob: incomingBlob{
+//		BlobHash: reflector.BlobHash(blob),
+//		Length:   len(blob),
+//	}})
+//	if err != nil {
+//		return []byte{}, err
+//	}
+//
+//	return append(response, blob...), nil
+//}
 
 func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 	var request compositeRequest
@@ -316,7 +316,7 @@ func (s *Server) logError(e error) {
 }
 
 func readNextMessage(buf *bufio.Reader) ([]byte, error) {
-	request := make([]byte, 0)
+	msg := make([]byte, 0)
 	eof := false
 
 	for {
@@ -324,7 +324,7 @@ func readNextMessage(buf *bufio.Reader) ([]byte, error) {
 		if err != nil {
 			if err != io.EOF {
 				//log.Errorln("readBytes error:", err) // logged by caller
-				return request, err
+				return msg, err
 			}
 			eof = true
 		}
@@ -333,14 +333,14 @@ func readNextMessage(buf *bufio.Reader) ([]byte, error) {
 		//spew.Dump(chunk)
 
 		if len(chunk) > 0 {
-			request = append(request, chunk...)
+			msg = append(msg, chunk...)
 
-			if len(request) > maxRequestSize {
-				return request, errRequestTooLarge
+			if len(msg) > maxRequestSize {
+				return msg, errRequestTooLarge
 			}
 
 			// yes, this is how the peer protocol knows when the request finishes
-			if reflector.IsValidJSON(request) {
+			if reflector.IsValidJSON(msg) {
 				break
 			}
 		}
@@ -355,11 +355,11 @@ func readNextMessage(buf *bufio.Reader) ([]byte, error) {
 	//	spew.Dump(request)
 	//}
 
-	if len(request) == 0 && eof {
-		return []byte{}, io.EOF
+	if len(msg) == 0 && eof {
+		return nil, io.EOF
 	}
 
-	return request, nil
+	return msg, nil
 }
 
 const (

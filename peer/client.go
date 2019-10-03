@@ -6,14 +6,12 @@ import (
 	"encoding/json"
 	"io"
 	"net"
-	"os"
 	"time"
 
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/lbryio/lbry.go/stream"
-
 	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -50,56 +48,6 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// WriteStream downloads and writes a stream to file
-func (c *Client) WriteStream(sdHash, dir string, blobStore store.BlobStore) error {
-	if !c.connected {
-		return errors.Err("not connected")
-	}
-
-	var sd stream.SDBlob
-
-	sdb, err := c.getBlobWithCache(sdHash, blobStore)
-	if err != nil {
-		return err
-	}
-
-	err = sd.FromBlob(sdb)
-	if err != nil {
-		return err
-	}
-
-	info, err := os.Stat(dir)
-	if err != nil {
-		return errors.Prefix("cannot stat "+dir, err)
-	} else if !info.IsDir() {
-		return errors.Err(dir + " must be a directory")
-	}
-
-	f, err := os.Create(dir + "/" + sd.SuggestedFileName)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < len(sd.BlobInfos)-1; i++ {
-		b, err := c.getBlobWithCache(hex.EncodeToString(sd.BlobInfos[i].BlobHash), blobStore)
-		if err != nil {
-			return err
-		}
-
-		data, err := b.Plaintext(sd.Key, sd.BlobInfos[i].IV)
-		if err != nil {
-			return err
-		}
-
-		_, err = f.Write(data)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // GetStream gets a stream
 func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Stream, error) {
 	if !c.connected {
@@ -108,7 +56,7 @@ func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Str
 
 	var sd stream.SDBlob
 
-	b, err := c.getBlobWithCache(sdHash, blobCache)
+	b, err := c.GetBlob(sdHash)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +70,7 @@ func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Str
 	s[0] = b
 
 	for i := 0; i < len(sd.BlobInfos)-1; i++ {
-		s[i+1], err = c.getBlobWithCache(hex.EncodeToString(sd.BlobInfos[i].BlobHash), blobCache)
+		s[i+1], err = c.GetBlob(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
 		if err != nil {
 			return nil, err
 		}
@@ -131,24 +79,37 @@ func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Str
 	return s, nil
 }
 
-func (c *Client) getBlobWithCache(hash string, blobCache store.BlobStore) (stream.Blob, error) {
-	if blobCache == nil {
-		return c.GetBlob(hash)
+// HasBlob checks if the blob is available
+func (c *Client) HasBlob(hash string) (bool, error) {
+	if !c.connected {
+		return false, errors.Err("not connected")
 	}
 
-	blob, err := blobCache.Get(hash)
-	if err == nil || !errors.Is(err, store.ErrBlobNotFound) {
-		return blob, err
-	}
-
-	blob, err = c.GetBlob(hash)
+	sendRequest, err := json.Marshal(availabilityRequest{
+		RequestedBlobs: []string{hash},
+	})
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	err = blobCache.Put(hash, blob)
+	err = c.write(sendRequest)
+	if err != nil {
+		return false, err
+	}
 
-	return blob, err
+	var resp availabilityResponse
+	err = c.read(&resp)
+	if err != nil {
+		return false, err
+	}
+
+	for _, h := range resp.AvailableBlobs {
+		if h == hash {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // GetBlob gets a blob
@@ -185,7 +146,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 		return nil, errors.Prefix(hash[:8], "Length reported as <= 0")
 	}
 
-	log.Println("Receiving blob " + hash[:8])
+	log.Printf("Receiving blob %s from %s", hash[:8], c.conn.RemoteAddr())
 
 	blob, err := c.readRawBlob(resp.IncomingBlob.Length)
 	if err != nil {
@@ -206,6 +167,8 @@ func (c *Client) read(v interface{}) error {
 		return err
 	}
 
+	log.Debugf("Read %d bytes from %s", len(m), c.conn.RemoteAddr())
+
 	err = json.Unmarshal(m, v)
 	return errors.Err(err)
 }
@@ -217,7 +180,8 @@ func (c *Client) readRawBlob(blobSize int) ([]byte, error) {
 	}
 
 	blob := make([]byte, blobSize)
-	_, err = io.ReadFull(c.buf, blob)
+	n, err := io.ReadFull(c.buf, blob)
+	log.Debugf("Read %d bytes from %s", n, c.conn.RemoteAddr())
 	return blob, errors.Err(err)
 }
 
@@ -227,7 +191,7 @@ func (c *Client) write(b []byte) error {
 		return errors.Err(err)
 	}
 
-	log.Debugf("Writing %d bytes", len(b))
+	log.Debugf("Writing %d bytes to %s", len(b), c.conn.RemoteAddr())
 
 	n, err := c.conn.Write(b)
 	if err == nil && n != len(b) {
