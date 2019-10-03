@@ -22,7 +22,7 @@ func startServerOnRandomPort(t *testing.T) (*Server, int) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(&store.MemoryBlobStore{})
+	srv := NewServer(store.NewMemoryBlobStore())
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func TestServer_Timeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(&store.MemoryBlobStore{})
+	srv := NewServer(store.NewMemoryBlobStore())
 	srv.Timeout = testTimeout
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
@@ -161,7 +161,7 @@ func TestServer_Timeout(t *testing.T) {
 //}
 
 type mockPartialStore struct {
-	store.MemoryBlobStore
+	*store.MemoryBlobStore
 	missing []string
 }
 
@@ -181,7 +181,7 @@ func TestServer_PartialUpload(t *testing.T) {
 		missing[i] = bits.Rand().String()
 	}
 
-	st := store.BlobStore(&mockPartialStore{missing: missing})
+	st := store.BlobStore(&mockPartialStore{MemoryBlobStore: store.NewMemoryBlobStore(), missing: missing})
 	if _, ok := st.(neededBlobChecker); !ok {
 		t.Fatal("mock does not implement the relevant interface")
 	}

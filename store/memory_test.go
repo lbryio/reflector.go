@@ -8,7 +8,7 @@ import (
 )
 
 func TestMemoryBlobStore_Put(t *testing.T) {
-	s := MemoryBlobStore{}
+	s := NewMemoryBlobStore()
 	blob := []byte("abcdefg")
 	err := s.Put("abc", blob)
 	if err != nil {
@@ -17,7 +17,7 @@ func TestMemoryBlobStore_Put(t *testing.T) {
 }
 
 func TestMemoryBlobStore_Get(t *testing.T) {
-	s := MemoryBlobStore{}
+	s := NewMemoryBlobStore()
 	hash := "abc"
 	blob := []byte("abcdefg")
 	err := s.Put(hash, blob)

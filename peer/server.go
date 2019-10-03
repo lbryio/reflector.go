@@ -8,13 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lbryio/lbry.go/stream"
-
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/extras/errors"
 	"github.com/lbryio/lbry.go/extras/stop"
+	"github.com/lbryio/lbry.go/stream"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -169,14 +168,14 @@ func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 	var request availabilityRequest
 	err := json.Unmarshal(data, &request)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	availableBlobs := []string{}
 	for _, blobHash := range request.RequestedBlobs {
 		exists, err := s.store.Has(blobHash)
 		if err != nil {
-			return []byte{}, err
+			return nil, err
 		}
 		if exists {
 			availableBlobs = append(availableBlobs, blobHash)
@@ -190,7 +189,7 @@ func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 //	var request paymentRateRequest
 //	err := json.Unmarshal(data, &request)
 //	if err != nil {
-//		return []byte{}, err
+//		return nil, err
 //	}
 //
 //	offerReply := paymentRateAccepted
@@ -205,14 +204,14 @@ func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 //	var request blobRequest
 //	err := json.Unmarshal(data, &request)
 //	if err != nil {
-//		return []byte{}, err
+//		return nil, err
 //	}
 //
 //	log.Debugln("Sending blob " + request.RequestedBlob[:8])
 //
 //	blob, err := s.store.Get(request.RequestedBlob)
 //	if err != nil {
-//		return []byte{}, err
+//		return nil, err
 //	}
 //
 //	response, err := json.Marshal(blobResponse{IncomingBlob: incomingBlob{
@@ -220,7 +219,7 @@ func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 //		Length:   len(blob),
 //	}})
 //	if err != nil {
-//		return []byte{}, err
+//		return nil, err
 //	}
 //
 //	return append(response, blob...), nil
@@ -230,7 +229,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 	var request compositeRequest
 	err := json.Unmarshal(data, &request)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	response := compositeResponse{
@@ -242,7 +241,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 		for _, blobHash := range request.RequestedBlobs {
 			exists, err := s.store.Has(blobHash)
 			if err != nil {
-				return []byte{}, err
+				return nil, err
 			}
 			if exists {
 				availableBlobs = append(availableBlobs, blobHash)
@@ -270,7 +269,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 				Error: err.Error(),
 			}
 		} else if err != nil {
-			return []byte{}, err
+			return nil, err
 		} else {
 			response.IncomingBlob = incomingBlob{
 				BlobHash: reflector.BlobHash(blob),
@@ -282,7 +281,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 
 	respData, err := json.Marshal(response)
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	return append(respData, blob...), nil

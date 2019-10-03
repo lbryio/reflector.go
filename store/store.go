@@ -5,7 +5,7 @@ import (
 	"github.com/lbryio/lbry.go/stream"
 )
 
-// BlobStore is an interface with methods for consistently handling blob storage.
+// BlobStore is an interface for handling blob storage.
 type BlobStore interface {
 	// Does blob exist in the store
 	Has(hash string) (bool, error)

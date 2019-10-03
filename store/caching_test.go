@@ -6,8 +6,8 @@ import (
 )
 
 func TestCachingBlobStore_Put(t *testing.T) {
-	origin := &MemoryBlobStore{}
-	cache := &MemoryBlobStore{}
+	origin := NewMemoryBlobStore()
+	cache := NewMemoryBlobStore()
 	s := NewCachingBlobStore(origin, cache)
 
 	b := []byte("this is a blob of stuff")
@@ -36,8 +36,8 @@ func TestCachingBlobStore_Put(t *testing.T) {
 }
 
 func TestCachingBlobStore_CacheMiss(t *testing.T) {
-	origin := &MemoryBlobStore{}
-	cache := &MemoryBlobStore{}
+	origin := NewMemoryBlobStore()
+	cache := NewMemoryBlobStore()
 	s := NewCachingBlobStore(origin, cache)
 
 	b := []byte("this is a blob of stuff")

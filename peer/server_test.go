@@ -34,7 +34,7 @@ var availabilityRequests = []pair{
 }
 
 func getServer(t *testing.T, withBlobs bool) *Server {
-	st := store.MemoryBlobStore{}
+	st := store.NewMemoryBlobStore()
 	if withBlobs {
 		for k, v := range blobs {
 			err := st.Put(k, v)
@@ -43,7 +43,7 @@ func getServer(t *testing.T, withBlobs bool) *Server {
 			}
 		}
 	}
-	return NewServer(&st)
+	return NewServer(st)
 }
 
 func TestAvailabilityRequest_NoBlobs(t *testing.T) {
