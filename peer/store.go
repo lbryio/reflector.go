@@ -2,6 +2,7 @@ package peer
 
 import (
 	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
 )
 
 // Store is a blob store that gets blobs from a peer.
@@ -28,7 +29,7 @@ func (p *Store) Has(hash string) (bool, error) {
 }
 
 // Get downloads the blob from the peer
-func (p *Store) Get(hash string) ([]byte, error) {
+func (p *Store) Get(hash string) (stream.Blob, error) {
 	if p.connErr != nil {
 		return nil, errors.Prefix("connection error", p.connErr)
 	}
@@ -37,12 +38,12 @@ func (p *Store) Get(hash string) ([]byte, error) {
 }
 
 // Put is not supported
-func (p *Store) Put(hash string, blob []byte) error {
+func (p *Store) Put(hash string, blob stream.Blob) error {
 	panic("PeerStore cannot put or delete blobs")
 }
 
 // PutSD is not supported
-func (p *Store) PutSD(hash string, blob []byte) error {
+func (p *Store) PutSD(hash string, blob stream.Blob) error {
 	panic("PeerStore cannot put or delete blobs")
 }
 

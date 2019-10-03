@@ -2,6 +2,7 @@ package store
 
 import (
 	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
 )
 
 // CachingBlobStore combines two stores, typically a local and a remote store, to improve performance.
@@ -27,7 +28,7 @@ func (c *CachingBlobStore) Has(hash string) (bool, error) {
 
 // Get tries to get the blob from the cache first, falling back to the origin. If the blob comes
 // from the origin, it is also stored in the cache.
-func (c *CachingBlobStore) Get(hash string) ([]byte, error) {
+func (c *CachingBlobStore) Get(hash string) (stream.Blob, error) {
 	blob, err := c.cache.Get(hash)
 	if err == nil || !errors.Is(err, ErrBlobNotFound) {
 		return blob, err
@@ -44,7 +45,7 @@ func (c *CachingBlobStore) Get(hash string) ([]byte, error) {
 }
 
 // Put stores the blob in the origin and the cache
-func (c *CachingBlobStore) Put(hash string, blob []byte) error {
+func (c *CachingBlobStore) Put(hash string, blob stream.Blob) error {
 	err := c.origin.Put(hash, blob)
 	if err != nil {
 		return err
@@ -53,7 +54,7 @@ func (c *CachingBlobStore) Put(hash string, blob []byte) error {
 }
 
 // PutSD stores the sd blob in the origin and the cache
-func (c *CachingBlobStore) PutSD(hash string, blob []byte) error {
+func (c *CachingBlobStore) PutSD(hash string, blob stream.Blob) error {
 	err := c.origin.PutSD(hash, blob)
 	if err != nil {
 		return err

@@ -1,6 +1,9 @@
 package store
 
-import "github.com/lbryio/lbry.go/extras/errors"
+import (
+	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
+)
 
 // MemoryBlobStore is an in memory only blob store with no persistence.
 type MemoryBlobStore struct {
@@ -17,7 +20,7 @@ func (m *MemoryBlobStore) Has(hash string) (bool, error) {
 }
 
 // Get returns the blob byte slice if present and errors if the blob is not found.
-func (m *MemoryBlobStore) Get(hash string) ([]byte, error) {
+func (m *MemoryBlobStore) Get(hash string) (stream.Blob, error) {
 	if m.blobs == nil {
 		m.blobs = make(map[string][]byte)
 	}
@@ -29,7 +32,7 @@ func (m *MemoryBlobStore) Get(hash string) ([]byte, error) {
 }
 
 // Put stores the blob in memory
-func (m *MemoryBlobStore) Put(hash string, blob []byte) error {
+func (m *MemoryBlobStore) Put(hash string, blob stream.Blob) error {
 	if m.blobs == nil {
 		m.blobs = make(map[string][]byte)
 	}
@@ -38,7 +41,7 @@ func (m *MemoryBlobStore) Put(hash string, blob []byte) error {
 }
 
 // PutSD stores the sd blob in memory
-func (m *MemoryBlobStore) PutSD(hash string, blob []byte) error {
+func (m *MemoryBlobStore) PutSD(hash string, blob stream.Blob) error {
 	return m.Put(hash, blob)
 }
 

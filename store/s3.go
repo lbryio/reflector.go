@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -75,11 +76,11 @@ func (s *S3BlobStore) Has(hash string) (bool, error) {
 }
 
 // Get returns the blob slice if present or errors on S3.
-func (s *S3BlobStore) Get(hash string) ([]byte, error) {
+func (s *S3BlobStore) Get(hash string) (stream.Blob, error) {
 	//Todo-Need to handle error for blob doesn't exist for consistency.
 	err := s.initOnce()
 	if err != nil {
-		return []byte{}, err
+		return nil, err
 	}
 
 	log.Debugf("Getting %s from S3", hash[:8])
@@ -96,9 +97,9 @@ func (s *S3BlobStore) Get(hash string) ([]byte, error) {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case s3.ErrCodeNoSuchBucket:
-				return []byte{}, errors.Err("bucket %s does not exist", s.bucket)
+				return nil, errors.Err("bucket %s does not exist", s.bucket)
 			case s3.ErrCodeNoSuchKey:
-				return []byte{}, errors.Err(ErrBlobNotFound)
+				return nil, errors.Err(ErrBlobNotFound)
 			}
 		}
 		return buf.Bytes(), err
@@ -108,7 +109,7 @@ func (s *S3BlobStore) Get(hash string) ([]byte, error) {
 }
 
 // Put stores the blob on S3 or errors if S3 connection errors.
-func (s *S3BlobStore) Put(hash string, blob []byte) error {
+func (s *S3BlobStore) Put(hash string, blob stream.Blob) error {
 	err := s.initOnce()
 	if err != nil {
 		return err
@@ -130,7 +131,7 @@ func (s *S3BlobStore) Put(hash string, blob []byte) error {
 }
 
 // PutSD stores the sd blob on S3 or errors if S3 connection errors.
-func (s *S3BlobStore) PutSD(hash string, blob []byte) error {
+func (s *S3BlobStore) PutSD(hash string, blob stream.Blob) error {
 	//Todo - handle missing stream for consistency
 	return s.Put(hash, blob)
 }

@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
 )
 
 // DiskBlobStore stores blobs on a local disk
@@ -23,43 +24,43 @@ func NewDiskBlobStore(dir string, prefixLength int) *DiskBlobStore {
 	return &DiskBlobStore{blobDir: dir, prefixLength: prefixLength}
 }
 
-func (f *DiskBlobStore) dir(hash string) string {
-	if f.prefixLength <= 0 || len(hash) < f.prefixLength {
-		return f.blobDir
+func (d *DiskBlobStore) dir(hash string) string {
+	if d.prefixLength <= 0 || len(hash) < d.prefixLength {
+		return d.blobDir
 	}
-	return path.Join(f.blobDir, hash[:f.prefixLength])
+	return path.Join(d.blobDir, hash[:d.prefixLength])
 }
 
-func (f *DiskBlobStore) path(hash string) string {
-	return path.Join(f.dir(hash), hash)
+func (d *DiskBlobStore) path(hash string) string {
+	return path.Join(d.dir(hash), hash)
 }
 
-func (f *DiskBlobStore) ensureDirExists(dir string) error {
+func (d *DiskBlobStore) ensureDirExists(dir string) error {
 	return errors.Err(os.MkdirAll(dir, 0755))
 }
 
-func (f *DiskBlobStore) initOnce() error {
-	if f.initialized {
+func (d *DiskBlobStore) initOnce() error {
+	if d.initialized {
 		return nil
 	}
 
-	err := f.ensureDirExists(f.blobDir)
+	err := d.ensureDirExists(d.blobDir)
 	if err != nil {
 		return err
 	}
 
-	f.initialized = true
+	d.initialized = true
 	return nil
 }
 
 // Has returns T/F or Error if it the blob stored already. It will error with any IO disk error.
-func (f *DiskBlobStore) Has(hash string) (bool, error) {
-	err := f.initOnce()
+func (d *DiskBlobStore) Has(hash string) (bool, error) {
+	err := d.initOnce()
 	if err != nil {
 		return false, err
 	}
 
-	_, err = os.Stat(f.path(hash))
+	_, err = os.Stat(d.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -69,14 +70,14 @@ func (f *DiskBlobStore) Has(hash string) (bool, error) {
 	return true, nil
 }
 
-// Get returns the byte slice of the blob stored or will error if the blob doesn't exist.
-func (f *DiskBlobStore) Get(hash string) ([]byte, error) {
-	err := f.initOnce()
+// Get returns the blob or an error if the blob doesn't exist.
+func (d *DiskBlobStore) Get(hash string) (stream.Blob, error) {
+	err := d.initOnce()
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := os.Open(f.path(hash))
+	file, err := os.Open(d.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, errors.Err(ErrBlobNotFound)
@@ -88,33 +89,33 @@ func (f *DiskBlobStore) Get(hash string) ([]byte, error) {
 }
 
 // Put stores the blob on disk
-func (f *DiskBlobStore) Put(hash string, blob []byte) error {
-	err := f.initOnce()
+func (d *DiskBlobStore) Put(hash string, blob stream.Blob) error {
+	err := d.initOnce()
 	if err != nil {
 		return err
 	}
 
-	err = f.ensureDirExists(f.dir(hash))
+	err = d.ensureDirExists(d.dir(hash))
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(f.path(hash), blob, 0644)
+	return ioutil.WriteFile(d.path(hash), blob, 0644)
 }
 
 // PutSD stores the sd blob on the disk
-func (f *DiskBlobStore) PutSD(hash string, blob []byte) error {
-	return f.Put(hash, blob)
+func (d *DiskBlobStore) PutSD(hash string, blob stream.Blob) error {
+	return d.Put(hash, blob)
 }
 
 // Delete deletes the blob from the store
-func (f *DiskBlobStore) Delete(hash string) error {
-	err := f.initOnce()
+func (d *DiskBlobStore) Delete(hash string) error {
+	err := d.initOnce()
 	if err != nil {
 		return err
 	}
 
-	has, err := f.Has(hash)
+	has, err := d.Has(hash)
 	if err != nil {
 		return err
 	}
@@ -122,5 +123,5 @@ func (f *DiskBlobStore) Delete(hash string) error {
 		return nil
 	}
 
-	return os.Remove(f.path(hash))
+	return os.Remove(d.path(hash))
 }

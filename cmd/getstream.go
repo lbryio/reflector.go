@@ -5,10 +5,9 @@ import (
 	"os"
 
 	"github.com/lbryio/reflector.go/peer"
+	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/stream"
-
-	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -56,11 +55,10 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i := 0; i < len(sd.BlobInfos)-1; i++ {
-		bb, err := s.Get(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
+		b, err := s.Get(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
 		if err != nil {
 			log.Fatal(err)
 		}
-		b := stream.Blob(bb)
 
 		data, err := b.Plaintext(sd.Key, sd.BlobInfos[i].IV)
 		if err != nil {

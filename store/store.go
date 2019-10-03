@@ -1,17 +1,20 @@
 package store
 
-import "github.com/lbryio/lbry.go/extras/errors"
+import (
+	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
+)
 
 // BlobStore is an interface with methods for consistently handling blob storage.
 type BlobStore interface {
 	// Does blob exist in the store
 	Has(hash string) (bool, error)
 	// Get the blob from the store
-	Get(hash string) ([]byte, error)
+	Get(hash string) (stream.Blob, error)
 	// Put the blob into the store
-	Put(hash string, blob []byte) error
+	Put(hash string, blob stream.Blob) error
 	// Put an SD blob into the store
-	PutSD(hash string, blob []byte) error
+	PutSD(hash string, blob stream.Blob) error
 	// Delete the blob from the store
 	Delete(hash string) error
 }

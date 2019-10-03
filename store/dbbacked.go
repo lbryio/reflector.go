@@ -7,6 +7,8 @@ import (
 	"github.com/lbryio/reflector.go/db"
 
 	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/stream"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,12 +31,12 @@ func (d *DBBackedS3Store) Has(hash string) (bool, error) {
 }
 
 // Get gets the blob
-func (d *DBBackedS3Store) Get(hash string) ([]byte, error) {
+func (d *DBBackedS3Store) Get(hash string) (stream.Blob, error) {
 	return d.s3.Get(hash)
 }
 
 // Put stores the blob in the S3 store and stores the blob information in the DB.
-func (d *DBBackedS3Store) Put(hash string, blob []byte) error {
+func (d *DBBackedS3Store) Put(hash string, blob stream.Blob) error {
 	err := d.s3.Put(hash, blob)
 	if err != nil {
 		return err
@@ -45,7 +47,7 @@ func (d *DBBackedS3Store) Put(hash string, blob []byte) error {
 
 // PutSD stores the SDBlob in the S3 store. It will return an error if the sd blob is missing the stream hash or if
 // there is an error storing the blob information in the DB.
-func (d *DBBackedS3Store) PutSD(hash string, blob []byte) error {
+func (d *DBBackedS3Store) PutSD(hash string, blob stream.Blob) error {
 	var blobContents db.SdBlob
 	err := json.Unmarshal(blob, &blobContents)
 	if err != nil {
