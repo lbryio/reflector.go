@@ -35,6 +35,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	useDB := true
 
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+	diskStore := store.NewDiskBlobStore("/home/lbry/lbry_downloaded_blobs", 2)
 
 	var err error
 
@@ -59,8 +60,9 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 			log.Fatal(err)
 		}
 	}
+	cacheStore := store.NewCachingBlobStore(blobStore, diskStore)
 
-	peerServer := peer.NewServer(blobStore)
+	peerServer := peer.NewServer(cacheStore)
 	err = peerServer.Start(":5567")
 	if err != nil {
 		log.Fatal(err)
