@@ -11,7 +11,7 @@ import (
 	"github.com/lbryio/reflector.go/store"
 	"github.com/lbryio/reflector.go/wallet"
 
-	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
 	types1 "github.com/lbryio/types/v1/go"
 	types2 "github.com/lbryio/types/v2/go"
 

@@ -5,8 +5,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbry.go/stream"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
 )
 
 // DiskBlobStore stores blobs on a local disk

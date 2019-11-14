@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lbryio/lbry.go/dht"
-	"github.com/lbryio/lbry.go/dht/bits"
+	"github.com/lbryio/lbry.go/v2/dht"
+	"github.com/lbryio/lbry.go/v2/dht/bits"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

@@ -7,7 +7,7 @@ import (
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/lbryio/lbry.go/stream"
+	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

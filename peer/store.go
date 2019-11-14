@@ -1,8 +1,8 @@
 package peer
 
 import (
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbry.go/stream"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
 )
 
 // Store is a blob store that gets blobs from a peer.

@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/lbryio/lbry.go/dht/bits"
-	"github.com/lbryio/lbry.go/extras/errors"
-	qt "github.com/lbryio/lbry.go/extras/query"
+	"github.com/lbryio/lbry.go/v2/dht/bits"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	qt "github.com/lbryio/lbry.go/v2/extras/query"
 
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql" // blank import for db driver ensures its imported even if its not used

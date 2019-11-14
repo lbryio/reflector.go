@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbry.go/stream"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
