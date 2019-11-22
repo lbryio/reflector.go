@@ -1,6 +1,8 @@
 package peer
 
 import (
+	"time"
+
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 )
@@ -12,10 +14,19 @@ type Store struct {
 	connErr error
 }
 
+// StoreOpts allows to set options for a new Store.
+type StoreOpts struct {
+	Address string
+	Timeout time.Duration
+}
+
 // NewStore makes a new peer store.
-func NewStore(clientAddress string) *Store {
-	c := &Client{}
-	err := c.Connect(clientAddress)
+func NewStore(opts StoreOpts) *Store {
+	if opts.Timeout == 0 {
+		opts.Timeout = time.Second * 5
+	}
+	c := &Client{Timeout: opts.Timeout}
+	err := c.Connect(opts.Address)
 	return &Store{client: c, connErr: err}
 }
 
