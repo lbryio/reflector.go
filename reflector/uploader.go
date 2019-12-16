@@ -68,7 +68,7 @@ func (u *Uploader) Upload(dirOrFilePath string) error {
 		hashes[i] = path.Base(p)
 	}
 
-	log.Infoln("checking for existing blobs")
+	log.Debug("checking for existing blobs")
 
 	var exists map[string]bool
 	if !u.skipExistsCheck {
@@ -79,7 +79,7 @@ func (u *Uploader) Upload(dirOrFilePath string) error {
 		u.count.AlreadyStored = len(exists)
 	}
 
-	log.Infof("%d new blobs to upload", u.count.Total-u.count.AlreadyStored)
+	log.Debugf("%d new blobs to upload", u.count.Total-u.count.AlreadyStored)
 
 	workerWG := sync.WaitGroup{}
 	pathChan := make(chan string)
@@ -119,13 +119,10 @@ Upload:
 	countWG.Wait()
 	u.stopper.Stop()
 
-	log.Infoln("SUMMARY")
-	log.Infof("%d blobs total", u.count.Total)
-	log.Infof("%d blobs already stored", u.count.AlreadyStored)
-	log.Infof("%d SD blobs uploaded", u.count.Sd)
-	log.Infof("%d content blobs uploaded", u.count.Blob)
-	log.Infof("%d errors encountered", u.count.Err)
-
+	log.Debugf(
+		"upload stats: %d blobs total, %d already stored, %d SD blobs uploaded, %d content blobs uploaded, %d errors",
+		u.count.Total, u.count.AlreadyStored, u.count.Sd, u.count.Blob, u.count.Err,
+	)
 	return nil
 }
 
@@ -167,17 +164,17 @@ func (u *Uploader) uploadBlob(filepath string) (err error) {
 	}
 
 	if IsValidJSON(blob) {
-		log.Debugf("Uploading SD blob %s", hash)
+		log.Debugf("uploading SD blob %s", hash)
 		err := u.store.PutSD(hash, blob)
 		if err != nil {
-			return errors.Prefix("Uploading SD blob "+hash, err)
+			return errors.Prefix("uploading SD blob "+hash, err)
 		}
 		u.inc(sdInc)
 	} else {
-		log.Debugf("Uploading blob %s", hash)
+		log.Debugf("uploading blob %s", hash)
 		err = u.store.Put(hash, blob)
 		if err != nil {
-			return errors.Prefix("Uploading blob "+hash, err)
+			return errors.Prefix("uploading blob "+hash, err)
 		}
 		u.inc(blobInc)
 	}
@@ -208,7 +205,7 @@ func (u *Uploader) counter() {
 			}
 		}
 		if (u.count.Sd+u.count.Blob)%50 == 0 {
-			log.Infof("%d of %d done (%s elapsed, %.3fs per blob)", u.count.Sd+u.count.Blob, u.count.Total-u.count.AlreadyStored, time.Since(start).String(), time.Since(start).Seconds()/float64(u.count.Sd+u.count.Blob))
+			log.Debugf("%d of %d done (%s elapsed, %.3fs per blob)", u.count.Sd+u.count.Blob, u.count.Total-u.count.AlreadyStored, time.Since(start).String(), time.Since(start).Seconds()/float64(u.count.Sd+u.count.Blob))
 		}
 	}
 }
