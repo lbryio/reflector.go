@@ -22,9 +22,6 @@ type StoreOpts struct {
 
 // NewStore makes a new peer store.
 func NewStore(opts StoreOpts) *Store {
-	if opts.Timeout == 0 {
-		opts.Timeout = time.Second * 5
-	}
 	c := &Client{Timeout: opts.Timeout}
 	err := c.Connect(opts.Address)
 	return &Store{client: c, connErr: err}
