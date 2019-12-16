@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbry.go/extras/stop"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/stop"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -118,5 +118,5 @@ func (s *Stats) log() {
 		errStr = errStr[:len(errStr)-2] // trim last comma and space
 	}
 
-	s.logger.Printf("%s stats: %d blobs, %d streams, errors: %s", s.name, blobs, streams, errStr)
+	s.logger.Debugf("%s stats: %d blobs, %d streams, errors: %s", s.name, blobs, streams, errStr)
 }

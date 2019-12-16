@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/lbryio/lbry.go/dht"
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbry.go/extras/util"
+	"github.com/lbryio/lbry.go/v2/dht"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/util"
 	"github.com/lbryio/reflector.go/updater"
 
 	"github.com/johntdyer/slackrus"

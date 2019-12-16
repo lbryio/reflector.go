@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
 )
 
 func TestMemoryBlobStore_Put(t *testing.T) {

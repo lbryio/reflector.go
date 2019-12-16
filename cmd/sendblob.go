@@ -5,7 +5,7 @@ import (
 
 	"github.com/lbryio/reflector.go/reflector"
 
-	"github.com/lbryio/lbry.go/stream"
+	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

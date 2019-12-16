@@ -1,8 +1,10 @@
 package peer
 
 import (
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbry.go/stream"
+	"time"
+
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
 )
 
 // Store is a blob store that gets blobs from a peer.
@@ -12,10 +14,16 @@ type Store struct {
 	connErr error
 }
 
+// StoreOpts allows to set options for a new Store.
+type StoreOpts struct {
+	Address string
+	Timeout time.Duration
+}
+
 // NewStore makes a new peer store.
-func NewStore(clientAddress string) *Store {
-	c := &Client{}
-	err := c.Connect(clientAddress)
+func NewStore(opts StoreOpts) *Store {
+	c := &Client{Timeout: opts.Timeout}
+	err := c.Connect(opts.Address)
 	return &Store{client: c, connErr: err}
 }
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lbryio/lbry.go/dht/bits"
+	"github.com/lbryio/lbry.go/v2/dht/bits"
 )
 
 func TestAnnounceRange(t *testing.T) {

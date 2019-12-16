@@ -6,9 +6,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/lbryio/lbry.go/extras/crypto"
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbry.go/extras/stop"
+	"github.com/lbryio/lbry.go/v2/extras/crypto"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/stop"
 
 	"github.com/hashicorp/serf/serf"
 	log "github.com/sirupsen/logrus"

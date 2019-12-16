@@ -10,8 +10,8 @@ import (
 
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbry.go/stream"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -140,13 +140,13 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 		return nil, errors.Prefix(hash[:8], resp.IncomingBlob.Error)
 	}
 	if resp.IncomingBlob.BlobHash != hash {
-		return nil, errors.Prefix(hash[:8], "Blob hash in response does not match requested hash")
+		return nil, errors.Prefix(hash[:8], "blob hash in response does not match requested hash")
 	}
 	if resp.IncomingBlob.Length <= 0 {
-		return nil, errors.Prefix(hash[:8], "Length reported as <= 0")
+		return nil, errors.Prefix(hash[:8], "length reported as <= 0")
 	}
 
-	log.Printf("Receiving blob %s from %s", hash[:8], c.conn.RemoteAddr())
+	log.Debugf("receiving blob %s from %s", hash[:8], c.conn.RemoteAddr())
 
 	blob, err := c.readRawBlob(resp.IncomingBlob.Length)
 	if err != nil {
@@ -167,7 +167,7 @@ func (c *Client) read(v interface{}) error {
 		return err
 	}
 
-	log.Debugf("Read %d bytes from %s", len(m), c.conn.RemoteAddr())
+	log.Debugf("read %d bytes from %s", len(m), c.conn.RemoteAddr())
 
 	err = json.Unmarshal(m, v)
 	return errors.Err(err)
@@ -181,7 +181,7 @@ func (c *Client) readRawBlob(blobSize int) ([]byte, error) {
 
 	blob := make([]byte, blobSize)
 	n, err := io.ReadFull(c.buf, blob)
-	log.Debugf("Read %d bytes from %s", n, c.conn.RemoteAddr())
+	log.Debugf("read %d bytes from %s", n, c.conn.RemoteAddr())
 	return blob, errors.Err(err)
 }
 
@@ -191,7 +191,7 @@ func (c *Client) write(b []byte) error {
 		return errors.Err(err)
 	}
 
-	log.Debugf("Writing %d bytes to %s", len(b), c.conn.RemoteAddr())
+	log.Debugf("writing %d bytes to %s", len(b), c.conn.RemoteAddr())
 
 	n, err := c.conn.Write(b)
 	if err == nil && n != len(b) {

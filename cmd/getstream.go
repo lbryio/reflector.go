@@ -7,7 +7,7 @@ import (
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/lbryio/lbry.go/stream"
+	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -28,7 +28,7 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 	sdHash := args[1]
 
 	s := store.NewCachingBlobStore(
-		peer.NewStore(addr),
+		peer.NewStore(peer.StoreOpts{Address: addr}),
 		store.NewDiskBlobStore("/tmp/lbry_downloaded_blobs", 2),
 	)
 
