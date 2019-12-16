@@ -118,5 +118,5 @@ func (s *Stats) log() {
 		errStr = errStr[:len(errStr)-2] // trim last comma and space
 	}
 
-	s.logger.Debugf("%s stats: %d blobs, %d streams, errors: %s", s.name, blobs, streams, errStr)
+	s.logger.Printf("%s stats: %d blobs, %d streams, errors: %s", s.name, blobs, streams, errStr)
 }
