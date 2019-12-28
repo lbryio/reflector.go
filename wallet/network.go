@@ -147,13 +147,35 @@ func (n *Node) listen() {
 					Message string `json:"message"`
 				} `json:"error"`
 			}{}
-			if err := json.Unmarshal(bytes, msg); err != nil {
-				n.err(err)
-				continue
+			msg2 := &struct {
+				Id     uint32 `json:"id"`
+				Method string `json:"method"`
+				Error  struct {
+					Code    int `json:"code"`
+					Message struct {
+						Code    int    `json:"code"`
+						Message string `json:"message"`
+					} `json:"message"`
+				} `json:"error"`
+			}{}
+			r := response{}
+
+			err := json.Unmarshal(bytes, msg)
+			if err != nil {
+				// try msg2, a hack around the weird error-in-error response we sometimes get from wallet server
+				// maybe that happens because the wallet server passes a lbrycrd error through to us?
+				if err2 := json.Unmarshal(bytes, msg2); err2 == nil {
+					err = nil
+					msg.Id = msg2.Id
+					msg.Method = msg2.Method
+					msg.Error = msg2.Error.Message
+				}
 			}
 
-			r := response{}
-			if len(msg.Error.Message) > 0 {
+			if err != nil {
+				n.err(err)
+				r.err = errors.Err(err)
+			} else if len(msg.Error.Message) > 0 {
 				r.err = errors.Base("%d: %s", msg.Error.Code, msg.Error.Message)
 			} else {
 				r.data = bytes
