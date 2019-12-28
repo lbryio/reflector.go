@@ -1,5 +1,19 @@
 package wallet
 
+import (
+	"encoding/base64"
+	"encoding/hex"
+
+	"github.com/lbryio/chainquery/lbrycrd"
+	"github.com/lbryio/lbry.go/extras/errors"
+	"github.com/lbryio/lbryschema.go/claim"
+	types "github.com/lbryio/types/v2/go"
+
+	"github.com/btcsuite/btcutil"
+	"github.com/golang/protobuf/proto"
+	"github.com/spf13/cast"
+)
+
 // ServerVersion returns the server's version.
 // https://electrumx.readthedocs.io/en/latest/protocol-methods.html#server-version
 func (n *Node) ServerVersion() (string, error) {
@@ -14,6 +28,38 @@ func (n *Node) ServerVersion() (string, error) {
 	}
 
 	return v, err
+}
+
+func (n *Node) Resolve(url string) (*types.Output, error) {
+	outputs := &types.Outputs{}
+	resp := &struct {
+		Result string `json:"result"`
+	}{}
+
+	err := n.request("blockchain.claimtrie.resolve", []string{url}, resp)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := base64.StdEncoding.DecodeString(resp.Result)
+	if err != nil {
+		return nil, err
+	}
+
+	err = proto.Unmarshal(b, outputs)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(outputs.GetTxos()) != 1 {
+		return nil, errors.Err("expected 1 output, got " + cast.ToString(len(outputs.GetTxos())))
+	}
+
+	if e := outputs.GetTxos()[0].GetError(); e != nil {
+		return nil, errors.Err("%s: %s", e.GetCode(), e.GetText())
+	}
+
+	return outputs.GetTxos()[0], nil
 }
 
 type GetClaimsInTxResp struct {
@@ -40,4 +86,59 @@ func (n *Node) GetClaimsInTx(txid string) (*GetClaimsInTxResp, error) {
 	var resp GetClaimsInTxResp
 	err := n.request("blockchain.claimtrie.getclaimsintx", []string{txid}, &resp)
 	return &resp, err
+}
+
+func (n *Node) GetTx(txid string) (string, error) {
+	resp := &struct {
+		Result string `json:"result"`
+	}{}
+
+	err := n.request("blockchain.transaction.get", []string{txid}, resp)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Result, nil
+}
+
+func (n *Node) GetClaimInTx(txid string, nout int) (*types.Claim, error) {
+	hexTx, err := n.GetTx(txid)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	rawTx, err := hex.DecodeString(hexTx)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	tx, err := btcutil.NewTxFromBytes(rawTx)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if len(tx.MsgTx().TxOut) <= nout {
+		return nil, errors.Err("nout not found")
+	}
+
+	script := tx.MsgTx().TxOut[nout].PkScript
+
+	var value []byte
+	if lbrycrd.IsClaimNameScript(script) {
+		_, value, _, err = lbrycrd.ParseClaimNameScript(script)
+	} else if lbrycrd.IsClaimUpdateScript(script) {
+		_, _, value, _, err = lbrycrd.ParseClaimUpdateScript(script)
+	} else {
+		err = errors.Err("no claim found in output")
+	}
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	ch, err := claim.DecodeClaimBytes(value, "")
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return ch.Claim, nil
 }

@@ -12,10 +12,7 @@ import (
 	"github.com/lbryio/reflector.go/wallet"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
-	types1 "github.com/lbryio/types/v1/go"
-	types2 "github.com/lbryio/types/v2/go"
 
-	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,8 +39,9 @@ func updateBlocklist(b store.Blocklister) {
 		return
 	}
 
-	for _, v := range values {
+	for name, v := range values {
 		if v.Err != nil {
+			log.Error(errors.Err("blocklist: %s: %s", name, v.Err))
 			continue
 		}
 
@@ -97,11 +95,11 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 	node := wallet.NewNode()
 	defer node.Shutdown()
 	err := node.Connect([]string{
-		"spv1.lbry.com:50001",
-		"spv2.lbry.com:50001",
-		"spv3.lbry.com:50001",
-		"spv4.lbry.com:50001",
 		"spv5.lbry.com:50001",
+		"spv6.lbry.com:50001",
+		"spv7.lbry.com:50001",
+		"spv8.lbry.com:50001",
+		"spv9.lbry.com:50001",
 	}, nil)
 	if err != nil {
 		return nil, err
@@ -120,57 +118,15 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 			continue
 		}
 
-		resp, err := node.GetClaimsInTx(parts[0])
+		claim, err := node.GetClaimInTx(parts[0], nout)
 		if err != nil {
 			values[outpoint] = valOrErr{Err: err}
 			continue
 		}
 
-		var value []byte
-		for _, tx := range resp.Result {
-			if tx.Nout != nout {
-				continue
-			}
-
-			value, err = hex.DecodeString(tx.Value)
-			break
-		}
-		if err != nil {
-			values[outpoint] = valOrErr{Err: err}
-			continue
-		} else if value == nil {
-			values[outpoint] = valOrErr{Err: errors.Err("outpoint not found")}
-			continue
-		}
-
-		hash, err := hashFromClaim(value)
-		values[outpoint] = valOrErr{Value: hash, Err: err}
+		hash := hex.EncodeToString(claim.GetStream().GetSource().GetSdHash())
+		values[outpoint] = valOrErr{Value: hash, Err: nil}
 	}
 
 	return values, nil
-}
-
-func hashFromClaim(value []byte) (string, error) {
-	claim := &types1.Claim{}
-	err := proto.Unmarshal(value, claim)
-	if err != nil {
-		return "", err
-	}
-
-	if claim.GetStream().GetSource().GetSourceType() == types1.Source_lbry_sd_hash && claim.GetStream().GetSource().GetSource() != nil {
-		return hex.EncodeToString(claim.GetStream().GetSource().GetSource()), nil
-	}
-
-	claim2 := &types2.Claim{}
-	err = proto.Unmarshal(value, claim2)
-	if err != nil {
-		return "", err
-	}
-
-	stream, ok := claim2.GetType().(*types2.Claim_Stream)
-	if !ok || stream == nil {
-		return "", errors.Err("not a stream claim")
-	}
-
-	return hex.EncodeToString(claim2.GetStream().GetSource().GetSdHash()), nil
 }
