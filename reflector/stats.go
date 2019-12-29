@@ -2,11 +2,9 @@ package reflector
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 
 	log "github.com/sirupsen/logrus"
@@ -65,30 +63,6 @@ func (s *Stats) AddStream() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.streams++
-}
-
-func (s *Stats) AddError(e error) (shouldLog bool) { // shouldLog is a hack, but whatever
-	if e == nil {
-		return
-	}
-	err := errors.Wrap(e, 0)
-	name := err.TypeName()
-	if strings.Contains(err.Error(), "i/o timeout") { // hit a read or write deadline
-		name = "i/o timeout"
-	} else if strings.Contains(err.Error(), "read: connection reset by peer") { // the other side closed the connection using TCP reset
-		name = "read conn reset"
-	} else if strings.Contains(err.Error(), "unexpected EOF") { // tried to read from closed pipe or socket
-		name = "unexpected EOF"
-	} else if strings.Contains(err.Error(), "write: broken pipe") { // tried to write to a pipe or socket that was closed by the peer
-		name = "write broken pipe"
-	} else {
-		shouldLog = true
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.errors[name]++
-	return
 }
 
 func (s *Stats) runSlackLogger() {

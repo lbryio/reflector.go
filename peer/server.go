@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
@@ -27,9 +28,6 @@ const (
 
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
-	StatLogger          *log.Logger   // logger to log stats
-	StatReportFrequency time.Duration // how often to log stats
-
 	store  store.BlobStore
 	closed bool
 
@@ -47,8 +45,7 @@ func NewServer(store store.BlobStore) *Server {
 
 // Shutdown gracefully shuts down the peer server.
 func (s *Server) Shutdown() {
-	log.Debug("shutting down peer server...")
-	s.stats.Shutdown()
+	log.Debug("shutting down peer server")
 	s.grp.StopAndWait()
 	log.Debug("peer server stopped")
 }
@@ -67,11 +64,6 @@ func (s *Server) Start(address string) error {
 		s.listenAndServe(l)
 		s.grp.Done()
 	}()
-
-	s.stats = reflector.NewStatLogger("DOWNLOAD", s.StatLogger, s.StatReportFrequency, s.grp.Child())
-	if s.StatLogger != nil && s.StatReportFrequency > 0 {
-		s.stats.Start()
-	}
 
 	return nil
 }
@@ -275,7 +267,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 				BlobHash: reflector.BlobHash(blob),
 				Length:   len(blob),
 			}
-			s.stats.AddBlob()
+			metrics.BlobDownloadCount.Inc()
 		}
 	}
 
@@ -291,27 +283,10 @@ func (s *Server) logError(e error) {
 	if e == nil {
 		return
 	}
-	shouldLog := s.stats.AddError(e)
+	shouldLog := metrics.TrackError(e)
 	if shouldLog {
 		log.Errorln(errors.FullTrace(e))
 	}
-
-	return
-
-	// old stuff below. its here for posterity, because we're gonna have to deal with these errors someday for real
-
-	//err := errors.Wrap(e, 0)
-
-	// these happen because the peer protocol does not have a way to cancel blob downloads
-	// so the client will just close the connection if its in the middle of downloading a blob
-	// but receives the blob from a different peer first or simply goes offline (timeout)
-	//if strings.Contains(err.Error(), "connection reset by peer") ||
-	//	strings.Contains(err.Error(), "i/o timeout") ||
-	//	strings.Contains(err.Error(), "broken pipe") {
-	//	return
-	//}
-	//
-	//log.Error(errors.FullTrace(e))
 }
 
 func readNextMessage(buf *bufio.Reader) ([]byte, error) {
