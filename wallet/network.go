@@ -14,7 +14,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/uber-go/atomic"
+	"go.uber.org/atomic"
 )
 
 const (
