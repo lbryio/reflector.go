@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lbryio/reflector.go/reflector"
+
 	ee "github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 
@@ -57,12 +59,31 @@ func (s *Server) Shutdown() {
 	s.stop.StopAndWait()
 }
 
-const ns = "reflector"
+const (
+	ns = "reflector"
+
+	labelDirection = "direction"
+	labelErrorType = "error_type"
+
+	DirectionUpload   = "upload"   // to reflector
+	DirectionDownload = "download" // from reflector
+
+	errConnReset        = "conn_reset"
+	errReadConnReset    = "read_conn_reset"
+	errWriteConnReset   = "write_conn_reset"
+	errReadConnTimedOut = "read_conn_timed_out"
+	errWriteBrokenPipe  = "write_broken_pipe"
+	errIOTimeout        = "io_timeout"
+	errUnexpectedEOF    = "unexpected_eof"
+	errJSONSyntax       = "json_syntax"
+	errBlobTooBig       = "blob_too_big"
+	errOther            = "other"
+)
 
 var (
 	BlobDownloadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
-		Name:      "download_total",
+		Name:      "blob_download_total",
 		Help:      "Total number of blobs downloaded from reflector",
 	})
 	BlobUploadCount = promauto.NewCounter(prometheus.CounterOpts{
@@ -75,74 +96,64 @@ var (
 		Name:      "sdblob_upload_total",
 		Help:      "Total number of SD blobs (and therefore streams) uploaded to reflector",
 	})
-	ErrorCount = promauto.NewCounter(prometheus.CounterOpts{
+	ErrorCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "error_total",
 		Help:      "Total number of errors",
-	})
-	IOTimeoutCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: ns,
-		Name:      "error_io_timeout_total",
-		Help:      "Total number of 'i/o timeout' errors",
-	})
-	ReadConnResetCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: ns,
-		Name:      "error_read_conn_reset_total",
-		Help:      "Total number of 'read: connection reset by peer' errors",
-	})
-	UnexpectedEOFCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: ns,
-		Name:      "error_unexpected_eof_total",
-		Help:      "Total number of 'unexpected EOF' errors",
-	})
-	BrokenPipeCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: ns,
-		Name:      "error_broken_pipe_total",
-		Help:      "Total number of 'write: broken pipe' errors",
-	})
-	JSONSyntaxErrorCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: ns,
-		Name:      "error_json_syntax_total",
-		Help:      "Total number of JSON syntax errors",
-	})
+	}, []string{labelDirection, labelErrorType})
 )
 
-func TrackError(e error) (shouldLog bool) { // shouldLog is a hack, but whatever
+func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a hack, but whatever
 	if e == nil {
 		return
 	}
 
-	ErrorCount.Inc()
-
 	err := ee.Wrap(e, 0)
+	errType := errOther
 	//name := err.TypeName()
 	if errors.Is(e, context.DeadlineExceeded) {
-		IOTimeoutCount.Inc()
+		errType = errIOTimeout
 	} else if strings.Contains(err.Error(), "i/o timeout") { // hit a read or write deadline
 		log.Warnln("i/o timeout is not the same as context.DeadlineExceeded")
-		IOTimeoutCount.Inc()
+		errType = errIOTimeout
 	} else if errors.Is(e, syscall.ECONNRESET) {
-		ReadConnResetCount.Inc()
+		errType = errConnReset
 	} else if strings.Contains(err.Error(), "read: connection reset by peer") { // the other side closed the connection using TCP reset
-		log.Warnln("conn reset by peer is not the same as ECONNRESET")
-		ReadConnResetCount.Inc()
+		log.Warnln("read conn reset by peer is not the same as ECONNRESET")
+		errType = errReadConnReset
+	} else if strings.Contains(err.Error(), "write: connection reset by peer") { // the other side closed the connection using TCP reset
+		log.Warnln("write conn reset by peer is not the same as ECONNRESET")
+		errType = errWriteConnReset
+	} else if errors.Is(e, syscall.ETIMEDOUT) {
+		errType = errReadConnTimedOut
+	} else if strings.Contains(err.Error(), "read: connection timed out") { // the other side closed the connection using TCP reset
+		log.Warnln("read conn timed out is not the same as ETIMEDOUT")
+		errType = errReadConnTimedOut
 	} else if errors.Is(e, io.ErrUnexpectedEOF) {
-		UnexpectedEOFCount.Inc()
+		errType = errUnexpectedEOF
 	} else if strings.Contains(err.Error(), "unexpected EOF") { // tried to read from closed pipe or socket
 		log.Warnln("unexpected eof is not the same as io.ErrUnexpectedEOF")
-		UnexpectedEOFCount.Inc()
+		errType = errUnexpectedEOF
 	} else if errors.Is(e, syscall.EPIPE) {
-		BrokenPipeCount.Inc()
+		errType = errWriteBrokenPipe
 	} else if strings.Contains(err.Error(), "write: broken pipe") { // tried to write to a pipe or socket that was closed by the peer
 		log.Warnln("broken pipe is not the same as EPIPE")
-		BrokenPipeCount.Inc()
+		errType = errWriteBrokenPipe
+	} else if errors.Is(e, reflector.ErrBlobTooBig) {
+		errType = errBlobTooBig
+	} else if strings.Contains(err.Error(), "blob must be at most") {
+		log.Warnln("blob must be at most X bytes is not the same as ErrBlobTooBig")
+		errType = errBlobTooBig
+	} else if _, ok := e.(*json.SyntaxError); ok {
+		errType = errJSONSyntax
 	} else {
 		shouldLog = true
 	}
 
-	if _, ok := e.(*json.SyntaxError); ok {
-		JSONSyntaxErrorCount.Inc()
-	}
+	ErrorCount.With(map[string]string{
+		labelDirection: direction,
+		labelErrorType: errType,
+	}).Inc()
 
 	return
 }

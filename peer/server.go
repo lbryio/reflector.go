@@ -283,7 +283,7 @@ func (s *Server) logError(e error) {
 	if e == nil {
 		return
 	}
-	shouldLog := metrics.TrackError(e)
+	shouldLog := metrics.TrackError(metrics.DirectionDownload, e)
 	if shouldLog {
 		log.Errorln(errors.FullTrace(e))
 	}

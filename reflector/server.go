@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"strconv"
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -32,6 +31,8 @@ const (
 	protocolVersion2 = 1
 	maxBlobSize      = stream.MaxBlobSize
 )
+
+var ErrBlobTooBig = errors.Base("blob must be at most %d bytes", maxBlobSize)
 
 // Server is and instance of the reflector server. It houses the blob store and listener.
 type Server struct {
@@ -167,7 +168,7 @@ func (s *Server) doError(conn net.Conn, err error) error {
 	if err == nil {
 		return nil
 	}
-	shouldLog := metrics.TrackError(err)
+	shouldLog := metrics.TrackError(metrics.DirectionUpload, err)
 	if shouldLog {
 		log.Errorln(errors.FullTrace(err))
 	}
@@ -305,7 +306,7 @@ func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 		return blobSize, blobHash, isSdBlob, errors.Err("blob hash is empty")
 	}
 	if blobSize > maxBlobSize {
-		return blobSize, blobHash, isSdBlob, errors.Err("blob must be at most " + strconv.Itoa(maxBlobSize) + " bytes")
+		return blobSize, blobHash, isSdBlob, errors.Err(ErrBlobTooBig)
 	}
 	if blobSize == 0 {
 		return blobSize, blobHash, isSdBlob, errors.Err("0-byte blob received")
