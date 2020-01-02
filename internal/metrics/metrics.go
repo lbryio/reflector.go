@@ -109,10 +109,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	err := ee.Wrap(e, 0)
 	errType := errOther
 	//name := err.TypeName()
-	if errors.Is(e, context.DeadlineExceeded) {
-		errType = errIOTimeout
-	} else if strings.Contains(err.Error(), "i/o timeout") { // hit a read or write deadline
-		log.Warnln("i/o timeout is not the same as context.DeadlineExceeded")
+	if strings.Contains(err.Error(), "i/o timeout") { // hit a read or write deadline
+		//log.Warnln("i/o timeout is not the same as context.DeadlineExceeded")
 		errType = errIOTimeout
 	} else if errors.Is(e, syscall.ECONNRESET) {
 		errType = errConnReset
