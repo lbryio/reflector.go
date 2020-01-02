@@ -8,9 +8,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"strconv"
 	"time"
 
+	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -32,18 +32,16 @@ const (
 	maxBlobSize      = stream.MaxBlobSize
 )
 
+var ErrBlobTooBig = errors.Base("blob must be at most %d bytes", maxBlobSize)
+
 // Server is and instance of the reflector server. It houses the blob store and listener.
 type Server struct {
 	Timeout time.Duration // timeout to read or write next message
-
-	StatLogger          *log.Logger   // logger to log stats
-	StatReportFrequency time.Duration // how often to log stats
 
 	EnableBlocklist bool // if true, blocklist checking and blob deletion will be enabled
 
 	store store.BlobStore
 	grp   *stop.Group
-	stats *Stats
 }
 
 // NewServer returns an initialized reflector server pointer.
@@ -58,7 +56,6 @@ func NewServer(store store.BlobStore) *Server {
 // Shutdown shuts down the reflector server gracefully.
 func (s *Server) Shutdown() {
 	log.Println("shutting down reflector server...")
-	s.stats.Shutdown()
 	s.grp.StopAndWait()
 	log.Println("reflector server stopped")
 }
@@ -86,11 +83,6 @@ func (s *Server) Start(address string) error {
 		s.listenAndServe(l)
 		s.grp.Done()
 	}()
-
-	s.stats = NewStatLogger("UPLOAD", s.StatLogger, s.StatReportFrequency, s.grp.Child())
-	if s.StatLogger != nil && s.StatReportFrequency > 0 {
-		s.stats.Start()
-	}
 
 	if s.EnableBlocklist {
 		if b, ok := s.store.(store.Blocklister); ok {
@@ -173,7 +165,10 @@ func (s *Server) handleConn(conn net.Conn) {
 }
 
 func (s *Server) doError(conn net.Conn, err error) error {
-	shouldLog := s.stats.AddError(err)
+	if err == nil {
+		return nil
+	}
+	shouldLog := metrics.TrackError(metrics.DirectionUpload, err)
 	if shouldLog {
 		log.Errorln(errors.FullTrace(err))
 	}
@@ -262,9 +257,9 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 		return err
 	}
 
-	s.stats.AddBlob()
+	metrics.BlobUploadCount.Inc()
 	if isSdBlob {
-		s.stats.AddStream()
+		metrics.SDBlobUploadCount.Inc()
 	}
 	return s.sendTransferResponse(conn, true, isSdBlob)
 }
@@ -311,7 +306,7 @@ func (s *Server) readBlobRequest(conn net.Conn) (int, string, bool, error) {
 		return blobSize, blobHash, isSdBlob, errors.Err("blob hash is empty")
 	}
 	if blobSize > maxBlobSize {
-		return blobSize, blobHash, isSdBlob, errors.Err("blob must be at most " + strconv.Itoa(maxBlobSize) + " bytes")
+		return blobSize, blobHash, isSdBlob, errors.Err(ErrBlobTooBig)
 	}
 	if blobSize == 0 {
 		return blobSize, blobHash, isSdBlob, errors.Err("0-byte blob received")

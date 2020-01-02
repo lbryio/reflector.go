@@ -21,6 +21,7 @@ require (
 	github.com/lbryio/lbryschema.go v0.0.0-20190602173230-6d2f69a36f46
 	github.com/lbryio/types v0.0.0-20191228214437-05a22073b4ec
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
+	github.com/prometheus/client_golang v0.9.2
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.3

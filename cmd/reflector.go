@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lbryio/reflector.go/reflector"
-
 	"github.com/lbryio/reflector.go/db"
+	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/meta"
 	"github.com/lbryio/reflector.go/peer"
+	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
@@ -52,10 +52,6 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 
 		reflectorServer = reflector.NewServer(blobStore)
 		reflectorServer.Timeout = 3 * time.Minute
-		if globalConfig.SlackHookURL != "" {
-			reflectorServer.StatLogger = log.StandardLogger()
-			reflectorServer.StatReportFrequency = 1 * time.Hour
-		}
 		reflectorServer.EnableBlocklist = true
 
 		err = reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
@@ -65,18 +61,18 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 
 	peerServer := peer.NewServer(blobStore)
-	if globalConfig.SlackHookURL != "" {
-		peerServer.StatLogger = log.StandardLogger()
-		peerServer.StatReportFrequency = 1 * time.Hour
-	}
 	err = peerServer.Start(":5567")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	metricsServer := metrics.NewServer(":2112", "/metrics")
+	metricsServer.Start()
+
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	<-interruptChan
+	metricsServer.Shutdown()
 	peerServer.Shutdown()
 	if reflectorServer != nil {
 		reflectorServer.Shutdown()
