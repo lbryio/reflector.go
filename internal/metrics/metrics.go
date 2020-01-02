@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lbryio/reflector.go/reflector"
-
 	ee "github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 
@@ -139,10 +137,10 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if strings.Contains(err.Error(), "write: broken pipe") { // tried to write to a pipe or socket that was closed by the peer
 		log.Warnln("broken pipe is not the same as EPIPE")
 		errType = errWriteBrokenPipe
-	} else if errors.Is(e, reflector.ErrBlobTooBig) {
-		errType = errBlobTooBig
+		//} else if errors.Is(e, reflector.ErrBlobTooBig) { # this creates a circular import
+		//	errType = errBlobTooBig
 	} else if strings.Contains(err.Error(), "blob must be at most") {
-		log.Warnln("blob must be at most X bytes is not the same as ErrBlobTooBig")
+		//log.Warnln("blob must be at most X bytes is not the same as ErrBlobTooBig")
 		errType = errBlobTooBig
 	} else if _, ok := e.(*json.SyntaxError); ok {
 		errType = errJSONSyntax
