@@ -31,8 +31,7 @@ type Server struct {
 	store  store.BlobStore
 	closed bool
 
-	grp   *stop.Group
-	stats *reflector.Stats
+	grp *stop.Group
 }
 
 // NewServer returns an initialized Server pointer.
