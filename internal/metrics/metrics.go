@@ -111,11 +111,10 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 
 	err := ee.Wrap(e, 0)
 	errType := errOther
-	//name := err.TypeName()
 	if strings.Contains(err.Error(), "i/o timeout") { // hit a read or write deadline
-		//log.Warnln("i/o timeout is not the same as context.DeadlineExceeded")
 		errType = errIOTimeout
 	} else if errors.Is(e, syscall.ECONNRESET) {
+		// Looks like we're getting this when direction == "download", but read_conn_reset when its "upload"
 		errType = errConnReset
 	} else if errors.Is(e, context.DeadlineExceeded) {
 		errType = errDeadlineExceeded
@@ -136,6 +135,7 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if errors.Is(e, syscall.EPIPE) {
 		errType = errEPipe
 	} else if strings.Contains(err.Error(), "write: broken pipe") { // tried to write to a pipe or socket that was closed by the peer
+		// I believe this is the same as EPipe when direction == "download", but not for upload
 		errType = errWriteBrokenPipe
 		//} else if errors.Is(e, reflector.ErrBlobTooBig) { # this creates a circular import
 		//	errType = errBlobTooBig
@@ -145,6 +145,7 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if _, ok := e.(*json.SyntaxError); ok {
 		errType = errJSONSyntax
 	} else {
+		log.Warnf("error '%s' for direction '%s' is not being tracked", err.TypeName(), direction)
 		shouldLog = true
 	}
 
