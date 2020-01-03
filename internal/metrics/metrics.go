@@ -72,6 +72,7 @@ const (
 	errReadConnTimedOut = "read_conn_timed_out"
 	errWriteBrokenPipe  = "write_broken_pipe"
 	errEPipe            = "e_pipe"
+	errETimedout        = "e_timedout"
 	errIOTimeout        = "io_timeout"
 	errUnexpectedEOF    = "unexpected_eof"
 	errUnexpectedEOFStr = "unexpected_eof_str"
@@ -124,9 +125,9 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		log.Warnln("write conn reset by peer is not the same as ECONNRESET")
 		errType = errWriteConnReset
 	} else if errors.Is(e, syscall.ETIMEDOUT) {
-		errType = errReadConnTimedOut
+		errType = errETimedout
 	} else if strings.Contains(err.Error(), "read: connection timed out") { // the other side closed the connection using TCP reset
-		log.Warnln("read conn timed out is not the same as ETIMEDOUT")
+		//log.Warnln("read conn timed out is not the same as ETIMEDOUT")
 		errType = errReadConnTimedOut
 	} else if errors.Is(e, io.ErrUnexpectedEOF) {
 		errType = errUnexpectedEOF
