@@ -71,10 +71,13 @@ const (
 	errWriteConnReset   = "write_conn_reset"
 	errReadConnTimedOut = "read_conn_timed_out"
 	errWriteBrokenPipe  = "write_broken_pipe"
+	errEPipe            = "e_pipe"
 	errIOTimeout        = "io_timeout"
 	errUnexpectedEOF    = "unexpected_eof"
+	errUnexpectedEOFStr = "unexpected_eof_str"
 	errJSONSyntax       = "json_syntax"
 	errBlobTooBig       = "blob_too_big"
+	errDeadlineExceeded = "deadline_exceeded"
 	errOther            = "other"
 )
 
@@ -114,8 +117,9 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errIOTimeout
 	} else if errors.Is(e, syscall.ECONNRESET) {
 		errType = errConnReset
+	} else if errors.Is(e, context.DeadlineExceeded) {
+		errType = errDeadlineExceeded
 	} else if strings.Contains(err.Error(), "read: connection reset by peer") { // the other side closed the connection using TCP reset
-		log.Warnln("read conn reset by peer is not the same as ECONNRESET")
 		errType = errReadConnReset
 	} else if strings.Contains(err.Error(), "write: connection reset by peer") { // the other side closed the connection using TCP reset
 		log.Warnln("write conn reset by peer is not the same as ECONNRESET")
@@ -128,12 +132,10 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if errors.Is(e, io.ErrUnexpectedEOF) {
 		errType = errUnexpectedEOF
 	} else if strings.Contains(err.Error(), "unexpected EOF") { // tried to read from closed pipe or socket
-		log.Warnln("unexpected eof is not the same as io.ErrUnexpectedEOF")
-		errType = errUnexpectedEOF
+		errType = errUnexpectedEOFStr
 	} else if errors.Is(e, syscall.EPIPE) {
-		errType = errWriteBrokenPipe
+		errType = errEPipe
 	} else if strings.Contains(err.Error(), "write: broken pipe") { // tried to write to a pipe or socket that was closed by the peer
-		log.Warnln("broken pipe is not the same as EPIPE")
 		errType = errWriteBrokenPipe
 		//} else if errors.Is(e, reflector.ErrBlobTooBig) { # this creates a circular import
 		//	errType = errBlobTooBig
