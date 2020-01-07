@@ -79,6 +79,7 @@ const (
 	errJSONSyntax       = "json_syntax"
 	errBlobTooBig       = "blob_too_big"
 	errDeadlineExceeded = "deadline_exceeded"
+	errHashMismatch     = "hash_mismatch"
 	errOther            = "other"
 )
 
@@ -112,17 +113,17 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 
 	err := ee.Wrap(e, 0)
 	errType := errOther
-	if strings.Contains(err.Error(), "i/o timeout") { // hit a read or write deadline
+	if strings.Contains(err.Error(), "i/o timeout") {
 		errType = errIOTimeout
 	} else if errors.Is(e, syscall.ECONNRESET) {
-		// Looks like we're getting this when direction == "download", but read_conn_reset when its "upload"
+		// Looks like we're getting this when direction == "download", but read_conn_reset and
+		// write_conn_reset when its "upload"
 		errType = errConnReset
 	} else if errors.Is(e, context.DeadlineExceeded) {
 		errType = errDeadlineExceeded
 	} else if strings.Contains(err.Error(), "read: connection reset by peer") { // the other side closed the connection using TCP reset
 		errType = errReadConnReset
 	} else if strings.Contains(err.Error(), "write: connection reset by peer") { // the other side closed the connection using TCP reset
-		log.Warnln("write conn reset by peer is not the same as ECONNRESET")
 		errType = errWriteConnReset
 	} else if errors.Is(e, syscall.ETIMEDOUT) {
 		errType = errETimedout
@@ -143,6 +144,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if strings.Contains(err.Error(), "blob must be at most") {
 		//log.Warnln("blob must be at most X bytes is not the same as ErrBlobTooBig")
 		errType = errBlobTooBig
+	} else if strings.Contains(err.Error(), "hash of received blob data does not match hash from send request") {
+		errType = errHashMismatch
 	} else if _, ok := e.(*json.SyntaxError); ok {
 		errType = errJSONSyntax
 	} else {
