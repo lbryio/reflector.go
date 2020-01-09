@@ -3,8 +3,8 @@ module github.com/lbryio/reflector.go
 require (
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/aws/aws-sdk-go v1.16.11
-	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3 // indirect
-	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
+	github.com/btcsuite/btcd v0.0.0-20190213025234-306aecffea32
+	github.com/btcsuite/btcutil v0.0.0-20190207003914-4c204d697803
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/protobuf v1.3.2
@@ -17,7 +17,7 @@ require (
 	github.com/johntdyer/slackrus v0.0.0-20180518184837-f7aae3243a07
 	github.com/lbryio/chainquery v1.9.0
 	github.com/lbryio/lbry.go v1.1.2
-	github.com/lbryio/lbry.go/v2 v2.4.5
+	github.com/lbryio/lbry.go/v2 v2.4.7-0.20200109014510-1835deb2c9ce
 	github.com/lbryio/lbryschema.go v0.0.0-20190602173230-6d2f69a36f46
 	github.com/lbryio/types v0.0.0-20191228214437-05a22073b4ec
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
