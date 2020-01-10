@@ -16,6 +16,7 @@ require (
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/johntdyer/slackrus v0.0.0-20180518184837-f7aae3243a07
 	github.com/lbryio/chainquery v1.9.0
+	github.com/lbryio/go_mediainfo v0.0.0-20200109212001-4c7318fd92ad
 	github.com/lbryio/lbry.go v1.1.2
 	github.com/lbryio/lbry.go/v2 v2.4.7-0.20200109014510-1835deb2c9ce
 	github.com/lbryio/lbryschema.go v0.0.0-20190602173230-6d2f69a36f46
@@ -27,6 +28,7 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
 	go.uber.org/atomic v1.5.1
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/sys v0.0.0-20191228213918-04cbcbbfeed8 // indirect
 	golang.org/x/tools v0.0.0-20191227053925-7b8e75db28f4 // indirect
