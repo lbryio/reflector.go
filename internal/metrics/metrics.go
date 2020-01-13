@@ -66,21 +66,24 @@ const (
 	DirectionUpload   = "upload"   // to reflector
 	DirectionDownload = "download" // from reflector
 
-	errConnReset        = "conn_reset"
-	errReadConnReset    = "read_conn_reset"
-	errWriteConnReset   = "write_conn_reset"
-	errReadConnTimedOut = "read_conn_timed_out"
-	errWriteBrokenPipe  = "write_broken_pipe"
-	errEPipe            = "e_pipe"
-	errETimedout        = "e_timedout"
-	errIOTimeout        = "io_timeout"
-	errUnexpectedEOF    = "unexpected_eof"
-	errUnexpectedEOFStr = "unexpected_eof_str"
-	errJSONSyntax       = "json_syntax"
-	errBlobTooBig       = "blob_too_big"
-	errDeadlineExceeded = "deadline_exceeded"
-	errHashMismatch     = "hash_mismatch"
-	errOther            = "other"
+	errConnReset         = "conn_reset"
+	errReadConnReset     = "read_conn_reset"
+	errWriteConnReset    = "write_conn_reset"
+	errReadConnTimedOut  = "read_conn_timed_out"
+	errWriteConnTimedOut = "write_conn_timed_out"
+	errWriteBrokenPipe   = "write_broken_pipe"
+	errEPipe             = "e_pipe"
+	errETimedout         = "e_timedout"
+	errIOTimeout         = "io_timeout"
+	errUnexpectedEOF     = "unexpected_eof"
+	errUnexpectedEOFStr  = "unexpected_eof_str"
+	errJSONSyntax        = "json_syntax"
+	errBlobTooBig        = "blob_too_big"
+	errDeadlineExceeded  = "deadline_exceeded"
+	errHashMismatch      = "hash_mismatch"
+	errZeroByteBlob      = "zero_byte_blob"
+	errInvalidCharacter  = "invalid_character"
+	errOther             = "other"
 )
 
 var (
@@ -130,6 +133,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if strings.Contains(err.Error(), "read: connection timed out") { // the other side closed the connection using TCP reset
 		//log.Warnln("read conn timed out is not the same as ETIMEDOUT")
 		errType = errReadConnTimedOut
+	} else if strings.Contains(err.Error(), "write: connection timed out") {
+		errType = errWriteConnTimedOut
 	} else if errors.Is(e, io.ErrUnexpectedEOF) {
 		errType = errUnexpectedEOF
 	} else if strings.Contains(err.Error(), "unexpected EOF") { // tried to read from closed pipe or socket
@@ -146,6 +151,10 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errBlobTooBig
 	} else if strings.Contains(err.Error(), "hash of received blob data does not match hash from send request") {
 		errType = errHashMismatch
+	} else if strings.Contains(err.Error(), "0-byte blob received") {
+		errType = errZeroByteBlob
+	} else if strings.Contains(err.Error(), "invalid character") {
+		errType = errInvalidCharacter
 	} else if _, ok := e.(*json.SyntaxError); ok {
 		errType = errJSONSyntax
 	} else {
