@@ -95,11 +95,15 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 	node := wallet.NewNode()
 	defer node.Shutdown()
 	err := node.Connect([]string{
+		"spv4.lbry.com:50001",
 		"spv5.lbry.com:50001",
-		"spv6.lbry.com:50001",
 		"spv7.lbry.com:50001",
-		"spv8.lbry.com:50001",
 		"spv9.lbry.com:50001",
+		"spv15.lbry.com:50001",
+		"spv17.lbry.com:50001",
+		"spv19.1bry.com:50001",
+		"spv25.lbry.com:50001",
+		"spv26.lbry.com:50001",
 	}, nil)
 	if err != nil {
 		return nil, errors.Err(err)
