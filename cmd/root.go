@@ -141,9 +141,9 @@ func loadConfig(path string) (Config, error) {
 		if os.IsNotExist(err) {
 			return c, errors.Err("config file not found")
 		}
-		return c, err
+		return c, errors.Err(err)
 	}
 
 	err = json.Unmarshal(raw, &c)
-	return c, err
+	return c, errors.Err(err)
 }

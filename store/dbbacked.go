@@ -51,7 +51,7 @@ func (d *DBBackedStore) PutSD(hash string, blob stream.Blob) error {
 	var blobContents db.SdBlob
 	err := json.Unmarshal(blob, &blobContents)
 	if err != nil {
-		return err
+		return errors.Err(err)
 	}
 	if blobContents.StreamHash == "" {
 		return errors.Err("sd blob is missing stream hash")

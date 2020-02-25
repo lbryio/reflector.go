@@ -173,8 +173,8 @@ func (n *Node) listen() {
 			}
 
 			if err != nil {
-				n.err(err)
 				r.err = errors.Err(err)
+				n.err(r.err)
 			} else if len(msg.Error.Message) > 0 {
 				r.err = errors.Base("%d: %s", msg.Error.Code, msg.Error.Message)
 			} else {
@@ -258,5 +258,5 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 		return r.err
 	}
 
-	return json.Unmarshal(r.data, v)
+	return errors.Err(json.Unmarshal(r.data, v))
 }

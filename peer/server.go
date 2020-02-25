@@ -159,7 +159,7 @@ func (s *Server) handleAvailabilityRequest(data []byte) ([]byte, error) {
 	var request availabilityRequest
 	err := json.Unmarshal(data, &request)
 	if err != nil {
-		return nil, err
+		return nil, errors.Err(err)
 	}
 
 	availableBlobs := []string{}
@@ -220,7 +220,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 	var request compositeRequest
 	err := json.Unmarshal(data, &request)
 	if err != nil {
-		return nil, err
+		return nil, errors.Err(err)
 	}
 
 	response := compositeResponse{
