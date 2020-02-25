@@ -129,7 +129,7 @@ func (n *Node) handleErrors() {
 // err handles errors produced by the foreign node.
 func (n *Node) err(err error) {
 	// TODO: Better error handling.
-	log.Error(err)
+	log.Error(errors.FullTrace(err))
 }
 
 // listen processes messages from the server.

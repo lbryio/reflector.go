@@ -128,7 +128,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 		response, err = s.handleCompositeRequest(request)
 		if err != nil {
-			log.Error(err)
+			log.Error(errors.FullTrace(err))
 			return
 		}
 
