@@ -60,7 +60,7 @@ func blockedSdHashes() (map[string]valOrErr, error) {
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			log.Errorln(err)
+			log.Errorln(errors.Err(err))
 		}
 	}()
 
@@ -102,7 +102,7 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 		"spv9.lbry.com:50001",
 	}, nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Err(err)
 	}
 
 	for _, outpoint := range outpoints {

@@ -43,12 +43,12 @@ func (n *Node) Resolve(url string) (*types.Output, error) {
 
 	b, err := base64.StdEncoding.DecodeString(resp.Result)
 	if err != nil {
-		return nil, err
+		return nil, errors.Err(err)
 	}
 
 	err = proto.Unmarshal(b, outputs)
 	if err != nil {
-		return nil, err
+		return nil, errors.Err(err)
 	}
 
 	if len(outputs.GetTxos()) != 1 {

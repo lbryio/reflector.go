@@ -63,7 +63,7 @@ func NewNode() *Node {
 // Connect creates a new connection to the specified address.
 func (n *Node) Connect(addrs []string, config *tls.Config) error {
 	if n.transport != nil {
-		return ErrNodeConnected
+		return errors.Err(ErrNodeConnected)
 	}
 
 	// shuffle addresses for load balancing
@@ -80,11 +80,11 @@ func (n *Node) Connect(addrs []string, config *tls.Config) error {
 			// net.errNoSuchHost is not exported, so we have to string-match
 			continue
 		}
-		return err
+		return errors.Err(err)
 	}
 
 	if n.transport == nil {
-		return ErrConnectFailed
+		return errors.Err(ErrConnectFailed)
 	}
 
 	log.Debugf("wallet connected to %s", n.transport.conn.RemoteAddr())
@@ -121,7 +121,7 @@ func (n *Node) handleErrors() {
 		case <-n.grp.Ch():
 			return
 		case err := <-n.transport.Errors():
-			n.err(err)
+			n.err(errors.Err(err))
 		}
 	}
 }
@@ -176,7 +176,7 @@ func (n *Node) listen() {
 				r.err = errors.Err(err)
 				n.err(r.err)
 			} else if len(msg.Error.Message) > 0 {
-				r.err = errors.Base("%d: %s", msg.Error.Code, msg.Error.Message)
+				r.err = errors.Err("%d: %s", msg.Error.Code, msg.Error.Message)
 			} else {
 				r.data = bytes
 			}
@@ -228,7 +228,7 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 
 	bytes, err := json.Marshal(msg)
 	if err != nil {
-		return err
+		return errors.Err(err)
 	}
 	bytes = append(bytes, delimiter)
 
@@ -240,7 +240,7 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 
 	err = n.transport.Send(bytes)
 	if err != nil {
-		return err
+		return errors.Err(err)
 	}
 
 	var r response
@@ -255,7 +255,7 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 	n.handlersMu.Unlock()
 
 	if r.err != nil {
-		return r.err
+		return errors.Err(r.err)
 	}
 
 	return errors.Err(json.Unmarshal(r.data, v))
