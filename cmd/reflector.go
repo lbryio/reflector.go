@@ -18,12 +18,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var reflectorCmdCacheDir string
+
 func init() {
 	var cmd = &cobra.Command{
 		Use:   "reflector",
 		Short: "Run reflector server",
 		Run:   reflectorCmd,
 	}
+	cmd.Flags().StringVar(&reflectorCmdCacheDir, "cache", "", "Enable disk cache for blobs. Store them in this directory")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -35,7 +38,6 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	useDB := true
 
 	s3 := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
-	diskStore := store.NewDiskBlobStore("/home/lbry/lbry_downloaded_blobs", 2)
 
 	var err error
 
@@ -60,9 +62,16 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 			log.Fatal(err)
 		}
 	}
-	cacheStore := store.NewCachingBlobStore(blobStore, diskStore)
 
-	peerServer := peer.NewServer(cacheStore)
+	if reflectorCmdCacheDir != "" {
+		err = os.MkdirAll(reflectorCmdCacheDir, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+		blobStore = store.NewCachingBlobStore(blobStore, store.NewDiskBlobStore(reflectorCmdCacheDir, 2))
+	}
+
+	peerServer := peer.NewServer(blobStore)
 	err = peerServer.Start(":5567")
 	if err != nil {
 		log.Fatal(err)
