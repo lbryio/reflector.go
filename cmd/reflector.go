@@ -18,12 +18,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var reflectorCmdCacheDir string
+
 func init() {
 	var cmd = &cobra.Command{
 		Use:   "reflector",
 		Short: "Run reflector server",
 		Run:   reflectorCmd,
 	}
+	cmd.Flags().StringVar(&reflectorCmdCacheDir, "cache", "", "Enable disk cache for blobs. Store them in this directory")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -58,6 +61,14 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	if reflectorCmdCacheDir != "" {
+		err = os.MkdirAll(reflectorCmdCacheDir, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+		blobStore = store.NewCachingBlobStore(blobStore, store.NewDiskBlobStore(reflectorCmdCacheDir, 2))
 	}
 
 	peerServer := peer.NewServer(blobStore)
