@@ -41,7 +41,7 @@ func updateBlocklist(b store.Blocklister) {
 
 	for name, v := range values {
 		if v.Err != nil {
-			log.Error(errors.Err("blocklist: %s: %s", name, v.Err))
+			log.Error(errors.FullTrace(errors.Err("blocklist: %s: %s", name, v.Err)))
 			continue
 		}
 
@@ -101,9 +101,7 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 		"spv9.lbry.com:50001",
 		"spv15.lbry.com:50001",
 		"spv17.lbry.com:50001",
-		"spv19.1bry.com:50001",
 		"spv25.lbry.com:50001",
-		"spv26.lbry.com:50001",
 	}, nil)
 	if err != nil {
 		return nil, errors.Err(err)

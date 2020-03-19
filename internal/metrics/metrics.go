@@ -70,6 +70,7 @@ const (
 	errReadConnReset     = "read_conn_reset"
 	errWriteConnReset    = "write_conn_reset"
 	errReadConnTimedOut  = "read_conn_timed_out"
+	errNoNetworkActivity  = "no_network_activity"
 	errWriteConnTimedOut = "write_conn_timed_out"
 	errWriteBrokenPipe   = "write_broken_pipe"
 	errEPipe             = "e_pipe"
@@ -133,6 +134,9 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if strings.Contains(err.Error(), "read: connection timed out") { // the other side closed the connection using TCP reset
 		//log.Warnln("read conn timed out is not the same as ETIMEDOUT")
 		errType = errReadConnTimedOut
+	}else if strings.Contains(err.Error(), "NO_ERROR: No recent network activity") { // the other side closed the QUIC connection
+		//log.Warnln("read conn timed out is not the same as ETIMEDOUT")
+		errType = errNoNetworkActivity
 	} else if strings.Contains(err.Error(), "write: connection timed out") {
 		errType = errWriteConnTimedOut
 	} else if errors.Is(e, io.ErrUnexpectedEOF) {
