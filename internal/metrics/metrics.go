@@ -70,7 +70,7 @@ const (
 	errReadConnReset     = "read_conn_reset"
 	errWriteConnReset    = "write_conn_reset"
 	errReadConnTimedOut  = "read_conn_timed_out"
-	errNoNetworkActivity  = "no_network_activity"
+	errNoNetworkActivity = "no_network_activity"
 	errWriteConnTimedOut = "write_conn_timed_out"
 	errWriteBrokenPipe   = "write_broken_pipe"
 	errEPipe             = "e_pipe"
@@ -84,6 +84,7 @@ const (
 	errHashMismatch      = "hash_mismatch"
 	errZeroByteBlob      = "zero_byte_blob"
 	errInvalidCharacter  = "invalid_character"
+	errNoErr             = "no_error"
 	errOther             = "other"
 )
 
@@ -134,7 +135,7 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if strings.Contains(err.Error(), "read: connection timed out") { // the other side closed the connection using TCP reset
 		//log.Warnln("read conn timed out is not the same as ETIMEDOUT")
 		errType = errReadConnTimedOut
-	}else if strings.Contains(err.Error(), "NO_ERROR: No recent network activity") { // the other side closed the QUIC connection
+	} else if strings.Contains(err.Error(), "NO_ERROR: No recent network activity") { // the other side closed the QUIC connection
 		//log.Warnln("read conn timed out is not the same as ETIMEDOUT")
 		errType = errNoNetworkActivity
 	} else if strings.Contains(err.Error(), "write: connection timed out") {
@@ -161,6 +162,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errInvalidCharacter
 	} else if _, ok := e.(*json.SyntaxError); ok {
 		errType = errJSONSyntax
+	} else if strings.Contains(err.Error(), "NO_ERROR") {
+		errType = errNoErr
 	} else {
 		log.Warnf("error '%s' for direction '%s' is not being tracked", err.TypeName(), direction)
 		shouldLog = true

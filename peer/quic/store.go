@@ -27,6 +27,15 @@ func NewStore(opts StoreOpts) *Store {
 	return &Store{client: c, connErr: err}
 }
 
+// CloseStore closes the client that gets initialized when the store is initialized
+func (p *Store) CloseStore() error {
+	err := p.client.stream.Close()
+	if err != nil {
+		return errors.Err(err)
+	}
+	return p.client.Close()
+}
+
 // Has asks the peer if they have a hash
 func (p *Store) Has(hash string) (bool, error) {
 	if p.connErr != nil {
