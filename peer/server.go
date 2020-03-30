@@ -222,7 +222,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 	var request compositeRequest
 	err := json.Unmarshal(data, &request)
 	if err != nil {
-		var je json.SyntaxError
+		var je *json.SyntaxError
 		if ee.As(err, &je) {
 			return nil, errors.Err("invalid json at offset %d in data %s", je.Offset, hex.EncodeToString(data))
 		}
