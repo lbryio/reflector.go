@@ -14,6 +14,11 @@ import (
 	"github.com/spf13/cast"
 )
 
+// Raw makes a raw wallet server request
+func (n *Node) Raw(method string, params []string, v interface{}) error {
+	return n.request(method, params, v)
+}
+
 // ServerVersion returns the server's version.
 // https://electrumx.readthedocs.io/en/latest/protocol-methods.html#server-version
 func (n *Node) ServerVersion() (string, error) {
