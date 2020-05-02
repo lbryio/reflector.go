@@ -29,24 +29,26 @@ type Summary struct {
 }
 
 type Uploader struct {
-	db              *db.SQL
-	store           *store.DBBackedStore // could just be store.BlobStore interface
-	workers         int
-	skipExistsCheck bool
-	stopper         *stop.Group
-	countChan       chan increment
+	db                     *db.SQL
+	store                  *store.DBBackedStore // could just be store.BlobStore interface
+	workers                int
+	skipExistsCheck        bool
+	deleteBlobsAfterUpload bool
+	stopper                *stop.Group
+	countChan              chan increment
 
 	count Summary
 }
 
-func NewUploader(db *db.SQL, store *store.DBBackedStore, workers int, skipExistsCheck bool) *Uploader {
+func NewUploader(db *db.SQL, store *store.DBBackedStore, workers int, skipExistsCheck, deleteBlobsAfterUpload bool) *Uploader {
 	return &Uploader{
-		db:              db,
-		store:           store,
-		workers:         workers,
-		skipExistsCheck: skipExistsCheck,
-		stopper:         stop.New(),
-		countChan:       make(chan increment),
+		db:                     db,
+		store:                  store,
+		workers:                workers,
+		skipExistsCheck:        skipExistsCheck,
+		deleteBlobsAfterUpload: deleteBlobsAfterUpload,
+		stopper:                stop.New(),
+		countChan:              make(chan increment),
 	}
 }
 
@@ -126,7 +128,7 @@ Upload:
 	return nil
 }
 
-// worker reads paths from a channel and uploads them
+// worker reads paths from a channel,  uploads them, and optionally deletes them
 func (u *Uploader) worker(pathChan chan string) {
 	for {
 		select {
@@ -140,6 +142,11 @@ func (u *Uploader) worker(pathChan chan string) {
 			err := u.uploadBlob(filepath)
 			if err != nil {
 				log.Errorln(err)
+			} else if u.deleteBlobsAfterUpload {
+				err = os.Remove(filepath)
+				if err != nil {
+					log.Errorln(errors.Prefix("deleting blob", err))
+				}
 			}
 		}
 	}
@@ -155,7 +162,7 @@ func (u *Uploader) uploadBlob(filepath string) (err error) {
 
 	blob, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		return err
+		return errors.Err(err)
 	}
 
 	hash := BlobHash(blob)
