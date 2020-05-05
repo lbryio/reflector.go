@@ -14,6 +14,7 @@ import (
 
 var uploadWorkers int
 var uploadSkipExistsCheck bool
+var uploadDeleteBlobsAfterUpload bool
 
 func init() {
 	var cmd = &cobra.Command{
@@ -24,6 +25,7 @@ func init() {
 	}
 	cmd.PersistentFlags().IntVar(&uploadWorkers, "workers", 1, "How many worker threads to run at once")
 	cmd.PersistentFlags().BoolVar(&uploadSkipExistsCheck, "skipExistsCheck", false, "Dont check if blobs exist before uploading")
+	cmd.PersistentFlags().BoolVar(&uploadDeleteBlobsAfterUpload, "deleteBlobsAfterUpload", false, "Delete blobs after uploading them")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -36,7 +38,7 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 		store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName),
 		db)
 
-	uploader := reflector.NewUploader(db, st, uploadWorkers, uploadSkipExistsCheck)
+	uploader := reflector.NewUploader(db, st, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
 
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
