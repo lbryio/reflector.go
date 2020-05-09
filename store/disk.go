@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"syscall"
 	"time"
@@ -191,10 +192,10 @@ func (d *DiskBlobStore) WipeOldestBlobs() (err error) {
 		File     *os.FileInfo
 		FullPath string
 	}
-	datedFiles := make([]datedFile, 0, 500)
+	datedFiles := make([]datedFile, 0, 5000)
 	for _, dir := range dirs {
 		if dir.IsDir() {
-			files, err := ioutil.ReadDir(d.blobDir + "/" + dir.Name())
+			files, err := ioutil.ReadDir(filepath.Join(d.blobDir, dir.Name()))
 			if err != nil {
 				return err
 			}
@@ -203,7 +204,7 @@ func (d *DiskBlobStore) WipeOldestBlobs() (err error) {
 					datedFiles = append(datedFiles, datedFile{
 						Atime:    atime(file),
 						File:     &file,
-						FullPath: d.blobDir + "/" + dir.Name() + "/" + file.Name(),
+						FullPath: filepath.Join(d.blobDir, dir.Name(), file.Name()),
 					})
 				}
 			}
