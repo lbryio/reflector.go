@@ -59,12 +59,12 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		case "tcp":
 			blobStore = peer.NewStore(peer.StoreOpts{
 				Address: reflectorServerAddress + ":" + reflectorServerPort,
-				Timeout: 30 * time.Second,
+				Timeout: 10 * time.Second,
 			})
 		case "udp":
 			blobStore = quic.NewStore(quic.StoreOpts{
 				Address: reflectorServerAddress + ":" + reflectorServerPort,
-				Timeout: 30 * time.Second,
+				Timeout: 10 * time.Second,
 			})
 		}
 	} else {
