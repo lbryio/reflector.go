@@ -149,6 +149,9 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 	}
 
 	if resp.IncomingBlob.Error != "" {
+		if resp.IncomingBlob.Error == store.ErrBlobNotFound.Error() {
+			return nil, errors.Err(store.ErrBlobNotFound)
+		}
 		return nil, errors.Prefix(hash[:8], resp.IncomingBlob.Error)
 	}
 	if resp.IncomingBlob.BlobHash != hash {

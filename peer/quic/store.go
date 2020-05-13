@@ -10,8 +10,7 @@ import (
 // Store is a blob store that gets blobs from a peer.
 // It satisfies the store.BlobStore interface but cannot put or delete blobs.
 type Store struct {
-	client  *Client
-	connErr error
+	opts StoreOpts
 }
 
 // StoreOpts allows to set options for a new Store.
@@ -22,40 +21,33 @@ type StoreOpts struct {
 
 // NewStore makes a new peer store.
 func NewStore(opts StoreOpts) *Store {
-	c := &Client{Timeout: opts.Timeout}
-	err := c.Connect(opts.Address)
-	return &Store{client: c, connErr: err}
+	return &Store{opts: opts}
 }
 
-// CloseStore closes the client that gets initialized when the store is initialized
-func (p *Store) CloseStore() error {
-	if p.client != nil && p.client.stream != nil {
-		err := p.client.stream.Close()
-		if err != nil {
-			return errors.Err(err)
-		}
-		return p.client.Close()
-	}
-	return nil
-
+func (p *Store) getClient() (*Client, error) {
+	c := &Client{Timeout: p.opts.Timeout}
+	err := c.Connect(p.opts.Address)
+	return c, errors.Prefix("connection error", err)
 }
 
 // Has asks the peer if they have a hash
 func (p *Store) Has(hash string) (bool, error) {
-	if p.connErr != nil {
-		return false, errors.Prefix("connection error", p.connErr)
+	c, err := p.getClient()
+	if err != nil {
+		return false, err
 	}
-
-	return p.client.HasBlob(hash)
+	defer c.Close()
+	return c.HasBlob(hash)
 }
 
 // Get downloads the blob from the peer
 func (p *Store) Get(hash string) (stream.Blob, error) {
-	if p.connErr != nil {
-		return nil, errors.Prefix("connection error", p.connErr)
+	c, err := p.getClient()
+	if err != nil {
+		return nil, err
 	}
-
-	return p.client.GetBlob(hash)
+	defer c.Close()
+	return c.GetBlob(hash)
 }
 
 // Put is not supported
