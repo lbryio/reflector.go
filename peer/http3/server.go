@@ -10,11 +10,13 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	"github.com/lbryio/lbry.go/extras/stop"
-	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
+
+	"github.com/lbryio/lbry.go/extras/stop"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+
+	"github.com/gorilla/mux"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 	log "github.com/sirupsen/logrus"
@@ -23,8 +25,7 @@ import (
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
 	store store.BlobStore
-
-	grp *stop.Group
+	grp   *stop.Group
 }
 
 // NewServer returns an initialized Server pointer.
@@ -41,6 +42,7 @@ func (s *Server) Shutdown() {
 	s.grp.StopAndWait()
 	log.Debug("peer server stopped")
 }
+
 func (s *Server) logError(e error) {
 	if e == nil {
 		return
@@ -142,7 +144,7 @@ func generateTLSConfig() *tls.Config {
 	}
 	return &tls.Config{
 		Certificates: []tls.Certificate{tlsCert},
-		NextProtos:   []string{"quic-echo-example"},
+		NextProtos:   []string{"http3-reflector-server"},
 	}
 }
 

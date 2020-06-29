@@ -9,15 +9,12 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/store"
-	"github.com/lucas-clemente/quic-go/http3"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
-)
 
-// ErrBlobExists is a default error for when a blob already exists on the reflector server.
-var ErrBlobExists = errors.Base("blob exists on server")
+	"github.com/lucas-clemente/quic-go/http3"
+)
 
 // Client is an instance of a client connected to a server.
 type Client struct {
@@ -91,7 +88,5 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 	if err != nil {
 		return nil, errors.Err(err)
 	}
-	log.Infof("downloaded %s with HTTP3", hash)
-
 	return body.Bytes(), nil
 }

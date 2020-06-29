@@ -96,6 +96,9 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 	defer node.Shutdown()
 	err := node.Connect([]string{
 		"spv25.lbry.com:50001",
+		"spv26.lbry.com:50001",
+		"spv19.lbry.com:50001",
+		"spv14.lbry.com:50001",
 	}, nil)
 	if err != nil {
 		return nil, errors.Err(err)

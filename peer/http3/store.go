@@ -42,11 +42,11 @@ func (p *Store) getClient() (*Client, error) {
 		},
 		QuicConfig: &qconf,
 	}
-	hclient := &http.Client{
+	connection := &http.Client{
 		Transport: roundTripper,
 	}
 	c := &Client{
-		conn:         hclient,
+		conn:         connection,
 		roundTripper: roundTripper,
 		ServerAddr:   p.opts.Address,
 	}
@@ -75,15 +75,15 @@ func (p *Store) Get(hash string) (stream.Blob, error) {
 
 // Put is not supported
 func (p *Store) Put(hash string, blob stream.Blob) error {
-	panic("PeerStore cannot put or delete blobs")
+	panic("http3Store cannot put or delete blobs")
 }
 
 // PutSD is not supported
 func (p *Store) PutSD(hash string, blob stream.Blob) error {
-	panic("PeerStore cannot put or delete blobs")
+	panic("http3Store cannot put or delete blobs")
 }
 
 // Delete is not supported
 func (p *Store) Delete(hash string) error {
-	panic("PeerStore cannot put or delete blobs")
+	panic("http3Store cannot put or delete blobs")
 }

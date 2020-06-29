@@ -7,12 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lbryio/reflector.go/peer"
-	"github.com/lbryio/reflector.go/peer/http3"
-
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/meta"
+	"github.com/lbryio/reflector.go/peer"
+	"github.com/lbryio/reflector.go/peer/http3"
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
@@ -21,14 +20,14 @@ import (
 )
 
 var reflectorCmdCacheDir string
-var peerPort int
-var quicPeerPort int
-var reflectorPort int
+var tcpPeerPort int
+var http3PeerPort int
+var receiverPort int
 var metricsPort int
 var disableUploads bool
-var reflectorServerAddress string
-var reflectorServerPort string
-var reflectorServerProtocol string
+var proxyAddress string
+var proxyPort string
+var proxyProtocol string
 var useDB bool
 
 func init() {
@@ -37,13 +36,13 @@ func init() {
 		Short: "Run reflector server",
 		Run:   reflectorCmd,
 	}
-	cmd.Flags().StringVar(&reflectorCmdCacheDir, "cache", "", "Enable disk cache for blobs. Store them in this directory")
-	cmd.Flags().StringVar(&reflectorServerAddress, "reflector-server-address", "", "address of another reflector server where blobs are fetched from")
-	cmd.Flags().StringVar(&reflectorServerPort, "reflector-server-port", "5567", "port of another reflector server where blobs are fetched from")
-	cmd.Flags().StringVar(&reflectorServerProtocol, "reflector-server-protocol", "tcp", "protocol used to fetch blobs from another reflector server (tcp/udp)")
-	cmd.Flags().IntVar(&peerPort, "peer-port", 5567, "The port reflector will distribute content from")
-	cmd.Flags().IntVar(&quicPeerPort, "quic-peer-port", 5568, "The port reflector will distribute content from over QUIC protocol")
-	cmd.Flags().IntVar(&reflectorPort, "reflector-port", 5566, "The port reflector will receive content from")
+	cmd.Flags().StringVar(&reflectorCmdCacheDir, "cache", "", "if specified, the path where blobs should be cached (disabled when left empty)")
+	cmd.Flags().StringVar(&proxyAddress, "proxy-address", "", "address of another reflector server where blobs are fetched from")
+	cmd.Flags().StringVar(&proxyPort, "proxy-port", "5567", "port of another reflector server where blobs are fetched from")
+	cmd.Flags().StringVar(&proxyProtocol, "proxy-protocol", "http3", "protocol used to fetch blobs from another reflector server (tcp/http3)")
+	cmd.Flags().IntVar(&tcpPeerPort, "tcp-peer-port", 5567, "The port reflector will distribute content from")
+	cmd.Flags().IntVar(&http3PeerPort, "http3-peer-port", 5568, "The port reflector will distribute content from over HTTP3 protocol")
+	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
 	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for metrics")
 	cmd.Flags().BoolVar(&disableUploads, "disable-uploads", false, "Disable uploads to this reflector server")
 	cmd.Flags().BoolVar(&useDB, "use-db", true, "whether to connect to the reflector db or not")
@@ -54,18 +53,20 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	log.Printf("reflector version %s, built %s", meta.Version, meta.BuildTime.Format(time.RFC3339))
 
 	var blobStore store.BlobStore
-	if reflectorServerAddress != "" {
-		switch reflectorServerProtocol {
+	if proxyAddress != "" {
+		switch proxyProtocol {
 		case "tcp":
 			blobStore = peer.NewStore(peer.StoreOpts{
-				Address: reflectorServerAddress + ":" + reflectorServerPort,
+				Address: proxyAddress + ":" + proxyPort,
 				Timeout: 30 * time.Second,
 			})
-		case "udp":
+		case "http3":
 			blobStore = http3.NewStore(http3.StoreOpts{
-				Address: reflectorServerAddress + ":" + reflectorServerPort,
+				Address: proxyAddress + ":" + proxyPort,
 				Timeout: 30 * time.Second,
 			})
+		default:
+			log.Fatalf("specified protocol is not recognized: %s", proxyProtocol)
 		}
 	} else {
 		blobStore = store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
@@ -87,7 +88,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		reflectorServer.Timeout = 3 * time.Minute
 		reflectorServer.EnableBlocklist = true
 
-		err = reflectorServer.Start(":" + strconv.Itoa(reflectorPort))
+		err = reflectorServer.Start(":" + strconv.Itoa(receiverPort))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -102,13 +103,13 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 
 	peerServer := peer.NewServer(blobStore)
-	err = peerServer.Start(":" + strconv.Itoa(peerPort))
+	err = peerServer.Start(":" + strconv.Itoa(tcpPeerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	http3PeerServer := http3.NewServer(blobStore)
-	err = http3PeerServer.Start(":" + strconv.Itoa(quicPeerPort))
+	err = http3PeerServer.Start(":" + strconv.Itoa(http3PeerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -122,7 +123,6 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	metricsServer.Shutdown()
 	peerServer.Shutdown()
 	http3PeerServer.Shutdown()
-	log.Infoln("done shutting down?")
 	if reflectorServer != nil {
 		reflectorServer.Shutdown()
 	}
