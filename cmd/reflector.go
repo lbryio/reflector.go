@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/peer"
-	"github.com/lbryio/reflector.go/peer/quic"
+	"github.com/lbryio/reflector.go/peer/http3"
 
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -62,7 +62,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 				Timeout: 30 * time.Second,
 			})
 		case "udp":
-			blobStore = quic.NewStore(quic.StoreOpts{
+			blobStore = http3.NewStore(http3.StoreOpts{
 				Address: reflectorServerAddress + ":" + reflectorServerPort,
 				Timeout: 30 * time.Second,
 			})
@@ -107,8 +107,8 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	quicPeerServer := quic.NewServer(blobStore)
-	err = quicPeerServer.Start(":" + strconv.Itoa(quicPeerPort))
+	http3PeerServer := http3.NewServer(blobStore)
+	err = http3PeerServer.Start(":" + strconv.Itoa(quicPeerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,7 +121,8 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	<-interruptChan
 	metricsServer.Shutdown()
 	peerServer.Shutdown()
-	quicPeerServer.Shutdown()
+	http3PeerServer.Shutdown()
+	log.Infoln("done shutting down?")
 	if reflectorServer != nil {
 		reflectorServer.Shutdown()
 	}

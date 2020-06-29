@@ -1,10 +1,15 @@
-package quic
+package http3
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"net/http"
 	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/http3"
 )
 
 // Store is a blob store that gets blobs from a peer.
@@ -25,8 +30,26 @@ func NewStore(opts StoreOpts) *Store {
 }
 
 func (p *Store) getClient() (*Client, error) {
-	c := &Client{Timeout: p.opts.Timeout}
-	err := c.Connect(p.opts.Address)
+	var qconf quic.Config
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, err
+	}
+	roundTripper := &http3.RoundTripper{
+		TLSClientConfig: &tls.Config{
+			RootCAs:            pool,
+			InsecureSkipVerify: true,
+		},
+		QuicConfig: &qconf,
+	}
+	hclient := &http.Client{
+		Transport: roundTripper,
+	}
+	c := &Client{
+		conn:         hclient,
+		roundTripper: roundTripper,
+		ServerAddr:   p.opts.Address,
+	}
 	return c, errors.Prefix("connection error", err)
 }
 
