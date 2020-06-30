@@ -26,6 +26,7 @@ type Client struct {
 
 // Close closes the connection with the client.
 func (c *Client) Close() error {
+	c.conn.CloseIdleConnections()
 	return c.roundTripper.Close()
 }
 

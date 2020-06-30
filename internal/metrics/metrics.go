@@ -53,7 +53,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Shutdown() {
-	s.srv.Shutdown(context.Background())
+	_ = s.srv.Shutdown(context.Background())
 	s.stop.StopAndWait()
 }
 

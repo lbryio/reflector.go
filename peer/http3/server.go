@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"net/http"
+	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
@@ -61,13 +62,14 @@ type availabilityResponse struct {
 // Start starts the server listener to handle connections.
 func (s *Server) Start(address string) error {
 	log.Println("HTTP3 peer listening on " + address)
-	quicConf := &quic.Config{}
+	quicConf := &quic.Config{HandshakeTimeout: 3 * time.Second}
 	r := mux.NewRouter()
 	r.HandleFunc("/get/{hash}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		requestedBlob := vars["hash"]
 		blob, err := s.store.Get(requestedBlob)
 		if err != nil {
+			log.Errorln(errors.FullTrace(err))
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
