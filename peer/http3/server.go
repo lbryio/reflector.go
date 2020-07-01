@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net/http"
 	"time"
@@ -69,7 +70,8 @@ func (s *Server) Start(address string) error {
 		requestedBlob := vars["hash"]
 		blob, err := s.store.Get(requestedBlob)
 		if err != nil {
-			log.Errorln(errors.FullTrace(err))
+			fmt.Printf("%s: %s", requestedBlob, errors.FullTrace(err))
+			s.logError(err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

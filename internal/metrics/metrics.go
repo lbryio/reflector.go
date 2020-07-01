@@ -12,6 +12,7 @@ import (
 
 	ee "github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
+	"github.com/lbryio/reflector.go/store"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -84,6 +85,7 @@ const (
 	errHashMismatch      = "hash_mismatch"
 	errZeroByteBlob      = "zero_byte_blob"
 	errInvalidCharacter  = "invalid_character"
+	errBlobNotFound      = "blob_not_found"
 	errNoErr             = "no_error"
 	errOther             = "other"
 )
@@ -146,6 +148,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errUnexpectedEOFStr
 	} else if errors.Is(e, syscall.EPIPE) {
 		errType = errEPipe
+	} else if errors.Is(e, store.ErrBlobNotFound) {
+		errType = errBlobNotFound
 	} else if strings.Contains(err.Error(), "write: broken pipe") { // tried to write to a pipe or socket that was closed by the peer
 		// I believe this is the same as EPipe when direction == "download", but not for upload
 		errType = errWriteBrokenPipe
@@ -156,6 +160,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errBlobTooBig
 	} else if strings.Contains(err.Error(), "hash of received blob data does not match hash from send request") {
 		errType = errHashMismatch
+	} else if strings.Contains(err.Error(), "blob not found") {
+		errType = errBlobNotFound
 	} else if strings.Contains(err.Error(), "0-byte blob received") {
 		errType = errZeroByteBlob
 	} else if strings.Contains(err.Error(), "invalid character") {
