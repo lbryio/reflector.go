@@ -40,9 +40,9 @@ func NewServer(store store.BlobStore) *Server {
 
 // Shutdown gracefully shuts down the peer server.
 func (s *Server) Shutdown() {
-	log.Debug("shutting down peer server")
+	log.Debug("shutting down http3 peer server")
 	s.grp.StopAndWait()
-	log.Debug("peer server stopped")
+	log.Debug("http3 peer server stopped")
 }
 
 func (s *Server) logError(e error) {

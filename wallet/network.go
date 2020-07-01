@@ -115,7 +115,13 @@ func (n *Node) Connect(addrs []string, config *tls.Config) error {
 }
 
 func (n *Node) Shutdown() {
+	var addr net.Addr
+	if n.transport != nil {
+		addr = n.transport.conn.RemoteAddr()
+	}
+	log.Debugf("shutting down wallet %s", addr)
 	n.grp.StopAndWait()
+	log.Debugf("wallet stopped")
 }
 
 func (n *Node) handleErrors() {
@@ -138,6 +144,12 @@ func (n *Node) err(err error) {
 // listen processes messages from the server.
 func (n *Node) listen() {
 	for {
+		select {
+		case <-n.grp.Ch():
+			return
+		default:
+		}
+
 		select {
 		case <-n.grp.Ch():
 			return
@@ -248,6 +260,8 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 
 	var r response
 	select {
+	case <-n.grp.Ch():
+		return nil
 	case r = <-c:
 	case <-time.After(n.timeout):
 		r = response{err: errors.Err(ErrTimeout)}

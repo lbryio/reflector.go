@@ -12,6 +12,7 @@ import (
 	"github.com/lbryio/reflector.go/wallet"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/stop"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -19,21 +20,28 @@ import (
 const blocklistURL = "https://api.lbry.com/file/list_blocked"
 
 func (s *Server) enableBlocklist(b store.Blocklister) {
-	// TODO: updateBlocklist should be killed when server is shutting down
-	updateBlocklist(b)
+	walletServers := []string{
+		"spv25.lbry.com:50001",
+		"spv26.lbry.com:50001",
+		"spv19.lbry.com:50001",
+		"spv14.lbry.com:50001",
+	}
+
+	updateBlocklist(b, walletServers, s.grp.Ch())
 	t := time.NewTicker(12 * time.Hour)
 	for {
 		select {
 		case <-s.grp.Ch():
 			return
 		case <-t.C:
-			updateBlocklist(b)
+			updateBlocklist(b, walletServers, s.grp.Ch())
 		}
 	}
 }
 
-func updateBlocklist(b store.Blocklister) {
-	values, err := blockedSdHashes()
+func updateBlocklist(b store.Blocklister, walletServers []string, stopper stop.Chan) {
+	log.Debugf("blocklist update starting")
+	values, err := blockedSdHashes(walletServers, stopper)
 	if err != nil {
 		log.Error(err)
 		return
@@ -50,10 +58,12 @@ func updateBlocklist(b store.Blocklister) {
 			log.Error(err)
 		}
 	}
+	log.Debugf("blocklist update done")
 }
 
-func blockedSdHashes() (map[string]valOrErr, error) {
-	resp, err := http.Get(blocklistURL)
+func blockedSdHashes(walletServers []string, stopper stop.Chan) (map[string]valOrErr, error) {
+	client := http.Client{Timeout: 1 * time.Second}
+	resp, err := client.Get(blocklistURL)
 	if err != nil {
 		return nil, errors.Err(err)
 	}
@@ -80,7 +90,7 @@ func blockedSdHashes() (map[string]valOrErr, error) {
 		return nil, errors.Prefix("list_blocked API call", r.Error)
 	}
 
-	return sdHashesForOutpoints(r.Data.Outpoints)
+	return sdHashesForOutpoints(walletServers, r.Data.Outpoints, stopper)
 }
 
 type valOrErr struct {
@@ -89,22 +99,33 @@ type valOrErr struct {
 }
 
 // sdHashesForOutpoints queries wallet server for the sd hashes in a given outpoints
-func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
+func sdHashesForOutpoints(walletServers, outpoints []string, stopper stop.Chan) (map[string]valOrErr, error) {
 	values := make(map[string]valOrErr)
 
 	node := wallet.NewNode()
-	defer node.Shutdown()
-	err := node.Connect([]string{
-		"spv25.lbry.com:50001",
-		"spv26.lbry.com:50001",
-		"spv19.lbry.com:50001",
-		"spv14.lbry.com:50001",
-	}, nil)
+	err := node.Connect(walletServers, nil)
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
+	done := make(chan bool)
+
+	go func() {
+		select {
+		case <-done:
+		case <-stopper:
+		}
+		node.Shutdown()
+	}()
+
+OutpointLoop:
 	for _, outpoint := range outpoints {
+		select {
+		case <-stopper:
+			break OutpointLoop
+		default:
+		}
+
 		parts := strings.Split(outpoint, ":")
 		if len(parts) != 2 {
 			values[outpoint] = valOrErr{Err: errors.Err("invalid outpoint format")}
@@ -125,6 +146,11 @@ func sdHashesForOutpoints(outpoints []string) (map[string]valOrErr, error) {
 
 		hash := hex.EncodeToString(claim.GetStream().GetSource().GetSdHash())
 		values[outpoint] = valOrErr{Value: hash, Err: nil}
+	}
+
+	select {
+	case done <- true:
+	default: // in case of race where stopper got stopped right after loop finished
 	}
 
 	return values, nil
