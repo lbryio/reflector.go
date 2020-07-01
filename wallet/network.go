@@ -76,6 +76,9 @@ func (n *Node) Connect(addrs []string, config *tls.Config) error {
 		if err == nil {
 			break
 		}
+		if errors.Is(err, ErrTimeout) {
+			continue
+		}
 		if e, ok := err.(*net.OpError); ok && e.Err.Error() == "no such host" {
 			// net.errNoSuchHost is not exported, so we have to string-match
 			continue

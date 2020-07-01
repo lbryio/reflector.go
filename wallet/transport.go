@@ -5,9 +5,12 @@ package wallet
 import (
 	"bufio"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	"net"
 	"time"
 
+	"github.com/lbryio/lbry.go/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 
 	log "github.com/sirupsen/logrus"
@@ -50,14 +53,30 @@ func NewTransport(addr string, config *tls.Config) (*TCPTransport, error) {
 
 	t.grp.Add(1)
 	go func() {
-		t.grp.Done()
+		defer t.grp.Done()
 		t.listen()
 	}()
+
+	err = t.test()
+	if err != nil {
+		t.grp.StopAndWait()
+		return nil, errors.Prefix(addr, err)
+	}
 
 	return t, nil
 }
 
 const delimiter = byte('\n')
+
+func (t *TCPTransport) Send(body []byte) error {
+	log.Debugf("%s <- %s", t.conn.RemoteAddr(), body)
+	_, err := t.conn.Write(body)
+	return err
+}
+
+func (t *TCPTransport) Responses() <-chan []byte { return t.responses }
+func (t *TCPTransport) Errors() <-chan error     { return t.errors }
+func (t *TCPTransport) Shutdown()                { t.grp.StopAndWait() }
 
 func (t *TCPTransport) listen() {
 	reader := bufio.NewReader(t.conn)
@@ -74,12 +93,6 @@ func (t *TCPTransport) listen() {
 	}
 }
 
-func (t *TCPTransport) Send(body []byte) error {
-	log.Debugf("%s <- %s", t.conn.RemoteAddr(), body)
-	_, err := t.conn.Write(body)
-	return err
-}
-
 func (t *TCPTransport) error(err error) {
 	select {
 	case t.errors <- err:
@@ -87,11 +100,33 @@ func (t *TCPTransport) error(err error) {
 	}
 }
 
-func (t *TCPTransport) Responses() <-chan []byte { return t.responses }
-func (t *TCPTransport) Errors() <-chan error     { return t.errors }
+func (t *TCPTransport) test() error {
+	err := t.Send([]byte(`{"id":1,"method":"server.version"}` + "\n"))
+	if err != nil {
+		return errors.Err(err)
+	}
 
-func (t *TCPTransport) Shutdown() {
-	t.grp.StopAndWait()
+	var data []byte
+	select {
+	case data = <-t.Responses():
+	case <-time.Tick(1 * time.Second):
+		return errors.Err(ErrTimeout)
+	}
+
+	var response struct {
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	err = json.Unmarshal(data, &response)
+	if err != nil {
+		return errors.Err(err)
+	}
+	if response.Error.Message != "" {
+		return fmt.Errorf(response.Error.Message)
+	}
+	return nil
 }
 
 func (t *TCPTransport) close() {
