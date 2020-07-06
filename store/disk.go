@@ -124,14 +124,6 @@ func (d *DiskBlobStore) Put(hash string, blob stream.Blob) error {
 	if err != nil {
 		return err
 	}
-	select {
-	case <-d.diskCleanupBusy:
-		if time.Since(d.lastChecked) > 5*time.Minute {
-			go d.ensureDiskSpace()
-		}
-	default:
-		break
-	}
 
 	return ioutil.WriteFile(d.path(hash), blob, 0644)
 }
