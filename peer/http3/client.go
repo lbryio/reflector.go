@@ -8,10 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lbryio/reflector.go/store"
-
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lucas-clemente/quic-go/http3"
 )
@@ -79,6 +78,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 		return nil, errors.Err(err)
 	}
 	if resp.StatusCode == http.StatusNotFound {
+		fmt.Printf("%s blob not found %d\n", hash, resp.StatusCode)
 		return nil, errors.Err(store.ErrBlobNotFound)
 	}
 	if resp.StatusCode != http.StatusOK {

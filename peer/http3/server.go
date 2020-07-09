@@ -84,6 +84,8 @@ func (s *Server) Start(address string) error {
 		if err != nil {
 			s.logError(err)
 		}
+		metrics.BlobDownloadCount.Inc()
+		metrics.Http3DownloadCount.Inc()
 	})
 	r.HandleFunc("/has/{hash}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)

@@ -12,8 +12,6 @@ import (
 
 	ee "github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
-	"github.com/lbryio/reflector.go/store"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -67,6 +65,8 @@ const (
 	DirectionUpload   = "upload"   // to reflector
 	DirectionDownload = "download" // from reflector
 
+	MtrLabelSource = "source"
+
 	errConnReset         = "conn_reset"
 	errReadConnReset     = "read_conn_reset"
 	errWriteConnReset    = "write_conn_reset"
@@ -96,6 +96,26 @@ var (
 		Name:      "blob_download_total",
 		Help:      "Total number of blobs downloaded from reflector",
 	})
+	PeerDownloadCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "peer_download_total",
+		Help:      "Total number of blobs downloaded from reflector through tcp protocol",
+	})
+	Http3DownloadCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "http3_blob_download_total",
+		Help:      "Total number of blobs downloaded from reflector through QUIC protocol",
+	})
+	CacheHitCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "cache_hit_total",
+		Help:      "Total number of blobs retrieved from the cache storage",
+	})
+	CacheMissCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "cache_miss_total",
+		Help:      "Total number of blobs retrieved from origin rather than cache storage",
+	})
 	BlobUploadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "blob_upload_total",
@@ -106,6 +126,11 @@ var (
 		Name:      "sdblob_upload_total",
 		Help:      "Total number of SD blobs (and therefore streams) uploaded to reflector",
 	})
+	RetrieverSpeed = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "speed_mbps",
+		Help:      "Speed of blob retrieval",
+	}, []string{MtrLabelSource})
 	ErrorCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "error_total",
@@ -148,8 +173,6 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errUnexpectedEOFStr
 	} else if errors.Is(e, syscall.EPIPE) {
 		errType = errEPipe
-	} else if errors.Is(e, store.ErrBlobNotFound) {
-		errType = errBlobNotFound
 	} else if strings.Contains(err.Error(), "write: broken pipe") { // tried to write to a pipe or socket that was closed by the peer
 		// I believe this is the same as EPipe when direction == "download", but not for upload
 		errType = errWriteBrokenPipe
