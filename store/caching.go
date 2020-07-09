@@ -1,8 +1,12 @@
 package store
 
 import (
+	"time"
+
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+
+	"github.com/lbryio/reflector.go/internal/metrics"
 )
 
 // CachingBlobStore combines two stores, typically a local and a remote store, to improve performance.
@@ -29,18 +33,26 @@ func (c *CachingBlobStore) Has(hash string) (bool, error) {
 // Get tries to get the blob from the cache first, falling back to the origin. If the blob comes
 // from the origin, it is also stored in the cache.
 func (c *CachingBlobStore) Get(hash string) (stream.Blob, error) {
+	start := time.Now()
 	blob, err := c.cache.Get(hash)
+	retrievalTime := time.Since(start)
 	if err == nil || !errors.Is(err, ErrBlobNotFound) {
+		metrics.CacheHitCount.Inc()
+		rate := float64(len(blob)) / 1024 / 1024 / retrievalTime.Seconds()
+		metrics.RetrieverSpeed.With(map[string]string{metrics.MtrLabelSource: "cache"}).Set(rate)
 		return blob, err
 	}
 
+	start = time.Now()
 	blob, err = c.origin.Get(hash)
 	if err != nil {
 		return nil, err
 	}
-
+	retrievalTime = time.Since(start)
 	err = c.cache.Put(hash, blob)
-
+	rate := float64(len(blob)) / 1024 / 1024 / retrievalTime.Seconds()
+	metrics.RetrieverSpeed.With(map[string]string{metrics.MtrLabelSource: "origin"}).Set(rate)
+	metrics.CacheMissCount.Inc()
 	return blob, err
 }
 

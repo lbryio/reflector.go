@@ -12,7 +12,6 @@ import (
 
 	ee "github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -53,7 +52,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Shutdown() {
-	s.srv.Shutdown(context.Background())
+	_ = s.srv.Shutdown(context.Background())
 	s.stop.StopAndWait()
 }
 
@@ -66,10 +65,13 @@ const (
 	DirectionUpload   = "upload"   // to reflector
 	DirectionDownload = "download" // from reflector
 
+	MtrLabelSource = "source"
+
 	errConnReset         = "conn_reset"
 	errReadConnReset     = "read_conn_reset"
 	errWriteConnReset    = "write_conn_reset"
 	errReadConnTimedOut  = "read_conn_timed_out"
+	errNoNetworkActivity = "no_network_activity"
 	errWriteConnTimedOut = "write_conn_timed_out"
 	errWriteBrokenPipe   = "write_broken_pipe"
 	errEPipe             = "e_pipe"
@@ -83,6 +85,8 @@ const (
 	errHashMismatch      = "hash_mismatch"
 	errZeroByteBlob      = "zero_byte_blob"
 	errInvalidCharacter  = "invalid_character"
+	errBlobNotFound      = "blob_not_found"
+	errNoErr             = "no_error"
 	errOther             = "other"
 )
 
@@ -91,6 +95,26 @@ var (
 		Namespace: ns,
 		Name:      "blob_download_total",
 		Help:      "Total number of blobs downloaded from reflector",
+	})
+	PeerDownloadCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "peer_download_total",
+		Help:      "Total number of blobs downloaded from reflector through tcp protocol",
+	})
+	Http3DownloadCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "http3_blob_download_total",
+		Help:      "Total number of blobs downloaded from reflector through QUIC protocol",
+	})
+	CacheHitCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "cache_hit_total",
+		Help:      "Total number of blobs retrieved from the cache storage",
+	})
+	CacheMissCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "cache_miss_total",
+		Help:      "Total number of blobs retrieved from origin rather than cache storage",
 	})
 	BlobUploadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
@@ -102,6 +126,11 @@ var (
 		Name:      "sdblob_upload_total",
 		Help:      "Total number of SD blobs (and therefore streams) uploaded to reflector",
 	})
+	RetrieverSpeed = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "speed_mbps",
+		Help:      "Speed of blob retrieval",
+	}, []string{MtrLabelSource})
 	ErrorCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "error_total",
@@ -133,6 +162,9 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if strings.Contains(err.Error(), "read: connection timed out") { // the other side closed the connection using TCP reset
 		//log.Warnln("read conn timed out is not the same as ETIMEDOUT")
 		errType = errReadConnTimedOut
+	} else if strings.Contains(err.Error(), "NO_ERROR: No recent network activity") { // the other side closed the QUIC connection
+		//log.Warnln("read conn timed out is not the same as ETIMEDOUT")
+		errType = errNoNetworkActivity
 	} else if strings.Contains(err.Error(), "write: connection timed out") {
 		errType = errWriteConnTimedOut
 	} else if errors.Is(e, io.ErrUnexpectedEOF) {
@@ -151,12 +183,16 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errBlobTooBig
 	} else if strings.Contains(err.Error(), "hash of received blob data does not match hash from send request") {
 		errType = errHashMismatch
+	} else if strings.Contains(err.Error(), "blob not found") {
+		errType = errBlobNotFound
 	} else if strings.Contains(err.Error(), "0-byte blob received") {
 		errType = errZeroByteBlob
 	} else if strings.Contains(err.Error(), "invalid character") {
 		errType = errInvalidCharacter
 	} else if _, ok := e.(*json.SyntaxError); ok {
 		errType = errJSONSyntax
+	} else if strings.Contains(err.Error(), "NO_ERROR") {
+		errType = errNoErr
 	} else {
 		log.Warnf("error '%s' for direction '%s' is not being tracked", err.TypeName(), direction)
 		shouldLog = true

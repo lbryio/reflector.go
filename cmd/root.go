@@ -49,7 +49,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().StringSliceVarP(&verbose, "verbose", "v", []string{}, "Verbose logging for specific components")
-	rootCmd.PersistentFlags().StringVar(&conf, "conf", "config.json", "Path to config")
+	rootCmd.PersistentFlags().StringVar(&conf, "conf", "config.json", "Path to config. Use 'none' to disable")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

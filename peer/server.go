@@ -273,6 +273,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 				Length:   len(blob),
 			}
 			metrics.BlobDownloadCount.Inc()
+			metrics.PeerDownloadCount.Inc()
 		}
 	}
 
