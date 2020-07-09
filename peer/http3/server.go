@@ -70,6 +70,10 @@ func (s *Server) Start(address string) error {
 		requestedBlob := vars["hash"]
 		blob, err := s.store.Get(requestedBlob)
 		if err != nil {
+			if errors.Is(err, store.ErrBlobNotFound) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
 			fmt.Printf("%s: %s", requestedBlob, errors.FullTrace(err))
 			s.logError(err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
