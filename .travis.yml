@@ -24,7 +24,7 @@ install: true
 # set -e enabled in bash.
 before_script:
 # All the .go files, excluding vendor/ and model (auto generated)
-#  - GO_FILES=$(find . -iname '*.go' ! -iname '*_test.go' -type f | grep -v /vendor/ ) #i wish we were this crazy :p
+  - GO_FILES=$(find . -iname '*.go' ! -iname '*_test.go' -type f | grep -v /vendor/ ) #i wish we were this crazy :p
   - go get golang.org/x/tools/cmd/goimports                     # Used in build script for generated files
 # - go get github.com/golang/lint/golint                        # Linter
 #  - go get honnef.co/go/tools/cmd/megacheck                     # Badass static analyzer/linter
