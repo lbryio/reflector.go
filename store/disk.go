@@ -109,6 +109,7 @@ func (d *DiskBlobStore) Get(hash string) (stream.Blob, error) {
 		}
 		return nil, err
 	}
+	defer file.Close()
 
 	return ioutil.ReadAll(file)
 }
