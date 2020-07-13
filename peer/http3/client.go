@@ -62,6 +62,7 @@ func (c *Client) HasBlob(hash string) (bool, error) {
 	if err != nil {
 		return false, errors.Err(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK {
 		return true, nil
 	}
@@ -77,6 +78,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 	if err != nil {
 		return nil, errors.Err(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
 		fmt.Printf("%s blob not found %d\n", hash, resp.StatusCode)
 		return nil, errors.Err(store.ErrBlobNotFound)
