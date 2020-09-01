@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/lbryio/lbryschema.go/claim"
+	"github.com/lbryio/lbry.go/v2/schema/claim"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/golang/protobuf/jsonpb"

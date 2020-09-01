@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 
 	"github.com/lbryio/chainquery/lbrycrd"
-	"github.com/lbryio/lbry.go/extras/errors"
-	"github.com/lbryio/lbryschema.go/claim"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/schema/claim"
 	types "github.com/lbryio/types/v2/go"
 
 	"github.com/btcsuite/btcutil"
