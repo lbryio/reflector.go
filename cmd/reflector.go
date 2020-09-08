@@ -29,6 +29,7 @@ var proxyAddress string
 var proxyPort string
 var proxyProtocol string
 var useDB bool
+var cloudFrontEndpoint string
 
 func init() {
 	var cmd = &cobra.Command{
@@ -40,6 +41,7 @@ func init() {
 	cmd.Flags().StringVar(&proxyAddress, "proxy-address", "", "address of another reflector server where blobs are fetched from")
 	cmd.Flags().StringVar(&proxyPort, "proxy-port", "5567", "port of another reflector server where blobs are fetched from")
 	cmd.Flags().StringVar(&proxyProtocol, "proxy-protocol", "http3", "protocol used to fetch blobs from another reflector server (tcp/http3)")
+	cmd.Flags().StringVar(&cloudFrontEndpoint, "cloudfront-endpoint", "", "CloudFront edge endpoint for standard HTTP retrieval")
 	cmd.Flags().IntVar(&tcpPeerPort, "tcp-peer-port", 5567, "The port reflector will distribute content from")
 	cmd.Flags().IntVar(&http3PeerPort, "http3-peer-port", 5568, "The port reflector will distribute content from over HTTP3 protocol")
 	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
@@ -69,7 +71,12 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 			log.Fatalf("specified protocol is not recognized: %s", proxyProtocol)
 		}
 	} else {
-		blobStore = store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+		s3Store := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+		if cloudFrontEndpoint != "" {
+			blobStore = store.NewCloudFrontBlobStore(cloudFrontEndpoint, s3Store)
+		} else {
+			blobStore = s3Store
+		}
 	}
 
 	var err error
