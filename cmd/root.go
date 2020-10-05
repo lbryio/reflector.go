@@ -147,3 +147,15 @@ func loadConfig(path string) (Config, error) {
 	err = json.Unmarshal(raw, &c)
 	return c, errors.Err(err)
 }
+
+func mustGetFlagString(cmd *cobra.Command, name string) string {
+	v, err := cmd.Flags().GetString(name)
+	checkErr(err)
+	return v
+}
+
+func mustGetFlagInt64(cmd *cobra.Command, name string) int64 {
+	v, err := cmd.Flags().GetInt64(name)
+	checkErr(err)
+	return v
+}
