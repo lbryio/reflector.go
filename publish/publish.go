@@ -10,7 +10,6 @@ import (
 
 	"github.com/lbryio/reflector.go/reflector"
 
-	mediainfo "github.com/lbryio/go_mediainfo"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/lbrycrd"
 	"github.com/lbryio/lbry.go/v2/stream"
@@ -251,11 +250,11 @@ func makeClaimAndStream(path string, details Details) (*pb.Claim, stream.Stream,
 
 	switch category {
 	case "video":
-		t, err := streamVideoMetadata(path)
-		if err != nil {
-			return nil, nil, err
-		}
-		streamPB.Type = t
+		//t, err := streamVideoMetadata(path)
+		//if err != nil {
+		//	return nil, nil, err
+		//}
+		streamPB.Type = &pb.Stream_Video{}
 	case "audio":
 		streamPB.Type = &pb.Stream_Audio{}
 	case "image":
@@ -289,16 +288,16 @@ func getClaimPayoutScript(name string, value []byte, address btcutil.Address) ([
 		Script()
 }
 
-func streamVideoMetadata(path string) (*pb.Stream_Video, error) {
-	mi, err := mediainfo.GetMediaInfo(path)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.Stream_Video{
-		Video: &pb.Video{
-			Duration: uint32(mi.General.Duration / 1000),
-			Height:   uint32(mi.Video.Height),
-			Width:    uint32(mi.Video.Width),
-		},
-	}, nil
-}
+//func streamVideoMetadata(path string) (*pb.Stream_Video, error) {
+//	mi, err := mediainfo.GetMediaInfo(path)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return &pb.Stream_Video{
+//		Video: &pb.Video{
+//			Duration: uint32(mi.General.Duration / 1000),
+//			Height:   uint32(mi.Video.Height),
+//			Width:    uint32(mi.Video.Width),
+//		},
+//	}, nil
+//}

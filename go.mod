@@ -20,7 +20,6 @@ require (
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/johntdyer/slackrus v0.0.0-20180518184837-f7aae3243a07
 	github.com/lbryio/chainquery v1.9.0
-	github.com/lbryio/go_mediainfo v0.0.0-20200109212001-4c7318fd92ad
 	github.com/lbryio/lbry.go v1.1.2
 	github.com/lbryio/lbry.go/v2 v2.6.1-0.20200901175808-73382bb02128
 	github.com/lbryio/types v0.0.0-20191228214437-05a22073b4ec
