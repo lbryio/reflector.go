@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/lbryio/lbry.go/v2/dht"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -68,8 +69,11 @@ func preRun(cmd *cobra.Command, args []string) {
 	debugLogger.SetOutput(os.Stderr)
 
 	if util.InSlice(verboseAll, verbose) {
+		logrus.Info("global verbose logging enabled")
 		logrus.SetLevel(logrus.DebugLevel)
 		verbose = []string{verboseDHT, verboseNodeFinder}
+	} else if len(verbose) > 0 {
+		logrus.Infof("verbose logging enabled for: %s", strings.Join(verbose, ", "))
 	}
 
 	for _, debugType := range verbose {

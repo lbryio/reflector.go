@@ -25,6 +25,7 @@ var http3PeerPort int
 var receiverPort int
 var metricsPort int
 var disableUploads bool
+var disableBlocklist bool
 var proxyAddress string
 var proxyPort string
 var proxyProtocol string
@@ -47,6 +48,7 @@ func init() {
 	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
 	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for metrics")
 	cmd.Flags().BoolVar(&disableUploads, "disable-uploads", false, "Disable uploads to this reflector server")
+	cmd.Flags().BoolVar(&disableBlocklist, "disable-blocklist", false, "Disable blocklist watching/updating")
 	cmd.Flags().BoolVar(&useDB, "use-db", true, "whether to connect to the reflector db or not")
 	rootCmd.AddCommand(cmd)
 }
@@ -94,7 +96,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 
 		reflectorServer = reflector.NewServer(blobStore)
 		reflectorServer.Timeout = 3 * time.Minute
-		reflectorServer.EnableBlocklist = true
+		reflectorServer.EnableBlocklist = !disableBlocklist
 
 		err = reflectorServer.Start(":" + strconv.Itoa(receiverPort))
 		if err != nil {

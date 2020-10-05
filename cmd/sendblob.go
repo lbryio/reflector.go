@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"crypto/rand"
+	"io/ioutil"
+	"os"
 
 	"github.com/lbryio/reflector.go/reflector"
 
@@ -13,9 +15,9 @@ import (
 
 func init() {
 	var cmd = &cobra.Command{
-		Use:   "sendblob ADDRESS:PORT",
+		Use:   "sendblob ADDRESS:PORT [PATH]",
 		Short: "Send a random blob to a reflector server",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.RangeArgs(1, 2),
 		Run:   sendBlobCmd,
 	}
 	rootCmd.AddCommand(cmd)
@@ -23,6 +25,10 @@ func init() {
 
 func sendBlobCmd(cmd *cobra.Command, args []string) {
 	addr := args[0]
+	var path string
+	if len(args) >= 2 {
+		path = args[1]
+	}
 
 	c := reflector.Client{}
 	err := c.Connect(addr)
@@ -30,14 +36,37 @@ func sendBlobCmd(cmd *cobra.Command, args []string) {
 		log.Fatal("error connecting client to server: ", err)
 	}
 
-	blob := make(stream.Blob, 1024)
-	_, err = rand.Read(blob)
-	if err != nil {
-		log.Fatal("failed to make random blob: ", err)
+	if path == "" {
+		blob := make(stream.Blob, 1024)
+		_, err = rand.Read(blob)
+		if err != nil {
+			log.Fatal("failed to make random blob: ", err)
+		}
+
+		err = c.SendBlob(blob)
+		if err != nil {
+			log.Error(err)
+		}
+		return
 	}
 
-	err = c.SendBlob(blob)
-	if err != nil {
-		log.Error(err)
+	file, err := os.Open(path)
+	checkErr(err)
+	data, err := ioutil.ReadAll(file)
+	checkErr(err)
+	s, err := stream.New(data)
+	checkErr(err)
+
+	sdBlob := &stream.SDBlob{}
+	err = sdBlob.FromBlob(s[0])
+	checkErr(err)
+
+	for i, b := range s {
+		if i == 0 {
+			err = c.SendSDBlob(b)
+		} else {
+			err = c.SendBlob(b)
+		}
+		checkErr(err)
 	}
 }

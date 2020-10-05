@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/hex"
 	"os"
+	"time"
 
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/store"
@@ -49,7 +50,12 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	f, err := os.Create(wd + "/" + sd.SuggestedFileName)
+	filename := sd.SuggestedFileName
+	if filename == "" {
+		filename = "stream_" + time.Now().Format("20060102_150405")
+	}
+
+	f, err := os.Create(wd + "/" + filename)
 	if err != nil {
 		log.Fatal(err)
 	}
