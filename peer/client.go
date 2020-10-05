@@ -153,7 +153,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 		return nil, err
 	}
 
-	return stream.Blob(blob), nil
+	return blob, nil
 }
 
 func (c *Client) read(v interface{}) error {
