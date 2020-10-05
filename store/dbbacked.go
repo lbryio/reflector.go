@@ -32,6 +32,14 @@ func (d *DBBackedStore) Has(hash string) (bool, error) {
 
 // Get gets the blob
 func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
+	has, err := d.db.HasBlob(hash)
+	if err != nil {
+		return nil, err
+	}
+	if !has {
+		return nil, ErrBlobNotFound
+	}
+
 	return d.blobs.Get(hash)
 }
 

@@ -27,7 +27,7 @@ func init() {
 }
 
 func testCmd(cmd *cobra.Command, args []string) {
-	log.Printf("reflector version %s", meta.Version)
+	log.Printf("reflector %s", meta.VersionString())
 
 	memStore := store.NewMemoryBlobStore()
 

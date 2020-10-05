@@ -32,6 +32,8 @@ type SdBlob struct {
 // SQL implements the DB interface
 type SQL struct {
 	conn *sql.DB
+
+	TrackAccessTime bool
 }
 
 func logQuery(query string, args ...interface{}) {
@@ -75,9 +77,10 @@ func (s *SQL) insertBlob(hash string, length int, isStored bool) (int64, error) 
 		return 0, errors.Err("length must be positive")
 	}
 
+	args := []interface{}{hash, isStored, length}
 	blobID, err := s.exec(
-		"INSERT INTO blob_ (hash, is_stored, length) VALUES (?,?,?) ON DUPLICATE KEY UPDATE is_stored = (is_stored or VALUES(is_stored))",
-		hash, isStored, length,
+		"INSERT INTO blob_ (hash, is_stored, length) VALUES ("+qt.Qs(len(args))+") ON DUPLICATE KEY UPDATE is_stored = (is_stored or VALUES(is_stored))",
+		args...,
 	)
 	if err != nil {
 		return 0, err
@@ -97,9 +100,10 @@ func (s *SQL) insertBlob(hash string, length int, isStored bool) (int64, error) 
 }
 
 func (s *SQL) insertStream(hash string, sdBlobID int64) (int64, error) {
+	args := []interface{}{hash, sdBlobID, time.Now()}
 	streamID, err := s.exec(
-		"INSERT IGNORE INTO stream (hash, sd_blob_id) VALUES (?,?)",
-		hash, sdBlobID,
+		"INSERT IGNORE INTO stream (hash, sd_blob_id, last_accessed_at) VALUES ("+qt.Qs(len(args))+")",
+		args...,
 	)
 	if err != nil {
 		return 0, errors.Err(err)
@@ -112,6 +116,13 @@ func (s *SQL) insertStream(hash string, sdBlobID int64) (int64, error) {
 		}
 		if streamID == 0 {
 			return 0, errors.Err("stream ID is 0 even after INSERTing and SELECTing")
+		}
+
+		if s.TrackAccessTime {
+			err := s.touch([]uint64{uint64(streamID)})
+			if err != nil {
+				return 0, errors.Err(err)
+			}
 		}
 	}
 	return streamID, nil
@@ -128,12 +139,44 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 
 // HasBlobs checks if the database contains the set of blobs and returns a bool map.
 func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
-	if s.conn == nil {
-		return nil, errors.Err("not connected")
+	exists, streamsNeedingTouch, err := s.hasBlobs(hashes)
+	s.touch(streamsNeedingTouch)
+	return exists, err
+}
+
+func (s *SQL) touch(streamIDs []uint64) error {
+	if len(streamIDs) == 0 {
+		return nil
 	}
 
-	var hash string
+	query := "UPDATE stream SET last_accessed_at = ? WHERE id IN (" + qt.Qs(len(streamIDs)) + ")"
+	args := make([]interface{}, len(streamIDs)+1)
+	args[0] = time.Now()
+	for i := range streamIDs {
+		args[i+1] = streamIDs[i]
+	}
+
+	startTime := time.Now()
+	_, err := s.exec(query, args...)
+	log.Debugf("stream access query touched %d streams and took %s", len(streamIDs), time.Since(startTime))
+	return errors.Err(err)
+}
+
+func (s *SQL) hasBlobs(hashes []string) (map[string]bool, []uint64, error) {
+	if s.conn == nil {
+		return nil, nil, errors.Err("not connected")
+	}
+
+	var (
+		hash           string
+		streamID       uint64
+		lastAccessedAt time.Time
+	)
+
+	var needsTouch []uint64
 	exists := make(map[string]bool)
+
+	touchDeadline := time.Now().AddDate(0, 0, -1) // touch blob if last accessed before this time
 	maxBatchSize := 10000
 	doneIndex := 0
 
@@ -145,7 +188,13 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 		log.Debugf("getting hashes[%d:%d] of %d", doneIndex, sliceEnd, len(hashes))
 		batch := hashes[doneIndex:sliceEnd]
 
-		query := "SELECT hash FROM blob_ WHERE is_stored = ? && hash IN (" + qt.Qs(len(batch)) + ")"
+		// TODO: this query doesn't work for SD blobs, which are not in the stream_blob table
+
+		query := `SELECT b.hash, s.id, s.last_accessed_at
+FROM blob_ b
+LEFT JOIN stream_blob sb ON b.id = sb.blob_id
+INNER JOIN stream s on (sb.stream_id = s.id or s.sd_blob_id = b.id)
+WHERE b.is_stored = ? and b.hash IN (` + qt.Qs(len(batch)) + `)`
 		args := make([]interface{}, len(batch)+1)
 		args[0] = true
 		for i := range batch {
@@ -164,11 +213,14 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 			defer closeRows(rows)
 
 			for rows.Next() {
-				err := rows.Scan(&hash)
+				err := rows.Scan(&hash, &streamID, &lastAccessedAt)
 				if err != nil {
 					return errors.Err(err)
 				}
 				exists[hash] = true
+				if s.TrackAccessTime && lastAccessedAt.Before(touchDeadline) {
+					needsTouch = append(needsTouch, streamID)
+				}
 			}
 
 			err = rows.Err()
@@ -180,11 +232,11 @@ func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 			return nil
 		}()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return exists, nil
+	return exists, needsTouch, nil
 }
 
 // Delete will remove the blob from the db
@@ -309,9 +361,10 @@ func (s *SQL) AddSDBlob(sdHash string, sdBlobLength int, sdBlob SdBlob) error {
 			return err
 		}
 
+		args := []interface{}{streamID, blobID, contentBlob.BlobNum}
 		_, err = s.exec(
-			"INSERT IGNORE INTO stream_blob (stream_id, blob_id, num) VALUES (?,?,?)",
-			streamID, blobID, contentBlob.BlobNum,
+			"INSERT IGNORE INTO stream_blob (stream_id, blob_id, num) VALUES ("+qt.Qs(len(args))+")",
+			args...,
 		)
 		if err != nil {
 			return errors.Err(err)
@@ -482,9 +535,11 @@ CREATE TABLE stream (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE,
   hash char(96) NOT NULL,
   sd_blob_id BIGINT UNSIGNED NOT NULL,
+  last_accessed_at TIMESTAMP NULL DEFAULT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY stream_hash_idx (hash),
   KEY stream_sd_blob_id_idx (sd_blob_id),
+  KEY last_accessed_at_idx (last_accessed_at),
   FOREIGN KEY (sd_blob_id) REFERENCES blob_ (id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 

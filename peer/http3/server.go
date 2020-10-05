@@ -163,7 +163,7 @@ func generateTLSConfig() *tls.Config {
 
 func (s *Server) listenAndServe(server *http3.Server) {
 	err := server.ListenAndServe()
-	if err != nil {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Errorln(errors.FullTrace(err))
 	}
 }
