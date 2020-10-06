@@ -87,6 +87,7 @@ const (
 	errInvalidCharacter  = "invalid_character"
 	errBlobNotFound      = "blob_not_found"
 	errNoErr             = "no_error"
+	errQuicProto         = "quic_protocol_violation"
 	errOther             = "other"
 )
 
@@ -187,6 +188,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errBlobNotFound
 	} else if strings.Contains(err.Error(), "0-byte blob received") {
 		errType = errZeroByteBlob
+	} else if strings.Contains(err.Error(), "QuicError PROTOCOL_VIOLATION") {
+		errType = errQuicProto
 	} else if strings.Contains(err.Error(), "invalid character") {
 		errType = errInvalidCharacter
 	} else if _, ok := e.(*json.SyntaxError); ok {
