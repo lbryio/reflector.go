@@ -12,6 +12,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql" // blank import for db driver ensures its imported even if its not used
 	log "github.com/sirupsen/logrus"
+	"github.com/volatiletech/null"
 )
 
 // SdBlob is a special blob that contains information on the rest of the blobs in the stream
@@ -170,7 +171,7 @@ func (s *SQL) hasBlobs(hashes []string) (map[string]bool, []uint64, error) {
 	var (
 		hash           string
 		streamID       uint64
-		lastAccessedAt time.Time
+		lastAccessedAt null.Time
 	)
 
 	var needsTouch []uint64
@@ -218,7 +219,7 @@ WHERE b.is_stored = ? and b.hash IN (` + qt.Qs(len(batch)) + `)`
 					return errors.Err(err)
 				}
 				exists[hash] = true
-				if s.TrackAccessTime && lastAccessedAt.Before(touchDeadline) {
+				if s.TrackAccessTime && (!lastAccessedAt.Valid || lastAccessedAt.Time.Before(touchDeadline)) {
 					needsTouch = append(needsTouch, streamID)
 				}
 			}
