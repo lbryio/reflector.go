@@ -117,6 +117,17 @@ var (
 		Name:      "cache_miss_total",
 		Help:      "Total number of blobs retrieved from origin rather than cache storage",
 	})
+	CacheOriginRequestsCount = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "cache_origin_requests_total",
+		Help:      "How many Get requests are in flight from the cache to the origin",
+	})
+	// during thundering-herd situations, the metric below should be a lot smaller than the metric above
+	CacheWaitingRequestsCount = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "cache_waiting_requests_total",
+		Help:      "How many cache requests are waiting for an in-flight origin request",
+	})
 	BlobUploadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "blob_upload_total",
