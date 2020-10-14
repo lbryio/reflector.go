@@ -93,15 +93,6 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		}
 
 		blobStore = store.NewDBBackedStore(blobStore, db)
-
-		reflectorServer = reflector.NewServer(blobStore)
-		reflectorServer.Timeout = 3 * time.Minute
-		reflectorServer.EnableBlocklist = !disableBlocklist
-
-		err = reflectorServer.Start(":" + strconv.Itoa(receiverPort))
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 
 	if reflectorCmdCacheDir != "" {
@@ -112,6 +103,16 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		blobStore = store.NewCachingBlobStore(blobStore, store.NewDiskBlobStore(reflectorCmdCacheDir, 2))
 	}
 
+	if !disableUploads {
+		reflectorServer = reflector.NewServer(blobStore)
+		reflectorServer.Timeout = 3 * time.Minute
+		reflectorServer.EnableBlocklist = !disableBlocklist
+
+		err = reflectorServer.Start(":" + strconv.Itoa(receiverPort))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	peerServer := peer.NewServer(blobStore)
 	err = peerServer.Start(":" + strconv.Itoa(tcpPeerPort))
 	if err != nil {
