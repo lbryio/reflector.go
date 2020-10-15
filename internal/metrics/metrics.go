@@ -117,6 +117,17 @@ var (
 		Name:      "cache_miss_total",
 		Help:      "Total number of blobs retrieved from origin rather than cache storage",
 	})
+	CacheOriginRequestsCount = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "cache_origin_requests_total",
+		Help:      "How many Get requests are in flight from the cache to the origin",
+	})
+	// during thundering-herd situations, the metric below should be a lot smaller than the metric above
+	CacheWaitingRequestsCount = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "cache_waiting_requests_total",
+		Help:      "How many cache requests are waiting for an in-flight origin request",
+	})
 	BlobUploadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "blob_upload_total",
@@ -137,6 +148,41 @@ var (
 		Name:      "error_total",
 		Help:      "Total number of errors",
 	}, []string{labelDirection, labelErrorType})
+	MtrInBytesTcp = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "tcp_in_bytes",
+		Help:      "Total number of bytes downloaded through TCP",
+	})
+	MtrOutBytesTcp = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "tcp_out_bytes",
+		Help:      "Total number of bytes streamed out through TCP",
+	})
+	MtrInBytesUdp = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "udp_in_bytes",
+		Help:      "Total number of bytes downloaded through UDP",
+	})
+	MtrOutBytesUdp = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "udp_out_bytes",
+		Help:      "Total number of bytes streamed out through UDP",
+	})
+	MtrInBytesReflector = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "reflector_in_bytes",
+		Help:      "Total number of incoming bytes (from users)",
+	})
+	MtrOutBytesReflector = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "s3_out_bytes",
+		Help:      "Total number of outgoing bytes (to S3)",
+	})
+	MtrInBytesS3 = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "s3_in_bytes",
+		Help:      "Total number of incoming bytes (from S3-CF)",
+	})
 )
 
 func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a hack, but whatever

@@ -7,6 +7,7 @@ import (
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/meta"
 
 	log "github.com/sirupsen/logrus"
@@ -77,6 +78,7 @@ func (s *CloudFrontBlobStore) Get(hash string) (stream.Blob, error) {
 		if err != nil {
 			return nil, errors.Err(err)
 		}
+		metrics.MtrInBytesS3.Add(float64(len(b)))
 		return b, nil
 	default:
 		return nil, errors.Err(res.Status)

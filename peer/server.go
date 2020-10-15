@@ -272,6 +272,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 				BlobHash: reflector.BlobHash(blob),
 				Length:   len(blob),
 			}
+			metrics.MtrOutBytesTcp.Add(float64(len(blob)))
 			metrics.BlobDownloadCount.Inc()
 			metrics.PeerDownloadCount.Inc()
 		}

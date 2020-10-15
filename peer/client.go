@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -152,7 +153,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	metrics.MtrInBytesTcp.Add(float64(len(blob)))
 	return blob, nil
 }
 

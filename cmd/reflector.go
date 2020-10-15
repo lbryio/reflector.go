@@ -94,13 +94,17 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 
 		blobStore = store.NewDBBackedStore(blobStore, db)
 
-		reflectorServer = reflector.NewServer(blobStore)
-		reflectorServer.Timeout = 3 * time.Minute
-		reflectorServer.EnableBlocklist = !disableBlocklist
+		//this shouldn't go here but the blocklist logic requires the db backed store to be the outer-most store for it to work....
+		//having this here prevents uploaded blobs from being stored in the disk cache
+		if !disableUploads {
+			reflectorServer = reflector.NewServer(blobStore)
+			reflectorServer.Timeout = 3 * time.Minute
+			reflectorServer.EnableBlocklist = !disableBlocklist
 
-		err = reflectorServer.Start(":" + strconv.Itoa(receiverPort))
-		if err != nil {
-			log.Fatal(err)
+			err = reflectorServer.Start(":" + strconv.Itoa(receiverPort))
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 

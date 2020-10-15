@@ -64,7 +64,7 @@ type availabilityResponse struct {
 func (s *Server) Start(address string) error {
 	log.Println("HTTP3 peer listening on " + address)
 	quicConf := &quic.Config{
-		HandshakeTimeout: 3 * time.Second,
+		HandshakeTimeout: 4 * time.Second,
 		MaxIdleTimeout:   5 * time.Second,
 	}
 	r := mux.NewRouter()
@@ -87,6 +87,7 @@ func (s *Server) Start(address string) error {
 		if err != nil {
 			s.logError(err)
 		}
+		metrics.MtrOutBytesUdp.Add(float64(len(blob)))
 		metrics.BlobDownloadCount.Inc()
 		metrics.Http3DownloadCount.Inc()
 	})

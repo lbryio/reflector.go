@@ -7,6 +7,7 @@ import (
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/internal/metrics"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -126,6 +127,7 @@ func (s *S3BlobStore) Put(hash string, blob stream.Blob) error {
 		Body:         bytes.NewBuffer(blob),
 		StorageClass: aws.String(s3.StorageClassIntelligentTiering),
 	})
+	metrics.MtrOutBytesReflector.Add(float64(blob.Size()))
 
 	return err
 }
