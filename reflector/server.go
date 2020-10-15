@@ -256,7 +256,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-
+	metrics.MtrInBytesReflector.Add(float64(len(blob)))
 	metrics.BlobUploadCount.Inc()
 	if isSdBlob {
 		metrics.SDBlobUploadCount.Inc()
