@@ -65,7 +65,7 @@ func (s *Server) Start(address string) error {
 	log.Println("HTTP3 peer listening on " + address)
 	quicConf := &quic.Config{
 		HandshakeTimeout: 4 * time.Second,
-		MaxIdleTimeout:   5 * time.Second,
+		MaxIdleTimeout:   10 * time.Second,
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/get/{hash}", func(w http.ResponseWriter, r *http.Request) {

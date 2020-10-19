@@ -32,7 +32,7 @@ func NewStore(opts StoreOpts) *Store {
 func (p *Store) getClient() (*Client, error) {
 	var qconf quic.Config
 	qconf.HandshakeTimeout = 4 * time.Second
-	qconf.MaxIdleTimeout = 5 * time.Second
+	qconf.MaxIdleTimeout = 10 * time.Second
 	pool, err := x509.SystemCertPool()
 	if err != nil {
 		return nil, err
