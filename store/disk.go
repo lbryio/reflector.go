@@ -5,32 +5,40 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
-	"syscall"
-	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/spf13/afero"
 
-	log "github.com/sirupsen/logrus"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 // DiskBlobStore stores blobs on a local disk
 type DiskBlobStore struct {
 	// the location of blobs on disk
 	blobDir string
+	// max number of blobs to store
+	maxBlobs int
 	// store files in subdirectories based on the first N chars in the filename. 0 = don't create subdirectories.
 	prefixLength int
 
-	initialized     bool
-	lastChecked     time.Time
-	diskCleanupBusy chan bool
+	// lru cache
+	lru *lru.Cache
+	// filesystem abstraction
+	fs afero.Fs
+
+	// true if initOnce ran, false otherwise
+	initialized bool
 }
 
 // NewDiskBlobStore returns an initialized file disk store pointer.
-func NewDiskBlobStore(dir string, prefixLength int) *DiskBlobStore {
-	dbs := DiskBlobStore{blobDir: dir, prefixLength: prefixLength, diskCleanupBusy: make(chan bool, 1)}
-	dbs.diskCleanupBusy <- true
+func NewDiskBlobStore(dir string, maxBlobs, prefixLength int) *DiskBlobStore {
+	dbs := DiskBlobStore{
+		blobDir:      dir,
+		maxBlobs:     maxBlobs,
+		prefixLength: prefixLength,
+		fs:           afero.NewOsFs(),
+	}
 	return &dbs
 }
 
@@ -41,27 +49,12 @@ func (d *DiskBlobStore) dir(hash string) string {
 	return path.Join(d.blobDir, hash[:d.prefixLength])
 }
 
-// GetUsedSpace returns a value between 0 and 1, with 0 being completely empty and 1 being full, for the disk that holds the provided path
-func (d *DiskBlobStore) getUsedSpace() (float32, error) {
-	var stat syscall.Statfs_t
-	err := syscall.Statfs(d.blobDir, &stat)
-	if err != nil {
-		return 0, err
-	}
-	// Available blocks * size per block = available space in bytes
-	all := stat.Blocks * uint64(stat.Bsize)
-	free := stat.Bfree * uint64(stat.Bsize)
-	used := all - free
-
-	return float32(used) / float32(all), nil
-}
-
 func (d *DiskBlobStore) path(hash string) string {
 	return path.Join(d.dir(hash), hash)
 }
 
 func (d *DiskBlobStore) ensureDirExists(dir string) error {
-	return errors.Err(os.MkdirAll(dir, 0755))
+	return errors.Err(d.fs.MkdirAll(dir, 0755))
 }
 
 func (d *DiskBlobStore) initOnce() error {
@@ -70,6 +63,19 @@ func (d *DiskBlobStore) initOnce() error {
 	}
 
 	err := d.ensureDirExists(d.blobDir)
+	if err != nil {
+		return err
+	}
+
+	l, err := lru.NewWithEvict(d.maxBlobs, func(key interface{}, value interface{}) {
+		_ = d.fs.Remove(d.path(key.(string))) // TODO: log this error. may happen if file is gone but cache entry still there?
+	})
+	if err != nil {
+		return errors.Err(err)
+	}
+	d.lru = l
+
+	err = d.loadExisting()
 	if err != nil {
 		return err
 	}
@@ -85,14 +91,7 @@ func (d *DiskBlobStore) Has(hash string) (bool, error) {
 		return false, err
 	}
 
-	_, err = os.Stat(d.path(hash))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
+	return d.lru.Contains(hash), nil
 }
 
 // Get returns the blob or an error if the blob doesn't exist.
@@ -102,9 +101,15 @@ func (d *DiskBlobStore) Get(hash string) (stream.Blob, error) {
 		return nil, err
 	}
 
-	file, err := os.Open(d.path(hash))
+	_, has := d.lru.Get(hash)
+	if !has {
+		return nil, errors.Err(ErrBlobNotFound)
+	}
+
+	file, err := d.fs.Open(d.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
+			d.lru.Remove(hash)
 			return nil, errors.Err(ErrBlobNotFound)
 		}
 		return nil, err
@@ -126,7 +131,14 @@ func (d *DiskBlobStore) Put(hash string, blob stream.Blob) error {
 		return err
 	}
 
-	return ioutil.WriteFile(d.path(hash), blob, 0644)
+	err = afero.WriteFile(d.fs, d.path(hash), blob, 0644)
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	d.lru.Add(hash, true)
+
+	return nil
 }
 
 // PutSD stores the sd blob on the disk
@@ -141,83 +153,30 @@ func (d *DiskBlobStore) Delete(hash string) error {
 		return err
 	}
 
-	has, err := d.Has(hash)
+	d.lru.Remove(hash)
+	return nil
+}
+
+// loadExisting scans the blobDir and imports existing blobs into lru cache
+func (d *DiskBlobStore) loadExisting() error {
+	dirs, err := afero.ReadDir(d.fs, d.blobDir)
 	if err != nil {
 		return err
 	}
-	if !has {
-		return nil
-	}
 
-	return os.Remove(d.path(hash))
-}
-
-func (d *DiskBlobStore) ensureDiskSpace() {
-	defer func() {
-		d.lastChecked = time.Now()
-		d.diskCleanupBusy <- true
-	}()
-
-	used, err := d.getUsedSpace()
-	if err != nil {
-		log.Errorln(err.Error())
-		return
-	}
-	log.Infof("disk usage: %.2f%%\n", used*100)
-	if used > 0.90 {
-		log.Infoln("over 0.90, cleaning up")
-		err = d.WipeOldestBlobs()
-		if err != nil {
-			log.Errorln(err.Error())
-			return
-		}
-		log.Infoln("Done cleaning up")
-	}
-}
-
-func (d *DiskBlobStore) WipeOldestBlobs() (err error) {
-	dirs, err := ioutil.ReadDir(d.blobDir)
-	if err != nil {
-		return err
-	}
-	type datedFile struct {
-		Atime    time.Time
-		File     *os.FileInfo
-		FullPath string
-	}
-	datedFiles := make([]datedFile, 0, 5000)
 	for _, dir := range dirs {
 		if dir.IsDir() {
-			files, err := ioutil.ReadDir(filepath.Join(d.blobDir, dir.Name()))
+			files, err := afero.ReadDir(d.fs, filepath.Join(d.blobDir, dir.Name()))
 			if err != nil {
 				return err
 			}
 			for _, file := range files {
 				if file.Mode().IsRegular() && !file.IsDir() {
-					datedFiles = append(datedFiles, datedFile{
-						Atime:    atime(file),
-						File:     &file,
-						FullPath: filepath.Join(d.blobDir, dir.Name(), file.Name()),
-					})
+					d.lru.Add(file.Name(), true)
 				}
 			}
 		}
 	}
 
-	sort.Slice(datedFiles, func(i, j int) bool {
-		return datedFiles[i].Atime.Before(datedFiles[j].Atime)
-	})
-	//delete the first 50000 blobs
-	for i, df := range datedFiles {
-		if i >= 50000 {
-			break
-		}
-		log.Infoln(df.FullPath)
-		log.Infoln(df.Atime.String())
-		err = os.Remove(df.FullPath)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }

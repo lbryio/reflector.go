@@ -19,18 +19,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var reflectorCmdCacheDir string
-var tcpPeerPort int
-var http3PeerPort int
-var receiverPort int
-var metricsPort int
-var disableUploads bool
-var disableBlocklist bool
-var proxyAddress string
-var proxyPort string
-var proxyProtocol string
-var useDB bool
-var cloudFrontEndpoint string
+var (
+	tcpPeerPort               int
+	http3PeerPort             int
+	receiverPort              int
+	metricsPort               int
+	disableUploads            bool
+	disableBlocklist          bool
+	proxyAddress              string
+	proxyPort                 string
+	proxyProtocol             string
+	useDB                     bool
+	cloudFrontEndpoint        string
+	reflectorCmdCacheDir      string
+	reflectorCmdCacheMaxBlobs int
+)
 
 func init() {
 	var cmd = &cobra.Command{
@@ -38,7 +41,6 @@ func init() {
 		Short: "Run reflector server",
 		Run:   reflectorCmd,
 	}
-	cmd.Flags().StringVar(&reflectorCmdCacheDir, "cache", "", "if specified, the path where blobs should be cached (disabled when left empty)")
 	cmd.Flags().StringVar(&proxyAddress, "proxy-address", "", "address of another reflector server where blobs are fetched from")
 	cmd.Flags().StringVar(&proxyPort, "proxy-port", "5567", "port of another reflector server where blobs are fetched from")
 	cmd.Flags().StringVar(&proxyProtocol, "proxy-protocol", "http3", "protocol used to fetch blobs from another reflector server (tcp/http3)")
@@ -50,6 +52,8 @@ func init() {
 	cmd.Flags().BoolVar(&disableUploads, "disable-uploads", false, "Disable uploads to this reflector server")
 	cmd.Flags().BoolVar(&disableBlocklist, "disable-blocklist", false, "Disable blocklist watching/updating")
 	cmd.Flags().BoolVar(&useDB, "use-db", true, "whether to connect to the reflector db or not")
+	cmd.Flags().StringVar(&reflectorCmdCacheDir, "cache", "", "if specified, the path where blobs should be cached (disabled when left empty)")
+	cmd.Flags().IntVar(&reflectorCmdCacheMaxBlobs, "cache-max-blobs", 0, "if cache is enabled, this option sets the max blobs the cache will hold")
 	rootCmd.AddCommand(cmd)
 }
 
@@ -113,7 +117,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		blobStore = store.NewCachingBlobStore(blobStore, store.NewDiskBlobStore(reflectorCmdCacheDir, 2))
+		blobStore = store.NewCachingBlobStore(blobStore, store.NewDiskBlobStore(reflectorCmdCacheDir, reflectorCmdCacheMaxBlobs, 2))
 	}
 
 	peerServer := peer.NewServer(blobStore)

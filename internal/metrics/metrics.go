@@ -92,6 +92,12 @@ const (
 )
 
 var (
+	ErrorCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "error_total",
+		Help:      "Total number of errors",
+	}, []string{labelDirection, labelErrorType})
+
 	BlobDownloadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "blob_download_total",
@@ -107,6 +113,7 @@ var (
 		Name:      "http3_blob_download_total",
 		Help:      "Total number of blobs downloaded from reflector through QUIC protocol",
 	})
+
 	CacheHitCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "cache_hit_total",
@@ -128,6 +135,7 @@ var (
 		Name:      "cache_waiting_requests_total",
 		Help:      "How many cache requests are waiting for an in-flight origin request",
 	})
+
 	BlobUploadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "blob_upload_total",
@@ -138,16 +146,13 @@ var (
 		Name:      "sdblob_upload_total",
 		Help:      "Total number of SD blobs (and therefore streams) uploaded to reflector",
 	})
+
 	RetrieverSpeed = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: ns,
 		Name:      "speed_mbps",
 		Help:      "Speed of blob retrieval",
 	}, []string{MtrLabelSource})
-	ErrorCount = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: ns,
-		Name:      "error_total",
-		Help:      "Total number of errors",
-	}, []string{labelDirection, labelErrorType})
+
 	MtrInBytesTcp = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "tcp_in_bytes",

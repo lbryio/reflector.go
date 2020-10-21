@@ -14,7 +14,7 @@ require (
 	github.com/google/gops v0.3.7
 	github.com/gorilla/mux v1.7.4
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
-	github.com/hashicorp/golang-lru v0.5.3 // indirect
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/memberlist v0.1.4 // indirect
 	github.com/hashicorp/serf v0.8.2
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
@@ -27,9 +27,11 @@ require (
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
 	github.com/prometheus/client_golang v0.9.2
 	github.com/sirupsen/logrus v1.4.2
+	github.com/spf13/afero v1.4.1
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/stretchr/testify v1.4.0
 	github.com/volatiletech/null v8.0.0+incompatible
 	go.uber.org/atomic v1.5.1
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
@@ -37,6 +39,7 @@ require (
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/tools v0.0.0-20191227053925-7b8e75db28f4 // indirect
 	google.golang.org/appengine v1.6.2 // indirect
+	gotest.tools v2.2.0+incompatible
 )
 
 go 1.15
