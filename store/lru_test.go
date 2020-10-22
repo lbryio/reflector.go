@@ -14,16 +14,17 @@ import (
 
 const cacheMaxBlobs = 3
 
-func memDiskStore() *DiskBlobStore {
-	d := NewDiskBlobStore("/", cacheMaxBlobs, 2)
+func testLRUStore() (*LRUStore, *DiskBlobStore) {
+	d := NewDiskBlobStore("/", 2)
 	d.fs = afero.NewMemMapFs()
-	return d
+	return NewLRUStore(d, 3), d
 }
 
-func countOnDisk(t *testing.T, fs afero.Fs) int {
+func countOnDisk(t *testing.T, disk *DiskBlobStore) int {
 	t.Helper()
+
 	count := 0
-	afero.Walk(fs, "/", func(path string, info os.FileInfo, err error) error {
+	afero.Walk(disk.fs, "/", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -32,24 +33,29 @@ func countOnDisk(t *testing.T, fs afero.Fs) int {
 		}
 		return nil
 	})
+
+	list, err := disk.list()
+	require.NoError(t, err)
+	require.Equal(t, count, len(list))
+
 	return count
 }
 
-func TestDiskBlobStore_LRU(t *testing.T) {
-	d := memDiskStore()
+func TestLRUStore_Eviction(t *testing.T) {
+	lru, disk := testLRUStore()
 	b := []byte("x")
-	err := d.Put("one", b)
+	err := lru.Put("one", b)
 	require.NoError(t, err)
-	err = d.Put("two", b)
+	err = lru.Put("two", b)
 	require.NoError(t, err)
-	err = d.Put("three", b)
+	err = lru.Put("three", b)
 	require.NoError(t, err)
-	err = d.Put("four", b)
+	err = lru.Put("four", b)
 	require.NoError(t, err)
-	err = d.Put("five", b)
+	err = lru.Put("five", b)
 	require.NoError(t, err)
 
-	assert.Equal(t, cacheMaxBlobs, countOnDisk(t, d.fs))
+	assert.Equal(t, cacheMaxBlobs, countOnDisk(t, disk))
 
 	for k, v := range map[string]bool{
 		"one":   false,
@@ -59,15 +65,15 @@ func TestDiskBlobStore_LRU(t *testing.T) {
 		"five":  true,
 		"six":   false,
 	} {
-		has, err := d.Has(k)
+		has, err := lru.Has(k)
 		assert.NoError(t, err)
 		assert.Equal(t, v, has)
 	}
 
-	d.Get("three") // touch so it stays in cache
-	d.Put("six", b)
+	lru.Get("three") // touch so it stays in cache
+	lru.Put("six", b)
 
-	assert.Equal(t, cacheMaxBlobs, countOnDisk(t, d.fs))
+	assert.Equal(t, cacheMaxBlobs, countOnDisk(t, disk))
 
 	for k, v := range map[string]bool{
 		"one":   false,
@@ -77,33 +83,39 @@ func TestDiskBlobStore_LRU(t *testing.T) {
 		"five":  true,
 		"six":   true,
 	} {
-		has, err := d.Has(k)
+		has, err := lru.Has(k)
 		assert.NoError(t, err)
 		assert.Equal(t, v, has)
 	}
 
-	err = d.Delete("three")
+	err = lru.Delete("three")
 	assert.NoError(t, err)
-	err = d.Delete("five")
+	err = lru.Delete("five")
 	assert.NoError(t, err)
-	err = d.Delete("six")
+	err = lru.Delete("six")
 	assert.NoError(t, err)
-	assert.Equal(t, 0, countOnDisk(t, d.fs))
+	assert.Equal(t, 0, countOnDisk(t, disk))
 }
 
-func TestDiskBlobStore_FileMissingOnDisk(t *testing.T) {
-	d := memDiskStore()
+func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
+	lru, disk := testLRUStore()
 	hash := "hash"
 	b := []byte("this is a blob of stuff")
-	err := d.Put(hash, b)
+	err := lru.Put(hash, b)
 	require.NoError(t, err)
 
-	err = d.fs.Remove("/ha/hash")
+	err = disk.fs.Remove("/ha/hash")
 	require.NoError(t, err)
 
-	blob, err := d.Get(hash)
+	// hash still exists in lru
+	assert.True(t, lru.lru.Contains(hash))
+
+	blob, err := lru.Get(hash)
 	assert.Nil(t, blob)
 	assert.True(t, errors.Is(err, ErrBlobNotFound), "expected (%s) %s, got (%s) %s",
 		reflect.TypeOf(ErrBlobNotFound).String(), ErrBlobNotFound.Error(),
 		reflect.TypeOf(err).String(), err.Error())
+
+	// lru.Get() removes hash if underlying store doesn't have it
+	assert.False(t, lru.lru.Contains(hash))
 }

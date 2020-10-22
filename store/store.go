@@ -27,5 +27,11 @@ type Blocklister interface {
 	Wants(hash string) (bool, error)
 }
 
+// lister is a store that can list cached blobs. This is helpful when an overlay
+// cache needs to track blob existence.
+type lister interface {
+	list() ([]string, error)
+}
+
 //ErrBlobNotFound is a standard error when a blob is not found in the store.
 var ErrBlobNotFound = errors.Base("blob not found")
