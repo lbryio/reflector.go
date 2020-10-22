@@ -14,13 +14,13 @@ import (
 
 const cacheMaxBlobs = 3
 
-func testLRUStore() (*LRUStore, *DiskBlobStore) {
-	d := NewDiskBlobStore("/", 2)
+func testLRUStore() (*LRUStore, *DiskStore) {
+	d := NewDiskStore("/", 2)
 	d.fs = afero.NewMemMapFs()
 	return NewLRUStore(d, 3), d
 }
 
-func countOnDisk(t *testing.T, disk *DiskBlobStore) int {
+func countOnDisk(t *testing.T, disk *DiskStore) int {
 	t.Helper()
 
 	count := 0

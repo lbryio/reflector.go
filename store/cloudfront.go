@@ -1,109 +1,112 @@
 package store
 
 import (
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/meta"
+
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// CloudFrontBlobStore is an CloudFront backed store (retrieval only)
-type CloudFrontBlobStore struct {
-	cfEndpoint string
-	s3Store    *S3BlobStore
+// CloudFrontStore wraps an S3 store. Reads go to Cloudfront, writes go to S3.
+type CloudFrontStore struct {
+	s3       *S3Store
+	endpoint string // cloudflare endpoint
 }
 
-// NewS3BlobStore returns an initialized S3 store pointer.
-func NewCloudFrontBlobStore(cloudFrontEndpoint string, S3Store *S3BlobStore) *CloudFrontBlobStore {
-	return &CloudFrontBlobStore{
-		cfEndpoint: cloudFrontEndpoint,
-		s3Store:    S3Store,
+// NewCloudFrontStore returns an initialized CloudFrontStore store pointer.
+// NOTE: It panics if S3Store is nil.
+func NewCloudFrontStore(s3 *S3Store, cfEndpoint string) *CloudFrontStore {
+	if s3 == nil {
+		panic("S3Store must not be nil")
+	}
+
+	return &CloudFrontStore{
+		endpoint: cfEndpoint,
+		s3:       s3,
 	}
 }
 
-// Has returns T/F or Error if the store contains the blob.
-func (s *CloudFrontBlobStore) Has(hash string) (bool, error) {
-	url := s.cfEndpoint + hash
-
-	req, err := http.NewRequest("HEAD", url, nil)
+// Has checks if the hash is in the store.
+func (c *CloudFrontStore) Has(hash string) (bool, error) {
+	status, body, err := c.cfRequest(http.MethodHead, hash)
 	if err != nil {
-		return false, errors.Err(err)
+		return false, err
 	}
-	req.Header.Add("User-Agent", "reflector.go/"+meta.Version)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, errors.Err(err)
-	}
-	defer res.Body.Close()
+	defer body.Close()
 
-	switch res.StatusCode {
+	switch status {
 	case http.StatusNotFound, http.StatusForbidden:
 		return false, nil
 	case http.StatusOK:
 		return true, nil
 	default:
-		return false, errors.Err(res.Status)
+		return false, errors.Err("unexpected status %d", status)
 	}
 }
 
-// Get returns the blob slice if present or errors.
-func (s *CloudFrontBlobStore) Get(hash string) (stream.Blob, error) {
-	url := s.cfEndpoint + hash
+// Get gets the blob from Cloudfront.
+func (c *CloudFrontStore) Get(hash string) (stream.Blob, error) {
 	log.Debugf("Getting %s from S3", hash[:8])
 	defer func(t time.Time) {
 		log.Debugf("Getting %s from S3 took %s", hash[:8], time.Since(t).String())
 	}(time.Now())
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	req.Header.Add("User-Agent", "reflector.go/"+meta.Version)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	defer res.Body.Close()
 
-	switch res.StatusCode {
+	status, body, err := c.cfRequest(http.MethodGet, hash)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+
+	switch status {
 	case http.StatusNotFound, http.StatusForbidden:
 		return nil, errors.Err(ErrBlobNotFound)
 	case http.StatusOK:
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := ioutil.ReadAll(body)
 		if err != nil {
 			return nil, errors.Err(err)
 		}
 		metrics.MtrInBytesS3.Add(float64(len(b)))
 		return b, nil
 	default:
-		return nil, errors.Err(res.Status)
+		return nil, errors.Err("unexpected status %d", status)
 	}
 }
 
-// Put stores the blob on S3 or errors if S3 store is not present.
-func (s *CloudFrontBlobStore) Put(hash string, blob stream.Blob) error {
-	if s.s3Store != nil {
-		return s.s3Store.Put(hash, blob)
+func (c *CloudFrontStore) cfRequest(method, hash string) (int, io.ReadCloser, error) {
+	url := c.endpoint + hash
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		return 0, nil, errors.Err(err)
 	}
-	return errors.Err("not implemented in cloudfront store")
+	req.Header.Add("User-Agent", "reflector.go/"+meta.Version)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, nil, errors.Err(err)
+	}
+
+	return res.StatusCode, res.Body, nil
 }
 
-// PutSD stores the sd blob on S3 or errors if S3 store is not present.
-func (s *CloudFrontBlobStore) PutSD(hash string, blob stream.Blob) error {
-	if s.s3Store != nil {
-		return s.s3Store.PutSD(hash, blob)
-	}
-	return errors.Err("not implemented in cloudfront store")
+// Put stores the blob on S3
+func (c *CloudFrontStore) Put(hash string, blob stream.Blob) error {
+	return c.s3.Put(hash, blob)
 }
 
-func (s *CloudFrontBlobStore) Delete(hash string) error {
-	if s.s3Store != nil {
-		return s.s3Store.Delete(hash)
-	}
-	return errors.Err("not implemented in cloudfront store")
+// PutSD stores the sd blob on S3
+func (c *CloudFrontStore) PutSD(hash string, blob stream.Blob) error {
+	return c.s3.PutSD(hash, blob)
+}
+
+// Delete deletes the blob from S3
+func (c *CloudFrontStore) Delete(hash string) error {
+	return c.s3.Delete(hash)
 }

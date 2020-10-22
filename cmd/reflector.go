@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,23 +17,24 @@ import (
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 )
 
 var (
-	tcpPeerPort               int
-	http3PeerPort             int
-	receiverPort              int
-	metricsPort               int
-	disableUploads            bool
-	disableBlocklist          bool
-	proxyAddress              string
-	proxyPort                 string
-	proxyProtocol             string
-	useDB                     bool
-	cloudFrontEndpoint        string
-	reflectorCmdCacheDir      string
-	reflectorCmdCacheMaxBlobs int
+	tcpPeerPort           int
+	http3PeerPort         int
+	receiverPort          int
+	metricsPort           int
+	disableUploads        bool
+	disableBlocklist      bool
+	proxyAddress          string
+	proxyPort             string
+	proxyProtocol         string
+	useDB                 bool
+	cloudFrontEndpoint    string
+	reflectorCmdDiskCache string
+	reflectorCmdMemCache  int
 )
 
 func init() {
@@ -52,96 +54,136 @@ func init() {
 	cmd.Flags().BoolVar(&disableUploads, "disable-uploads", false, "Disable uploads to this reflector server")
 	cmd.Flags().BoolVar(&disableBlocklist, "disable-blocklist", false, "Disable blocklist watching/updating")
 	cmd.Flags().BoolVar(&useDB, "use-db", true, "whether to connect to the reflector db or not")
-	cmd.Flags().StringVar(&reflectorCmdCacheDir, "cache", "", "if specified, the path where blobs should be cached (disabled when left empty)")
-	cmd.Flags().IntVar(&reflectorCmdCacheMaxBlobs, "cache-max-blobs", 0, "if cache is enabled, this option sets the max blobs the cache will hold")
+	cmd.Flags().StringVar(&reflectorCmdDiskCache, "disk-cache", "",
+		"enable disk cache, setting max size and path where to store blobs. format is 'MAX_BLOBS:CACHE_PATH'")
+	cmd.Flags().IntVar(&reflectorCmdMemCache, "mem-cache", 0, "enable in-memory cache with a max size of this many blobs")
 	rootCmd.AddCommand(cmd)
 }
 
 func reflectorCmd(cmd *cobra.Command, args []string) {
 	log.Printf("reflector %s", meta.VersionString())
 
-	var blobStore store.BlobStore
-	if proxyAddress != "" {
-		switch proxyProtocol {
-		case "tcp":
-			blobStore = peer.NewStore(peer.StoreOpts{
-				Address: proxyAddress + ":" + proxyPort,
-				Timeout: 30 * time.Second,
-			})
-		case "http3":
-			blobStore = http3.NewStore(http3.StoreOpts{
-				Address: proxyAddress + ":" + proxyPort,
-				Timeout: 30 * time.Second,
-			})
-		default:
-			log.Fatalf("specified protocol is not recognized: %s", proxyProtocol)
-		}
-	} else {
-		s3Store := store.NewS3BlobStore(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
-		if cloudFrontEndpoint != "" {
-			blobStore = store.NewCloudFrontBlobStore(cloudFrontEndpoint, s3Store)
-		} else {
-			blobStore = s3Store
-		}
-	}
+	// the blocklist logic requires the db backed store to be the outer-most store
+	underlyingStore := setupStore()
+	outerStore := wrapWithCache(underlyingStore)
 
-	var err error
-	var reflectorServer *reflector.Server
+	if !disableUploads {
+		reflectorServer := reflector.NewServer(underlyingStore)
+		reflectorServer.Timeout = 3 * time.Minute
+		reflectorServer.EnableBlocklist = !disableBlocklist
 
-	if useDB {
-		db := new(db.SQL)
-		db.TrackAccessTime = true
-		err = db.Connect(globalConfig.DBConn)
+		err := reflectorServer.Start(":" + strconv.Itoa(receiverPort))
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		blobStore = store.NewDBBackedStore(blobStore, db)
-
-		//this shouldn't go here but the blocklist logic requires the db backed store to be the outer-most store for it to work....
-		//having this here prevents uploaded blobs from being stored in the disk cache
-		if !disableUploads {
-			reflectorServer = reflector.NewServer(blobStore)
-			reflectorServer.Timeout = 3 * time.Minute
-			reflectorServer.EnableBlocklist = !disableBlocklist
-
-			err = reflectorServer.Start(":" + strconv.Itoa(receiverPort))
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
+		defer reflectorServer.Shutdown()
 	}
 
-	if reflectorCmdCacheDir != "" {
-		err = os.MkdirAll(reflectorCmdCacheDir, os.ModePerm)
-		if err != nil {
-			log.Fatal(err)
-		}
-		blobStore = store.NewCachingBlobStore(blobStore, store.NewDiskBlobStore(reflectorCmdCacheDir, reflectorCmdCacheMaxBlobs, 2))
-	}
-
-	peerServer := peer.NewServer(blobStore)
-	err = peerServer.Start(":" + strconv.Itoa(tcpPeerPort))
+	peerServer := peer.NewServer(outerStore)
+	err := peerServer.Start(":" + strconv.Itoa(tcpPeerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer peerServer.Shutdown()
 
-	http3PeerServer := http3.NewServer(blobStore)
+	http3PeerServer := http3.NewServer(outerStore)
 	err = http3PeerServer.Start(":" + strconv.Itoa(http3PeerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer http3PeerServer.Shutdown()
 
 	metricsServer := metrics.NewServer(":"+strconv.Itoa(metricsPort), "/metrics")
 	metricsServer.Start()
+	defer metricsServer.Shutdown()
 
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	<-interruptChan
-	metricsServer.Shutdown()
-	peerServer.Shutdown()
-	http3PeerServer.Shutdown()
-	if reflectorServer != nil {
-		reflectorServer.Shutdown()
+	// deferred shutdowns happen now
+}
+
+func setupStore() store.BlobStore {
+	var s store.BlobStore
+
+	if proxyAddress != "" {
+		switch proxyProtocol {
+		case "tcp":
+			s = peer.NewStore(peer.StoreOpts{
+				Address: proxyAddress + ":" + proxyPort,
+				Timeout: 30 * time.Second,
+			})
+		case "http3":
+			s = http3.NewStore(http3.StoreOpts{
+				Address: proxyAddress + ":" + proxyPort,
+				Timeout: 30 * time.Second,
+			})
+		default:
+			log.Fatalf("protocol is not recognized: %s", proxyProtocol)
+		}
+	} else {
+		s3Store := store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+		if cloudFrontEndpoint != "" {
+			s = store.NewCloudFrontStore(s3Store, cloudFrontEndpoint)
+		} else {
+			s = s3Store
+		}
 	}
+
+	if useDB {
+		db := new(db.SQL)
+		db.TrackAccessTime = true
+		err := db.Connect(globalConfig.DBConn)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		s = store.NewDBBackedStore(s, db)
+	}
+
+	return s
+}
+
+func wrapWithCache(s store.BlobStore) store.BlobStore {
+	wrapped := s
+
+	diskCacheMaxSize, diskCachePath := diskCacheParams()
+	if diskCacheMaxSize > 0 {
+		err := os.MkdirAll(diskCachePath, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+		wrapped = store.NewCachingStore(wrapped,
+			store.NewLRUStore(store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize))
+	}
+
+	if reflectorCmdMemCache > 0 {
+		wrapped = store.NewCachingStore(wrapped,
+			store.NewLRUStore(store.NewMemoryStore(), reflectorCmdMemCache))
+	}
+
+	return wrapped
+}
+
+func diskCacheParams() (int, string) {
+	if reflectorCmdDiskCache == "" {
+		return 0, ""
+	}
+
+	parts := strings.Split(reflectorCmdDiskCache, ":")
+	if len(parts) != 2 {
+		log.Fatalf("--disk-cache must be a number, followed by ':', followed by a string")
+	}
+
+	maxSize := cast.ToInt(parts[0])
+	if maxSize <= 0 {
+		log.Fatalf("--disk-cache max size must be more than 0")
+	}
+
+	path := parts[1]
+	if len(path) == 0 || path[0] != '/' {
+		log.Fatalf("--disk-cache path must start with '/'")
+	}
+
+	return maxSize, path
 }

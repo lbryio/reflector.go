@@ -11,22 +11,22 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-// CachingBlobStore combines two stores, typically a local and a remote store, to improve performance.
+// CachingStore combines two stores, typically a local and a remote store, to improve performance.
 // Accessed blobs are stored in and retrieved from the cache. If they are not in the cache, they
 // are retrieved from the origin and cached. Puts are cached and also forwarded to the origin.
-type CachingBlobStore struct {
+type CachingStore struct {
 	origin, cache BlobStore
 
 	sf *singleflight.Group
 }
 
-// NewCachingBlobStore makes a new caching disk store and returns a pointer to it.
-func NewCachingBlobStore(origin, cache BlobStore) *CachingBlobStore {
-	return &CachingBlobStore{origin: origin, cache: cache, sf: new(singleflight.Group)}
+// NewCachingStore makes a new caching disk store and returns a pointer to it.
+func NewCachingStore(origin, cache BlobStore) *CachingStore {
+	return &CachingStore{origin: origin, cache: cache, sf: new(singleflight.Group)}
 }
 
 // Has checks the cache and then the origin for a hash. It returns true if either store has it.
-func (c *CachingBlobStore) Has(hash string) (bool, error) {
+func (c *CachingStore) Has(hash string) (bool, error) {
 	has, err := c.cache.Has(hash)
 	if has || err != nil {
 		return has, err
@@ -36,7 +36,7 @@ func (c *CachingBlobStore) Has(hash string) (bool, error) {
 
 // Get tries to get the blob from the cache first, falling back to the origin. If the blob comes
 // from the origin, it is also stored in the cache.
-func (c *CachingBlobStore) Get(hash string) (stream.Blob, error) {
+func (c *CachingStore) Get(hash string) (stream.Blob, error) {
 	start := time.Now()
 	blob, err := c.cache.Get(hash)
 	if err == nil || !errors.Is(err, ErrBlobNotFound) {
@@ -52,7 +52,7 @@ func (c *CachingBlobStore) Get(hash string) (stream.Blob, error) {
 
 // getFromOrigin ensures that only one Get per hash is sent to the origin at a time,
 // thereby protecting against https://en.wikipedia.org/wiki/Thundering_herd_problem
-func (c *CachingBlobStore) getFromOrigin(hash string) (stream.Blob, error) {
+func (c *CachingStore) getFromOrigin(hash string) (stream.Blob, error) {
 	metrics.CacheWaitingRequestsCount.Inc()
 	defer metrics.CacheWaitingRequestsCount.Dec()
 	originBlob, err, _ := c.sf.Do(hash, func() (interface{}, error) {
@@ -78,7 +78,7 @@ func (c *CachingBlobStore) getFromOrigin(hash string) (stream.Blob, error) {
 }
 
 // Put stores the blob in the origin and the cache
-func (c *CachingBlobStore) Put(hash string, blob stream.Blob) error {
+func (c *CachingStore) Put(hash string, blob stream.Blob) error {
 	err := c.origin.Put(hash, blob)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (c *CachingBlobStore) Put(hash string, blob stream.Blob) error {
 }
 
 // PutSD stores the sd blob in the origin and the cache
-func (c *CachingBlobStore) PutSD(hash string, blob stream.Blob) error {
+func (c *CachingStore) PutSD(hash string, blob stream.Blob) error {
 	err := c.origin.PutSD(hash, blob)
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func (c *CachingBlobStore) PutSD(hash string, blob stream.Blob) error {
 }
 
 // Delete deletes the blob from the origin and the cache
-func (c *CachingBlobStore) Delete(hash string) error {
+func (c *CachingStore) Delete(hash string) error {
 	err := c.origin.Delete(hash)
 	if err != nil {
 		return err

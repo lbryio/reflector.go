@@ -10,9 +10,9 @@ import (
 )
 
 func TestCachingBlobStore_Put(t *testing.T) {
-	origin := NewMemoryBlobStore()
-	cache := NewMemoryBlobStore()
-	s := NewCachingBlobStore(origin, cache)
+	origin := NewMemoryStore()
+	cache := NewMemoryStore()
+	s := NewCachingStore(origin, cache)
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"
@@ -40,9 +40,9 @@ func TestCachingBlobStore_Put(t *testing.T) {
 }
 
 func TestCachingBlobStore_CacheMiss(t *testing.T) {
-	origin := NewMemoryBlobStore()
-	cache := NewMemoryBlobStore()
-	s := NewCachingBlobStore(origin, cache)
+	origin := NewMemoryStore()
+	cache := NewMemoryStore()
+	s := NewCachingStore(origin, cache)
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"
@@ -79,8 +79,8 @@ func TestCachingBlobStore_CacheMiss(t *testing.T) {
 func TestCachingBlobStore_ThunderingHerd(t *testing.T) {
 	storeDelay := 100 * time.Millisecond
 	origin := NewSlowBlobStore(storeDelay)
-	cache := NewMemoryBlobStore()
-	s := NewCachingBlobStore(origin, cache)
+	cache := NewMemoryStore()
+	s := NewCachingStore(origin, cache)
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"
@@ -129,13 +129,13 @@ func TestCachingBlobStore_ThunderingHerd(t *testing.T) {
 
 // SlowBlobStore adds a delay to each request
 type SlowBlobStore struct {
-	mem   *MemoryBlobStore
+	mem   *MemoryStore
 	delay time.Duration
 }
 
 func NewSlowBlobStore(delay time.Duration) *SlowBlobStore {
 	return &SlowBlobStore{
-		mem:   NewMemoryBlobStore(),
+		mem:   NewMemoryStore(),
 		delay: delay,
 	}
 }

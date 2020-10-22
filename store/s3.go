@@ -18,8 +18,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// S3BlobStore is an S3 store
-type S3BlobStore struct {
+// S3Store is an S3 store
+type S3Store struct {
 	awsID     string
 	awsSecret string
 	region    string
@@ -28,9 +28,9 @@ type S3BlobStore struct {
 	session *session.Session
 }
 
-// NewS3BlobStore returns an initialized S3 store pointer.
-func NewS3BlobStore(awsID, awsSecret, region, bucket string) *S3BlobStore {
-	return &S3BlobStore{
+// NewS3Store returns an initialized S3 store pointer.
+func NewS3Store(awsID, awsSecret, region, bucket string) *S3Store {
+	return &S3Store{
 		awsID:     awsID,
 		awsSecret: awsSecret,
 		region:    region,
@@ -38,7 +38,7 @@ func NewS3BlobStore(awsID, awsSecret, region, bucket string) *S3BlobStore {
 	}
 }
 
-func (s *S3BlobStore) initOnce() error {
+func (s *S3Store) initOnce() error {
 	if s.session != nil {
 		return nil
 	}
@@ -56,7 +56,7 @@ func (s *S3BlobStore) initOnce() error {
 }
 
 // Has returns T/F or Error ( from S3 ) if the store contains the blob.
-func (s *S3BlobStore) Has(hash string) (bool, error) {
+func (s *S3Store) Has(hash string) (bool, error) {
 	err := s.initOnce()
 	if err != nil {
 		return false, err
@@ -77,7 +77,7 @@ func (s *S3BlobStore) Has(hash string) (bool, error) {
 }
 
 // Get returns the blob slice if present or errors on S3.
-func (s *S3BlobStore) Get(hash string) (stream.Blob, error) {
+func (s *S3Store) Get(hash string) (stream.Blob, error) {
 	//Todo-Need to handle error for blob doesn't exist for consistency.
 	err := s.initOnce()
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *S3BlobStore) Get(hash string) (stream.Blob, error) {
 }
 
 // Put stores the blob on S3 or errors if S3 connection errors.
-func (s *S3BlobStore) Put(hash string, blob stream.Blob) error {
+func (s *S3Store) Put(hash string, blob stream.Blob) error {
 	err := s.initOnce()
 	if err != nil {
 		return err
@@ -133,12 +133,12 @@ func (s *S3BlobStore) Put(hash string, blob stream.Blob) error {
 }
 
 // PutSD stores the sd blob on S3 or errors if S3 connection errors.
-func (s *S3BlobStore) PutSD(hash string, blob stream.Blob) error {
+func (s *S3Store) PutSD(hash string, blob stream.Blob) error {
 	//Todo - handle missing stream for consistency
 	return s.Put(hash, blob)
 }
 
-func (s *S3BlobStore) Delete(hash string) error {
+func (s *S3Store) Delete(hash string) error {
 	err := s.initOnce()
 	if err != nil {
 		return err

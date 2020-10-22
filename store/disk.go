@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/afero"
 )
 
-// DiskBlobStore stores blobs on a local disk
-type DiskBlobStore struct {
+// DiskStore stores blobs on a local disk
+type DiskStore struct {
 	// the location of blobs on disk
 	blobDir string
 	// store files in subdirectories based on the first N chars in the filename. 0 = don't create subdirectories.
@@ -26,31 +26,31 @@ type DiskBlobStore struct {
 	initialized bool
 }
 
-// NewDiskBlobStore returns an initialized file disk store pointer.
-func NewDiskBlobStore(dir string, prefixLength int) *DiskBlobStore {
-	return &DiskBlobStore{
+// NewDiskStore returns an initialized file disk store pointer.
+func NewDiskStore(dir string, prefixLength int) *DiskStore {
+	return &DiskStore{
 		blobDir:      dir,
 		prefixLength: prefixLength,
 		fs:           afero.NewOsFs(),
 	}
 }
 
-func (d *DiskBlobStore) dir(hash string) string {
+func (d *DiskStore) dir(hash string) string {
 	if d.prefixLength <= 0 || len(hash) < d.prefixLength {
 		return d.blobDir
 	}
 	return path.Join(d.blobDir, hash[:d.prefixLength])
 }
 
-func (d *DiskBlobStore) path(hash string) string {
+func (d *DiskStore) path(hash string) string {
 	return path.Join(d.dir(hash), hash)
 }
 
-func (d *DiskBlobStore) ensureDirExists(dir string) error {
+func (d *DiskStore) ensureDirExists(dir string) error {
 	return errors.Err(d.fs.MkdirAll(dir, 0755))
 }
 
-func (d *DiskBlobStore) initOnce() error {
+func (d *DiskStore) initOnce() error {
 	if d.initialized {
 		return nil
 	}
@@ -65,7 +65,7 @@ func (d *DiskBlobStore) initOnce() error {
 }
 
 // Has returns T/F or Error if it the blob stored already. It will error with any IO disk error.
-func (d *DiskBlobStore) Has(hash string) (bool, error) {
+func (d *DiskStore) Has(hash string) (bool, error) {
 	err := d.initOnce()
 	if err != nil {
 		return false, err
@@ -82,7 +82,7 @@ func (d *DiskBlobStore) Has(hash string) (bool, error) {
 }
 
 // Get returns the blob or an error if the blob doesn't exist.
-func (d *DiskBlobStore) Get(hash string) (stream.Blob, error) {
+func (d *DiskStore) Get(hash string) (stream.Blob, error) {
 	err := d.initOnce()
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (d *DiskBlobStore) Get(hash string) (stream.Blob, error) {
 }
 
 // Put stores the blob on disk
-func (d *DiskBlobStore) Put(hash string, blob stream.Blob) error {
+func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	err := d.initOnce()
 	if err != nil {
 		return err
@@ -118,12 +118,12 @@ func (d *DiskBlobStore) Put(hash string, blob stream.Blob) error {
 }
 
 // PutSD stores the sd blob on the disk
-func (d *DiskBlobStore) PutSD(hash string, blob stream.Blob) error {
+func (d *DiskStore) PutSD(hash string, blob stream.Blob) error {
 	return d.Put(hash, blob)
 }
 
 // Delete deletes the blob from the store
-func (d *DiskBlobStore) Delete(hash string) error {
+func (d *DiskStore) Delete(hash string) error {
 	err := d.initOnce()
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func (d *DiskBlobStore) Delete(hash string) error {
 }
 
 // list returns a slice of blobs that already exist in the blobDir
-func (d *DiskBlobStore) list() ([]string, error) {
+func (d *DiskStore) list() ([]string, error) {
 	dirs, err := afero.ReadDir(d.fs, d.blobDir)
 	if err != nil {
 		return nil, err
