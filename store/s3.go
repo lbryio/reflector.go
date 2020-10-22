@@ -38,22 +38,10 @@ func NewS3Store(awsID, awsSecret, region, bucket string) *S3Store {
 	}
 }
 
-func (s *S3Store) initOnce() error {
-	if s.session != nil {
-		return nil
-	}
+const nameS3 = "s3"
 
-	sess, err := session.NewSession(&aws.Config{
-		Credentials: credentials.NewStaticCredentials(s.awsID, s.awsSecret, ""),
-		Region:      aws.String(s.region),
-	})
-	if err != nil {
-		return err
-	}
-
-	s.session = sess
-	return nil
-}
+// Name is the cache type name
+func (s *S3Store) Name() string { return nameS3 }
 
 // Has returns T/F or Error ( from S3 ) if the store contains the blob.
 func (s *S3Store) Has(hash string) (bool, error) {
@@ -152,4 +140,21 @@ func (s *S3Store) Delete(hash string) error {
 	})
 
 	return err
+}
+
+func (s *S3Store) initOnce() error {
+	if s.session != nil {
+		return nil
+	}
+
+	sess, err := session.NewSession(&aws.Config{
+		Credentials: credentials.NewStaticCredentials(s.awsID, s.awsSecret, ""),
+		Region:      aws.String(s.region),
+	})
+	if err != nil {
+		return err
+	}
+
+	s.session = sess
+	return nil
 }

@@ -3,6 +3,7 @@ package store
 import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/internal/metrics"
 
 	golru "github.com/hashicorp/golang-lru"
 )
@@ -18,6 +19,7 @@ type LRUStore struct {
 // NewLRUStore initialize a new LRUStore
 func NewLRUStore(store BlobStore, maxItems int) *LRUStore {
 	lru, err := golru.NewWithEvict(maxItems, func(key interface{}, value interface{}) {
+		metrics.CacheLRUEvictCount.WithLabelValues(store.Name()).Inc()
 		_ = store.Delete(key.(string)) // TODO: log this error. may happen if underlying entry is gone but cache entry still there
 	})
 	if err != nil {
@@ -38,6 +40,11 @@ func NewLRUStore(store BlobStore, maxItems int) *LRUStore {
 
 	return l
 }
+
+const nameLRU = "lru"
+
+// Name is the cache type name
+func (l *LRUStore) Name() string { return nameLRU }
 
 // Has returns whether the blob is in the store, without updating the recent-ness.
 func (l *LRUStore) Has(hash string) (bool, error) {

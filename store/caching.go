@@ -25,6 +25,11 @@ func NewCachingStore(origin, cache BlobStore) *CachingStore {
 	return &CachingStore{origin: origin, cache: cache, sf: new(singleflight.Group)}
 }
 
+const nameCaching = "caching"
+
+// Name is the cache type name
+func (c *CachingStore) Name() string { return nameCaching }
+
 // Has checks the cache and then the origin for a hash. It returns true if either store has it.
 func (c *CachingStore) Has(hash string) (bool, error) {
 	has, err := c.cache.Has(hash)
@@ -42,7 +47,7 @@ func (c *CachingStore) Get(hash string) (stream.Blob, error) {
 	if err == nil || !errors.Is(err, ErrBlobNotFound) {
 		metrics.CacheHitCount.Inc()
 		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
-		metrics.RetrieverSpeed.With(map[string]string{metrics.MtrLabelSource: "cache"}).Set(rate)
+		metrics.RetrieverSpeed.With(map[string]string{metrics.LabelSource: "cache"}).Set(rate)
 		return blob, err
 	}
 
@@ -66,7 +71,7 @@ func (c *CachingStore) getFromOrigin(hash string) (stream.Blob, error) {
 		}
 
 		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
-		metrics.RetrieverSpeed.With(map[string]string{metrics.MtrLabelSource: "origin"}).Set(rate)
+		metrics.RetrieverSpeed.With(map[string]string{metrics.LabelSource: "origin"}).Set(rate)
 
 		err = c.cache.Put(hash, blob)
 		return blob, err

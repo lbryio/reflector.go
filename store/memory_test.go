@@ -7,8 +7,8 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 )
 
-func TestMemoryBlobStore_Put(t *testing.T) {
-	s := NewMemoryStore()
+func TestMemStore_Put(t *testing.T) {
+	s := NewMemStore()
 	blob := []byte("abcdefg")
 	err := s.Put("abc", blob)
 	if err != nil {
@@ -16,8 +16,8 @@ func TestMemoryBlobStore_Put(t *testing.T) {
 	}
 }
 
-func TestMemoryBlobStore_Get(t *testing.T) {
-	s := NewMemoryStore()
+func TestMemStore_Get(t *testing.T) {
+	s := NewMemStore()
 	hash := "abc"
 	blob := []byte("abcdefg")
 	err := s.Put(hash, blob)

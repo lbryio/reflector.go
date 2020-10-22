@@ -14,7 +14,7 @@ import (
 
 const cacheMaxBlobs = 3
 
-func testLRUStore() (*LRUStore, *DiskStore) {
+func getTestLRUStore() (*LRUStore, *DiskStore) {
 	d := NewDiskStore("/", 2)
 	d.fs = afero.NewMemMapFs()
 	return NewLRUStore(d, 3), d
@@ -42,7 +42,7 @@ func countOnDisk(t *testing.T, disk *DiskStore) int {
 }
 
 func TestLRUStore_Eviction(t *testing.T) {
-	lru, disk := testLRUStore()
+	lru, disk := getTestLRUStore()
 	b := []byte("x")
 	err := lru.Put("one", b)
 	require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestLRUStore_Eviction(t *testing.T) {
 }
 
 func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
-	lru, disk := testLRUStore()
+	lru, disk := getTestLRUStore()
 	hash := "hash"
 	b := []byte("this is a blob of stuff")
 	err := lru.Put(hash, b)

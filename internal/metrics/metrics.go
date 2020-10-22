@@ -57,7 +57,8 @@ func (s *Server) Shutdown() {
 }
 
 const (
-	ns = "reflector"
+	ns             = "reflector"
+	subsystemCache = "cache"
 
 	labelDirection = "direction"
 	labelErrorType = "error_type"
@@ -65,7 +66,8 @@ const (
 	DirectionUpload   = "upload"   // to reflector
 	DirectionDownload = "download" // from reflector
 
-	MtrLabelSource = "source"
+	LabelCacheType = "cache_type"
+	LabelSource    = "source"
 
 	errConnReset         = "conn_reset"
 	errReadConnReset     = "read_conn_reset"
@@ -116,25 +118,35 @@ var (
 
 	CacheHitCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
-		Name:      "cache_hit_total",
+		Subsystem: subsystemCache,
+		Name:      "hit_total",
 		Help:      "Total number of blobs retrieved from the cache storage",
 	})
 	CacheMissCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
-		Name:      "cache_miss_total",
+		Subsystem: subsystemCache,
+		Name:      "miss_total",
 		Help:      "Total number of blobs retrieved from origin rather than cache storage",
 	})
 	CacheOriginRequestsCount = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: ns,
-		Name:      "cache_origin_requests_total",
+		Subsystem: subsystemCache,
+		Name:      "origin_requests_total",
 		Help:      "How many Get requests are in flight from the cache to the origin",
 	})
 	// during thundering-herd situations, the metric below should be a lot smaller than the metric above
 	CacheWaitingRequestsCount = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: ns,
-		Name:      "cache_waiting_requests_total",
+		Subsystem: subsystemCache,
+		Name:      "waiting_requests_total",
 		Help:      "How many cache requests are waiting for an in-flight origin request",
 	})
+	CacheLRUEvictCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: ns,
+		Subsystem: subsystemCache,
+		Name:      "evict_total",
+		Help:      "Count of blobs evicted from cache",
+	}, []string{LabelCacheType})
 
 	BlobUploadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
@@ -151,7 +163,7 @@ var (
 		Namespace: ns,
 		Name:      "speed_mbps",
 		Help:      "Speed of blob retrieval",
-	}, []string{MtrLabelSource})
+	}, []string{LabelSource})
 
 	MtrInBytesTcp = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,

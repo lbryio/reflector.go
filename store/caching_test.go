@@ -9,9 +9,9 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 )
 
-func TestCachingBlobStore_Put(t *testing.T) {
-	origin := NewMemoryStore()
-	cache := NewMemoryStore()
+func TestCachingStore_Put(t *testing.T) {
+	origin := NewMemStore()
+	cache := NewMemStore()
 	s := NewCachingStore(origin, cache)
 
 	b := []byte("this is a blob of stuff")
@@ -39,9 +39,9 @@ func TestCachingBlobStore_Put(t *testing.T) {
 	}
 }
 
-func TestCachingBlobStore_CacheMiss(t *testing.T) {
-	origin := NewMemoryStore()
-	cache := NewMemoryStore()
+func TestCachingStore_CacheMiss(t *testing.T) {
+	origin := NewMemStore()
+	cache := NewMemStore()
 	s := NewCachingStore(origin, cache)
 
 	b := []byte("this is a blob of stuff")
@@ -76,10 +76,10 @@ func TestCachingBlobStore_CacheMiss(t *testing.T) {
 	}
 }
 
-func TestCachingBlobStore_ThunderingHerd(t *testing.T) {
+func TestCachingStore_ThunderingHerd(t *testing.T) {
 	storeDelay := 100 * time.Millisecond
 	origin := NewSlowBlobStore(storeDelay)
-	cache := NewMemoryStore()
+	cache := NewMemStore()
 	s := NewCachingStore(origin, cache)
 
 	b := []byte("this is a blob of stuff")
@@ -129,15 +129,18 @@ func TestCachingBlobStore_ThunderingHerd(t *testing.T) {
 
 // SlowBlobStore adds a delay to each request
 type SlowBlobStore struct {
-	mem   *MemoryStore
+	mem   *MemStore
 	delay time.Duration
 }
 
 func NewSlowBlobStore(delay time.Duration) *SlowBlobStore {
 	return &SlowBlobStore{
-		mem:   NewMemoryStore(),
+		mem:   NewMemStore(),
 		delay: delay,
 	}
+}
+func (s *SlowBlobStore) Name() string {
+	return "slow"
 }
 
 func (s *SlowBlobStore) Has(hash string) (bool, error) {

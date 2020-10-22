@@ -35,34 +35,10 @@ func NewDiskStore(dir string, prefixLength int) *DiskStore {
 	}
 }
 
-func (d *DiskStore) dir(hash string) string {
-	if d.prefixLength <= 0 || len(hash) < d.prefixLength {
-		return d.blobDir
-	}
-	return path.Join(d.blobDir, hash[:d.prefixLength])
-}
+const nameDisk = "disk"
 
-func (d *DiskStore) path(hash string) string {
-	return path.Join(d.dir(hash), hash)
-}
-
-func (d *DiskStore) ensureDirExists(dir string) error {
-	return errors.Err(d.fs.MkdirAll(dir, 0755))
-}
-
-func (d *DiskStore) initOnce() error {
-	if d.initialized {
-		return nil
-	}
-
-	err := d.ensureDirExists(d.blobDir)
-	if err != nil {
-		return err
-	}
-
-	d.initialized = true
-	return nil
-}
+// Name is the cache type name
+func (d *DiskStore) Name() string { return nameDisk }
 
 // Has returns T/F or Error if it the blob stored already. It will error with any IO disk error.
 func (d *DiskStore) Has(hash string) (bool, error) {
@@ -165,4 +141,33 @@ func (d *DiskStore) list() ([]string, error) {
 	}
 
 	return existing, nil
+}
+
+func (d *DiskStore) dir(hash string) string {
+	if d.prefixLength <= 0 || len(hash) < d.prefixLength {
+		return d.blobDir
+	}
+	return path.Join(d.blobDir, hash[:d.prefixLength])
+}
+
+func (d *DiskStore) path(hash string) string {
+	return path.Join(d.dir(hash), hash)
+}
+
+func (d *DiskStore) ensureDirExists(dir string) error {
+	return errors.Err(d.fs.MkdirAll(dir, 0755))
+}
+
+func (d *DiskStore) initOnce() error {
+	if d.initialized {
+		return nil
+	}
+
+	err := d.ensureDirExists(d.blobDir)
+	if err != nil {
+		return err
+	}
+
+	d.initialized = true
+	return nil
 }

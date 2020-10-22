@@ -159,7 +159,7 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 
 	if reflectorCmdMemCache > 0 {
 		wrapped = store.NewCachingStore(wrapped,
-			store.NewLRUStore(store.NewMemoryStore(), reflectorCmdMemCache))
+			store.NewLRUStore(store.NewMemStore(), reflectorCmdMemCache))
 	}
 
 	return wrapped

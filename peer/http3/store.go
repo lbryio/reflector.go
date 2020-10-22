@@ -55,6 +55,8 @@ func (p *Store) getClient() (*Client, error) {
 	return c, errors.Prefix("connection error", err)
 }
 
+func (p *Store) Name() string { return "http3" }
+
 // Has asks the peer if they have a hash
 func (p *Store) Has(hash string) (bool, error) {
 	c, err := p.getClient()

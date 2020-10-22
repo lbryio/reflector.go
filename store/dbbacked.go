@@ -25,6 +25,11 @@ func NewDBBackedStore(blobs BlobStore, db *db.SQL) *DBBackedStore {
 	return &DBBackedStore{blobs: blobs, db: db}
 }
 
+const nameDBBacked = "db-backed"
+
+// Name is the cache type name
+func (d *DBBackedStore) Name() string { return nameDBBacked }
+
 // Has returns true if the blob is in the store
 func (d *DBBackedStore) Has(hash string) (bool, error) {
 	return d.db.HasBlob(hash)

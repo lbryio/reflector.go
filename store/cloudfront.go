@@ -34,6 +34,11 @@ func NewCloudFrontStore(s3 *S3Store, cfEndpoint string) *CloudFrontStore {
 	}
 }
 
+const nameCloudFront = "cloudfront"
+
+// Name is the cache type name
+func (c *CloudFrontStore) Name() string { return nameCloudFront }
+
 // Has checks if the hash is in the store.
 func (c *CloudFrontStore) Has(hash string) (bool, error) {
 	status, body, err := c.cfRequest(http.MethodHead, hash)

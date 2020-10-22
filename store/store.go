@@ -7,6 +7,8 @@ import (
 
 // BlobStore is an interface for handling blob storage.
 type BlobStore interface {
+	// Name of blob store (useful for metrics)
+	Name() string
 	// Does blob exist in the store
 	Has(hash string) (bool, error)
 	// Get the blob from the store
