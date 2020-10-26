@@ -117,8 +117,13 @@ func (d *DiskStore) Delete(hash string) error {
 	return errors.Err(err)
 }
 
-// list returns a slice of blobs that already exist in the blobDir
+// list returns the hashes of blobs that already exist in the blobDir
 func (d *DiskStore) list() ([]string, error) {
+	err := d.initOnce()
+	if err != nil {
+		return nil, err
+	}
+
 	dirs, err := afero.ReadDir(d.fs, d.blobDir)
 	if err != nil {
 		return nil, err

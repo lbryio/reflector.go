@@ -119,3 +119,23 @@ func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
 	// lru.Get() removes hash if underlying store doesn't have it
 	assert.False(t, lru.lru.Contains(hash))
 }
+
+func TestLRUStore_loadExisting(t *testing.T) {
+	d := NewDiskStore("/", 2)
+	d.fs = afero.NewMemMapFs()
+
+	hash := "hash"
+	b := []byte("this is a blob of stuff")
+	err := d.Put(hash, b)
+	require.NoError(t, err)
+
+	existing, err := d.list()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(existing), "blob should exist in cache")
+	assert.Equal(t, hash, existing[0])
+
+	lru := NewLRUStore(d, 3) // lru should load existing blobs when it's created
+	has, err := lru.Has(hash)
+	require.NoError(t, err)
+	assert.True(t, has, "hash should be loaded from disk store but it's not")
+}
