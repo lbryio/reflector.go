@@ -124,7 +124,7 @@ func setupStore() store.BlobStore {
 	} else {
 		s3Store := store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 		if cloudFrontEndpoint != "" {
-			s = store.NewCloudFrontStore(s3Store, cloudFrontEndpoint)
+			s = store.NewCloudFrontRWStore(store.NewCloudFrontROStore(cloudFrontEndpoint), s3Store)
 		} else {
 			s = s3Store
 		}

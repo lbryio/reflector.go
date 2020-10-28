@@ -15,32 +15,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// CloudFrontStore wraps an S3 store. Reads go to Cloudfront, writes go to S3.
-type CloudFrontStore struct {
-	s3       *S3Store
+// CloudFrontROStore reads from cloudfront. All writes panic.
+type CloudFrontROStore struct {
 	endpoint string // cloudflare endpoint
 }
 
-// NewCloudFrontStore returns an initialized CloudFrontStore store pointer.
-// NOTE: It panics if S3Store is nil.
-func NewCloudFrontStore(s3 *S3Store, cfEndpoint string) *CloudFrontStore {
-	if s3 == nil {
-		panic("S3Store must not be nil")
-	}
-
-	return &CloudFrontStore{
-		endpoint: cfEndpoint,
-		s3:       s3,
-	}
+// NewCloudFrontROStore returns an initialized CloudFrontROStore store pointer.
+func NewCloudFrontROStore(endpoint string) *CloudFrontROStore {
+	return &CloudFrontROStore{endpoint: endpoint}
 }
 
-const nameCloudFront = "cloudfront"
+const nameCloudFrontRO = "cloudfront_ro"
 
 // Name is the cache type name
-func (c *CloudFrontStore) Name() string { return nameCloudFront }
+func (c *CloudFrontROStore) Name() string { return nameCloudFrontRO }
 
 // Has checks if the hash is in the store.
-func (c *CloudFrontStore) Has(hash string) (bool, error) {
+func (c *CloudFrontROStore) Has(hash string) (bool, error) {
 	status, body, err := c.cfRequest(http.MethodHead, hash)
 	if err != nil {
 		return false, err
@@ -58,7 +49,7 @@ func (c *CloudFrontStore) Has(hash string) (bool, error) {
 }
 
 // Get gets the blob from Cloudfront.
-func (c *CloudFrontStore) Get(hash string) (stream.Blob, error) {
+func (c *CloudFrontROStore) Get(hash string) (stream.Blob, error) {
 	log.Debugf("Getting %s from S3", hash[:8])
 	defer func(t time.Time) {
 		log.Debugf("Getting %s from S3 took %s", hash[:8], time.Since(t).String())
@@ -85,7 +76,7 @@ func (c *CloudFrontStore) Get(hash string) (stream.Blob, error) {
 	}
 }
 
-func (c *CloudFrontStore) cfRequest(method, hash string) (int, io.ReadCloser, error) {
+func (c *CloudFrontROStore) cfRequest(method, hash string) (int, io.ReadCloser, error) {
 	url := c.endpoint + hash
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
@@ -101,17 +92,14 @@ func (c *CloudFrontStore) cfRequest(method, hash string) (int, io.ReadCloser, er
 	return res.StatusCode, res.Body, nil
 }
 
-// Put stores the blob on S3
-func (c *CloudFrontStore) Put(hash string, blob stream.Blob) error {
-	return c.s3.Put(hash, blob)
+func (c *CloudFrontROStore) Put(_ string, _ stream.Blob) error {
+	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
 }
 
-// PutSD stores the sd blob on S3
-func (c *CloudFrontStore) PutSD(hash string, blob stream.Blob) error {
-	return c.s3.PutSD(hash, blob)
+func (c *CloudFrontROStore) PutSD(_ string, _ stream.Blob) error {
+	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
 }
 
-// Delete deletes the blob from S3
-func (c *CloudFrontStore) Delete(hash string) error {
-	return c.s3.Delete(hash)
+func (c *CloudFrontROStore) Delete(_ string) error {
+	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
 }
