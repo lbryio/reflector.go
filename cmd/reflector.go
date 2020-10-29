@@ -153,13 +153,19 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		if err != nil {
 			log.Fatal(err)
 		}
-		wrapped = store.NewCachingStore(wrapped,
-			store.NewLRUStore(store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize))
+		wrapped = store.NewCachingStore(
+			"reflector",
+			wrapped,
+			store.NewLRUStore("peer_server", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
+		)
 	}
 
 	if reflectorCmdMemCache > 0 {
-		wrapped = store.NewCachingStore(wrapped,
-			store.NewLRUStore(store.NewMemStore(), reflectorCmdMemCache))
+		wrapped = store.NewCachingStore(
+			"reflector",
+			wrapped,
+			store.NewLRUStore("peer_server", store.NewMemStore(), reflectorCmdMemCache),
+		)
 	}
 
 	return wrapped

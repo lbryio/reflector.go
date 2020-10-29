@@ -17,7 +17,7 @@ const cacheMaxBlobs = 3
 func getTestLRUStore() (*LRUStore, *DiskStore) {
 	d := NewDiskStore("/", 2)
 	d.fs = afero.NewMemMapFs()
-	return NewLRUStore(d, 3), d
+	return NewLRUStore("test", d, 3), d
 }
 
 func countOnDisk(t *testing.T, disk *DiskStore) int {
@@ -134,7 +134,7 @@ func TestLRUStore_loadExisting(t *testing.T) {
 	require.Equal(t, 1, len(existing), "blob should exist in cache")
 	assert.Equal(t, hash, existing[0])
 
-	lru := NewLRUStore(d, 3) // lru should load existing blobs when it's created
+	lru := NewLRUStore("test", d, 3) // lru should load existing blobs when it's created
 	has, err := lru.Has(hash)
 	require.NoError(t, err)
 	assert.True(t, has, "hash should be loaded from disk store but it's not")

@@ -17,9 +17,9 @@ type LRUStore struct {
 }
 
 // NewLRUStore initialize a new LRUStore
-func NewLRUStore(store BlobStore, maxItems int) *LRUStore {
+func NewLRUStore(component string, store BlobStore, maxItems int) *LRUStore {
 	lru, err := golru.NewWithEvict(maxItems, func(key interface{}, value interface{}) {
-		metrics.CacheLRUEvictCount.WithLabelValues(store.Name()).Inc()
+		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(store.Name(), component)).Inc()
 		_ = store.Delete(key.(string)) // TODO: log this error. may happen if underlying entry is gone but cache entry still there
 	})
 	if err != nil {

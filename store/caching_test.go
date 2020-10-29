@@ -12,7 +12,7 @@ import (
 func TestCachingStore_Put(t *testing.T) {
 	origin := NewMemStore()
 	cache := NewMemStore()
-	s := NewCachingStore(origin, cache)
+	s := NewCachingStore("test", origin, cache)
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"
@@ -42,7 +42,7 @@ func TestCachingStore_Put(t *testing.T) {
 func TestCachingStore_CacheMiss(t *testing.T) {
 	origin := NewMemStore()
 	cache := NewMemStore()
-	s := NewCachingStore(origin, cache)
+	s := NewCachingStore("test", origin, cache)
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"
@@ -80,7 +80,7 @@ func TestCachingStore_ThunderingHerd(t *testing.T) {
 	storeDelay := 100 * time.Millisecond
 	origin := NewSlowBlobStore(storeDelay)
 	cache := NewMemStore()
-	s := NewCachingStore(origin, cache)
+	s := NewCachingStore("test", origin, cache)
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"

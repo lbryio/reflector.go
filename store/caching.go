@@ -7,8 +7,6 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
-
-	"golang.org/x/sync/singleflight"
 )
 
 // CachingStore combines two stores, typically a local and a remote store, to improve performance.
@@ -16,13 +14,16 @@ import (
 // are retrieved from the origin and cached. Puts are cached and also forwarded to the origin.
 type CachingStore struct {
 	origin, cache BlobStore
-
-	sf *singleflight.Group
+	component     string
 }
 
 // NewCachingStore makes a new caching disk store and returns a pointer to it.
-func NewCachingStore(origin, cache BlobStore) *CachingStore {
-	return &CachingStore{origin: origin, cache: cache, sf: new(singleflight.Group)}
+func NewCachingStore(component string, origin, cache BlobStore) *CachingStore {
+	return &CachingStore{
+		component: component,
+		origin:    WithSingleFlight(component, origin),
+		cache:     cache,
+	}
 }
 
 const nameCaching = "caching"
@@ -45,41 +46,25 @@ func (c *CachingStore) Get(hash string) (stream.Blob, error) {
 	start := time.Now()
 	blob, err := c.cache.Get(hash)
 	if err == nil || !errors.Is(err, ErrBlobNotFound) {
-		metrics.CacheHitCount.Inc()
+		metrics.CacheHitCount.With(metrics.CacheLabels(c.cache.Name(), c.component)).Inc()
 		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
-		metrics.RetrieverSpeed.With(map[string]string{metrics.LabelSource: "cache"}).Set(rate)
+		metrics.CacheRetrievalSpeed.With(map[string]string{
+			metrics.LabelCacheType: c.cache.Name(),
+			metrics.LabelComponent: c.component,
+			metrics.LabelSource:    "cache",
+		}).Set(rate)
 		return blob, err
 	}
 
-	metrics.CacheMissCount.Inc()
-	return c.getFromOrigin(hash)
-}
+	metrics.CacheMissCount.With(metrics.CacheLabels(c.cache.Name(), c.component)).Inc()
 
-// getFromOrigin ensures that only one Get per hash is sent to the origin at a time,
-// thereby protecting against https://en.wikipedia.org/wiki/Thundering_herd_problem
-func (c *CachingStore) getFromOrigin(hash string) (stream.Blob, error) {
-	metrics.CacheWaitingRequestsCount.Inc()
-	defer metrics.CacheWaitingRequestsCount.Dec()
-	originBlob, err, _ := c.sf.Do(hash, func() (interface{}, error) {
-		metrics.CacheOriginRequestsCount.Inc()
-		defer metrics.CacheOriginRequestsCount.Dec()
-
-		start := time.Now()
-		blob, err := c.origin.Get(hash)
-		if err != nil {
-			return nil, err
-		}
-
-		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
-		metrics.RetrieverSpeed.With(map[string]string{metrics.LabelSource: "origin"}).Set(rate)
-
-		err = c.cache.Put(hash, blob)
-		return blob, err
-	})
+	blob, err = c.origin.Get(hash)
 	if err != nil {
 		return nil, err
 	}
-	return originBlob.(stream.Blob), nil
+
+	err = c.cache.Put(hash, blob)
+	return blob, err
 }
 
 // Put stores the blob in the origin and the cache
