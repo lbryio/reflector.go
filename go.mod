@@ -19,6 +19,7 @@ require (
 	github.com/hashicorp/serf v0.8.2
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/johntdyer/slackrus v0.0.0-20180518184837-f7aae3243a07
+	github.com/karrick/godirwalk v1.16.1
 	github.com/lbryio/chainquery v1.9.0
 	github.com/lbryio/lbry.go v1.1.2 // indirect
 	github.com/lbryio/lbry.go/v2 v2.6.1-0.20200901175808-73382bb02128
