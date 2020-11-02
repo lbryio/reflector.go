@@ -8,8 +8,6 @@ import (
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
-
-	"github.com/spf13/afero"
 )
 
 // DiskStore stores blobs on a local disk
@@ -18,9 +16,6 @@ type DiskStore struct {
 	blobDir string
 	// store files in subdirectories based on the first N chars in the filename. 0 = don't create subdirectories.
 	prefixLength int
-
-	// filesystem abstraction
-	fs afero.Fs
 
 	// true if initOnce ran, false otherwise
 	initialized bool
@@ -31,7 +26,6 @@ func NewDiskStore(dir string, prefixLength int) *DiskStore {
 	return &DiskStore{
 		blobDir:      dir,
 		prefixLength: prefixLength,
-		fs:           afero.NewOsFs(),
 	}
 }
 
@@ -47,7 +41,7 @@ func (d *DiskStore) Has(hash string) (bool, error) {
 		return false, err
 	}
 
-	_, err = d.fs.Stat(d.path(hash))
+	_, err = os.Stat(d.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -64,7 +58,7 @@ func (d *DiskStore) Get(hash string) (stream.Blob, error) {
 		return nil, err
 	}
 
-	file, err := d.fs.Open(d.path(hash))
+	file, err := os.Open(d.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, errors.Err(ErrBlobNotFound)
@@ -89,7 +83,7 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 		return err
 	}
 
-	err = afero.WriteFile(d.fs, d.path(hash), blob, 0644)
+	err = ioutil.WriteFile(d.path(hash), blob, 0644)
 	return errors.Err(err)
 }
 
@@ -113,7 +107,7 @@ func (d *DiskStore) Delete(hash string) error {
 		return nil
 	}
 
-	err = d.fs.Remove(d.path(hash))
+	err = os.Remove(d.path(hash))
 	return errors.Err(err)
 }
 
@@ -124,7 +118,7 @@ func (d *DiskStore) list() ([]string, error) {
 		return nil, err
 	}
 
-	dirs, err := afero.ReadDir(d.fs, d.blobDir)
+	dirs, err := ioutil.ReadDir(d.blobDir)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +127,7 @@ func (d *DiskStore) list() ([]string, error) {
 
 	for _, dir := range dirs {
 		if dir.IsDir() {
-			files, err := afero.ReadDir(d.fs, filepath.Join(d.blobDir, dir.Name()))
+			files, err := ioutil.ReadDir(filepath.Join(d.blobDir, dir.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -160,7 +154,7 @@ func (d *DiskStore) path(hash string) string {
 }
 
 func (d *DiskStore) ensureDirExists(dir string) error {
-	return errors.Err(d.fs.MkdirAll(dir, 0755))
+	return errors.Err(os.MkdirAll(dir, 0755))
 }
 
 func (d *DiskStore) initOnce() error {

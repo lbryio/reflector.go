@@ -6,6 +6,7 @@ import (
 )
 
 // MemStore is an in memory only blob store with no persistence.
+// MemStore is NOT THREAD-SAFE
 type MemStore struct {
 	blobs map[string]stream.Blob
 }

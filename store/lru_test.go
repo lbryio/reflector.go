@@ -1,48 +1,26 @@
 package store
 
 import (
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const cacheMaxBlobs = 3
 
-func getTestLRUStore() (*LRUStore, *DiskStore) {
-	d := NewDiskStore("/", 2)
-	d.fs = afero.NewMemMapFs()
-	return NewLRUStore("test", d, 3), d
-}
-
-func countOnDisk(t *testing.T, disk *DiskStore) int {
-	t.Helper()
-
-	count := 0
-	afero.Walk(disk.fs, "/", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !info.IsDir() {
-			count++
-		}
-		return nil
-	})
-
-	list, err := disk.list()
-	require.NoError(t, err)
-	require.Equal(t, count, len(list))
-
-	return count
+func getTestLRUStore() (*LRUStore, *MemStore) {
+	m := NewMemStore()
+	return NewLRUStore("test", m, 3), m
 }
 
 func TestLRUStore_Eviction(t *testing.T) {
-	lru, disk := getTestLRUStore()
+	lru, mem := getTestLRUStore()
 	b := []byte("x")
 	err := lru.Put("one", b)
 	require.NoError(t, err)
@@ -55,7 +33,7 @@ func TestLRUStore_Eviction(t *testing.T) {
 	err = lru.Put("five", b)
 	require.NoError(t, err)
 
-	assert.Equal(t, cacheMaxBlobs, countOnDisk(t, disk))
+	assert.Equal(t, cacheMaxBlobs, len(mem.Debug()))
 
 	for k, v := range map[string]bool{
 		"one":   false,
@@ -73,7 +51,7 @@ func TestLRUStore_Eviction(t *testing.T) {
 	lru.Get("three") // touch so it stays in cache
 	lru.Put("six", b)
 
-	assert.Equal(t, cacheMaxBlobs, countOnDisk(t, disk))
+	assert.Equal(t, cacheMaxBlobs, len(mem.Debug()))
 
 	for k, v := range map[string]bool{
 		"one":   false,
@@ -94,17 +72,17 @@ func TestLRUStore_Eviction(t *testing.T) {
 	assert.NoError(t, err)
 	err = lru.Delete("six")
 	assert.NoError(t, err)
-	assert.Equal(t, 0, countOnDisk(t, disk))
+	assert.Equal(t, 0, len(mem.Debug()))
 }
 
 func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
-	lru, disk := getTestLRUStore()
+	lru, mem := getTestLRUStore()
 	hash := "hash"
 	b := []byte("this is a blob of stuff")
 	err := lru.Put(hash, b)
 	require.NoError(t, err)
 
-	err = disk.fs.Remove("/ha/hash")
+	err = mem.Delete(hash)
 	require.NoError(t, err)
 
 	// hash still exists in lru
@@ -121,12 +99,14 @@ func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
 }
 
 func TestLRUStore_loadExisting(t *testing.T) {
-	d := NewDiskStore("/", 2)
-	d.fs = afero.NewMemMapFs()
+	tmpDir, err := ioutil.TempDir("", "reflector_test_*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	d := NewDiskStore(tmpDir, 2)
 
 	hash := "hash"
 	b := []byte("this is a blob of stuff")
-	err := d.Put(hash, b)
+	err = d.Put(hash, b)
 	require.NoError(t, err)
 
 	existing, err := d.list()
