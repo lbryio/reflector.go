@@ -4,10 +4,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/store/speedwalk"
 )
 
 // DiskStore stores blobs on a local disk
@@ -118,28 +118,7 @@ func (d *DiskStore) list() ([]string, error) {
 		return nil, err
 	}
 
-	dirs, err := ioutil.ReadDir(d.blobDir)
-	if err != nil {
-		return nil, err
-	}
-
-	var existing []string
-
-	for _, dir := range dirs {
-		if dir.IsDir() {
-			files, err := ioutil.ReadDir(filepath.Join(d.blobDir, dir.Name()))
-			if err != nil {
-				return nil, err
-			}
-			for _, file := range files {
-				if file.Mode().IsRegular() && !file.IsDir() {
-					existing = append(existing, file.Name())
-				}
-			}
-		}
-	}
-
-	return existing, nil
+	return speedwalk.AllFiles(d.blobDir, true)
 }
 
 func (d *DiskStore) dir(hash string) string {

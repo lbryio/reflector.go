@@ -13,7 +13,7 @@ import (
 )
 
 // AllFiles recursively lists every file in every subdirectory of a given directory
-// If basename is true, retun the basename of each file. Otherwise return the full path starting at startDir.
+// If basename is true, return the basename of each file. Otherwise return the full path starting at startDir.
 func AllFiles(startDir string, basename bool) ([]string, error) {
 	items, err := ioutil.ReadDir(startDir)
 	if err != nil {
@@ -22,7 +22,10 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 
 	pathChan := make(chan string)
 	paths := make([]string, 0, 1000)
+	pathWG := &sync.WaitGroup{}
+	pathWG.Add(1)
 	go func() {
+		defer pathWG.Done()
 		for {
 			path, ok := <-pathChan
 			if !ok {
@@ -32,13 +35,13 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 		}
 	}()
 
-	wg := &sync.WaitGroup{}
 	maxThreads := runtime.NumCPU() - 1
 	goroutineLimiter := make(chan struct{}, maxThreads)
 	for i := 0; i < maxThreads; i++ {
 		goroutineLimiter <- struct{}{}
 	}
 
+	walkerWG := &sync.WaitGroup{}
 	for _, item := range items {
 		if !item.IsDir() {
 			if basename {
@@ -50,11 +53,11 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 		}
 
 		<-goroutineLimiter
-		wg.Add(1)
+		walkerWG.Add(1)
 
 		go func(dir string) {
 			defer func() {
-				wg.Done()
+				walkerWG.Done()
 				goroutineLimiter <- struct{}{}
 			}()
 
@@ -65,7 +68,7 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 						if basename {
 							pathChan <- de.Name()
 						} else {
-							pathChan <- filepath.Join(startDir, osPathname)
+							pathChan <- osPathname
 						}
 					}
 					return nil
@@ -77,8 +80,10 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 		}(item.Name())
 	}
 
-	wg.Wait()
+	walkerWG.Wait()
 
 	close(pathChan)
+	pathWG.Wait()
+
 	return paths, nil
 }
