@@ -1,29 +1,42 @@
 package store
 
 import (
+	"sync"
+
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 )
 
-// MemoryBlobStore is an in memory only blob store with no persistence.
-type MemoryBlobStore struct {
+// MemStore is an in memory only blob store with no persistence.
+type MemStore struct {
 	blobs map[string]stream.Blob
+	mu    *sync.RWMutex
 }
 
-func NewMemoryBlobStore() *MemoryBlobStore {
-	return &MemoryBlobStore{
+func NewMemStore() *MemStore {
+	return &MemStore{
 		blobs: make(map[string]stream.Blob),
+		mu:    &sync.RWMutex{},
 	}
 }
 
+const nameMem = "mem"
+
+// Name is the cache type name
+func (m *MemStore) Name() string { return nameMem }
+
 // Has returns T/F if the blob is currently stored. It will never error.
-func (m *MemoryBlobStore) Has(hash string) (bool, error) {
+func (m *MemStore) Has(hash string) (bool, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	_, ok := m.blobs[hash]
 	return ok, nil
 }
 
 // Get returns the blob byte slice if present and errors if the blob is not found.
-func (m *MemoryBlobStore) Get(hash string) (stream.Blob, error) {
+func (m *MemStore) Get(hash string) (stream.Blob, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	blob, ok := m.blobs[hash]
 	if !ok {
 		return nil, errors.Err(ErrBlobNotFound)
@@ -32,23 +45,29 @@ func (m *MemoryBlobStore) Get(hash string) (stream.Blob, error) {
 }
 
 // Put stores the blob in memory
-func (m *MemoryBlobStore) Put(hash string, blob stream.Blob) error {
+func (m *MemStore) Put(hash string, blob stream.Blob) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.blobs[hash] = blob
 	return nil
 }
 
 // PutSD stores the sd blob in memory
-func (m *MemoryBlobStore) PutSD(hash string, blob stream.Blob) error {
+func (m *MemStore) PutSD(hash string, blob stream.Blob) error {
 	return m.Put(hash, blob)
 }
 
 // Delete deletes the blob from the store
-func (m *MemoryBlobStore) Delete(hash string) error {
+func (m *MemStore) Delete(hash string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	delete(m.blobs, hash)
 	return nil
 }
 
 // Debug returns the blobs in memory. It's useful for testing and debugging.
-func (m *MemoryBlobStore) Debug() map[string]stream.Blob {
+func (m *MemStore) Debug() map[string]stream.Blob {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.blobs
 }

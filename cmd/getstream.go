@@ -28,9 +28,10 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 	addr := args[0]
 	sdHash := args[1]
 
-	s := store.NewCachingBlobStore(
+	s := store.NewCachingStore(
+		"getstream",
 		peer.NewStore(peer.StoreOpts{Address: addr}),
-		store.NewDiskBlobStore("/tmp/lbry_downloaded_blobs", 2),
+		store.NewDiskStore("/tmp/lbry_downloaded_blobs", 2),
 	)
 
 	wd, err := os.Getwd()

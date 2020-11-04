@@ -12,6 +12,7 @@ import (
 
 	ee "github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -57,7 +58,8 @@ func (s *Server) Shutdown() {
 }
 
 const (
-	ns = "reflector"
+	ns             = "reflector"
+	subsystemCache = "cache"
 
 	labelDirection = "direction"
 	labelErrorType = "error_type"
@@ -65,7 +67,9 @@ const (
 	DirectionUpload   = "upload"   // to reflector
 	DirectionDownload = "download" // from reflector
 
-	MtrLabelSource = "source"
+	LabelCacheType = "cache_type"
+	LabelComponent = "component"
+	LabelSource    = "source"
 
 	errConnReset         = "conn_reset"
 	errReadConnReset     = "read_conn_reset"
@@ -92,6 +96,12 @@ const (
 )
 
 var (
+	ErrorCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "error_total",
+		Help:      "Total number of errors",
+	}, []string{labelDirection, labelErrorType})
+
 	BlobDownloadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "blob_download_total",
@@ -107,27 +117,44 @@ var (
 		Name:      "http3_blob_download_total",
 		Help:      "Total number of blobs downloaded from reflector through QUIC protocol",
 	})
-	CacheHitCount = promauto.NewCounter(prometheus.CounterOpts{
+
+	CacheHitCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
-		Name:      "cache_hit_total",
+		Subsystem: subsystemCache,
+		Name:      "hit_total",
 		Help:      "Total number of blobs retrieved from the cache storage",
-	})
-	CacheMissCount = promauto.NewCounter(prometheus.CounterOpts{
+	}, []string{LabelCacheType, LabelComponent})
+	CacheMissCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
-		Name:      "cache_miss_total",
+		Subsystem: subsystemCache,
+		Name:      "miss_total",
 		Help:      "Total number of blobs retrieved from origin rather than cache storage",
-	})
-	CacheOriginRequestsCount = promauto.NewGauge(prometheus.GaugeOpts{
+	}, []string{LabelCacheType, LabelComponent})
+	CacheOriginRequestsCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: ns,
-		Name:      "cache_origin_requests_total",
+		Subsystem: subsystemCache,
+		Name:      "origin_requests_total",
 		Help:      "How many Get requests are in flight from the cache to the origin",
-	})
+	}, []string{LabelCacheType, LabelComponent})
 	// during thundering-herd situations, the metric below should be a lot smaller than the metric above
-	CacheWaitingRequestsCount = promauto.NewGauge(prometheus.GaugeOpts{
+	CacheWaitingRequestsCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: ns,
-		Name:      "cache_waiting_requests_total",
+		Subsystem: subsystemCache,
+		Name:      "waiting_requests_total",
 		Help:      "How many cache requests are waiting for an in-flight origin request",
-	})
+	}, []string{LabelCacheType, LabelComponent})
+	CacheLRUEvictCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: ns,
+		Subsystem: subsystemCache,
+		Name:      "evict_total",
+		Help:      "Count of blobs evicted from cache",
+	}, []string{LabelCacheType, LabelComponent})
+	CacheRetrievalSpeed = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "speed_mbps",
+		Help:      "Speed of blob retrieval from cache or from origin",
+	}, []string{LabelCacheType, LabelComponent, LabelSource})
+
 	BlobUploadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "blob_upload_total",
@@ -138,16 +165,7 @@ var (
 		Name:      "sdblob_upload_total",
 		Help:      "Total number of SD blobs (and therefore streams) uploaded to reflector",
 	})
-	RetrieverSpeed = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: ns,
-		Name:      "speed_mbps",
-		Help:      "Speed of blob retrieval",
-	}, []string{MtrLabelSource})
-	ErrorCount = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: ns,
-		Name:      "error_total",
-		Help:      "Total number of errors",
-	}, []string{labelDirection, labelErrorType})
+
 	MtrInBytesTcp = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "tcp_in_bytes",
@@ -184,6 +202,13 @@ var (
 		Help:      "Total number of incoming bytes (from S3-CF)",
 	})
 )
+
+func CacheLabels(name, component string) prometheus.Labels {
+	return prometheus.Labels{
+		LabelCacheType: name,
+		LabelComponent: component,
+	}
+}
 
 func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a hack, but whatever
 	if e == nil {
