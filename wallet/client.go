@@ -3,6 +3,7 @@ package wallet
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"strings"
 
 	"github.com/lbryio/chainquery/lbrycrd"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -13,6 +14,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cast"
 )
+
+var ErrClaimNotFound = errors.Base("claim not found")
 
 // Raw makes a raw wallet server request
 func (n *Node) Raw(method string, params []string, v interface{}) error {
@@ -61,6 +64,12 @@ func (n *Node) Resolve(url string) (*types.Output, error) {
 	}
 
 	if e := outputs.GetTxos()[0].GetError(); e != nil {
+		//  TODO: return these errors as real error values so callers don't have to string-match
+		//  https://github.com/lbryio/types/blob/master/v2/proto/result.proto#L45
+		//  UNKNOWN_CODE = 0;
+		//  NOT_FOUND = 1;
+		//  INVALID = 2;
+		//  BLOCKED = 3;
 		return nil, errors.Err("%s: %s", e.GetCode(), e.GetText())
 	}
 
@@ -146,4 +155,29 @@ func (n *Node) GetClaimInTx(txid string, nout int) (*types.Claim, error) {
 	}
 
 	return ch.Claim, nil
+}
+
+func (n *Node) ResolveToClaim(url string) (*types.Claim, *types.Output, error) {
+	output, err := n.Resolve(url)
+	if err != nil {
+		if strings.Contains(err.Error(), "NOT_FOUND") {
+			return nil, nil, errors.Err(ErrClaimNotFound)
+		}
+		return nil, nil, err
+	}
+
+	claim, err := n.GetClaimInTx(hex.EncodeToString(rev(output.GetTxHash())), int(output.GetNout()))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return claim, output, nil
+}
+
+func rev(b []byte) []byte {
+	r := make([]byte, len(b))
+	for left, right := 0, len(b)-1; left < right; left, right = left+1, right-1 {
+		r[left], r[right] = b[right], b[left]
+	}
+	return r
 }

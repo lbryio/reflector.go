@@ -23,10 +23,10 @@ const (
 )
 
 var (
-	ErrNotImplemented = errors.Base("not implemented")
-	ErrNodeConnected  = errors.Base("node already connected")
-	ErrConnectFailed  = errors.Base("failed to connect")
-	ErrTimeout        = errors.Base("timeout")
+	ErrNotImplemented   = errors.Base("not implemented")
+	ErrAlreadyConnected = errors.Base("node already connected")
+	ErrConnectFailed    = errors.Base("failed to connect")
+	ErrTimeout          = errors.Base("timeout")
 )
 
 type response struct {
@@ -35,6 +35,8 @@ type response struct {
 }
 
 type Node struct {
+	ErrFn func(error)
+
 	transport *TCPTransport
 	nextId    atomic.Uint32
 	grp       *stop.Group
@@ -63,7 +65,7 @@ func NewNode() *Node {
 // Connect creates a new connection to the specified address.
 func (n *Node) Connect(addrs []string, config *tls.Config) error {
 	if n.transport != nil {
-		return errors.Err(ErrNodeConnected)
+		return errors.Err(ErrAlreadyConnected)
 	}
 
 	// shuffle addresses for load balancing
@@ -135,10 +137,13 @@ func (n *Node) handleErrors() {
 	}
 }
 
-// err handles errors produced by the foreign node.
-func (n *Node) err(err error) {
-	// TODO: Better error handling.
-	log.Error(errors.FullTrace(err))
+// err handles errors produced by the server
+func (n *Node) err(e error) {
+	if n.ErrFn != nil {
+		n.ErrFn(e)
+	} else {
+		log.Error(errors.FullTrace(e))
+	}
 }
 
 // listen processes messages from the server.
