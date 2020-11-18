@@ -5,6 +5,7 @@ import (
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
 )
@@ -62,9 +63,15 @@ func (c *CachingStore) Get(hash string) (stream.Blob, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	err = c.cache.Put(hash, blob)
-	return blob, err
+	// there is no need to wait for the blob to be stored before we return it
+	// TODO: however this should be refactored to limit the amount of routines that the process can spawn to avoid a possible DoS
+	go func() {
+		err = c.cache.Put(hash, blob)
+		if err != nil {
+			log.Errorf("error saving blob to underlying cache: %s", err.Error())
+		}
+	}()
+	return blob, nil
 }
 
 // Put stores the blob in the origin and the cache
