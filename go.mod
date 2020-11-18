@@ -12,6 +12,7 @@ require (
 	github.com/golang/protobuf v1.4.2
 	github.com/google/btree v1.0.0 // indirect
 	github.com/google/gops v0.3.7
+	github.com/google/martian v2.1.0+incompatible
 	github.com/gorilla/mux v1.7.4
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
@@ -24,11 +25,11 @@ require (
 	github.com/lbryio/lbry.go v1.1.2 // indirect
 	github.com/lbryio/lbry.go/v2 v2.6.1-0.20200901175808-73382bb02128
 	github.com/lbryio/types v0.0.0-20191228214437-05a22073b4ec
-	github.com/lucas-clemente/quic-go v0.18.1
+	github.com/lucas-clemente/quic-go v0.19.1
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
 	github.com/prometheus/client_golang v0.9.2
 	github.com/sirupsen/logrus v1.4.2
-	github.com/spf13/afero v1.4.1
+	github.com/spf13/afero v1.4.1 // indirect
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
@@ -40,7 +41,6 @@ require (
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/tools v0.0.0-20191227053925-7b8e75db28f4 // indirect
 	google.golang.org/appengine v1.6.2 // indirect
-	gotest.tools v2.2.0+incompatible
 )
 
 go 1.15

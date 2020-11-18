@@ -60,7 +60,6 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 				walkerWG.Done()
 				goroutineLimiter <- struct{}{}
 			}()
-
 			err = godirwalk.Walk(filepath.Join(startDir, dir), &godirwalk.Options{
 				Unsorted: true, // faster this way
 				Callback: func(osPathname string, de *godirwalk.Dirent) error {
@@ -84,6 +83,6 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 
 	close(pathChan)
 	pathWG.Wait()
-
+	logrus.Infoln("loaded LRU")
 	return paths, nil
 }

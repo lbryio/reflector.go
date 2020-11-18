@@ -30,13 +30,14 @@ func NewLRUStore(component string, store BlobStore, maxItems int) *LRUStore {
 		store: store,
 		lru:   lru,
 	}
-
-	if lstr, ok := store.(lister); ok {
-		err = l.loadExisting(lstr, maxItems)
-		if err != nil {
-			panic(err) // TODO: what should happen here? panic? return nil? just keep going?
+	go func() {
+		if lstr, ok := store.(lister); ok {
+			err = l.loadExisting(lstr, maxItems)
+			if err != nil {
+				panic(err) // TODO: what should happen here? panic? return nil? just keep going?
+			}
 		}
-	}
+	}()
 
 	return l
 }
