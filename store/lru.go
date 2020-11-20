@@ -18,18 +18,20 @@ type LRUStore struct {
 
 // NewLRUStore initialize a new LRUStore
 func NewLRUStore(component string, store BlobStore, maxItems int) *LRUStore {
+	l := &LRUStore{
+		store: store,
+	}
+
 	lru, err := golru.NewWithEvict(maxItems, func(key interface{}, value interface{}) {
-		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(store.Name(), component)).Inc()
+		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(l.Name(), component)).Inc()
 		_ = store.Delete(key.(string)) // TODO: log this error. may happen if underlying entry is gone but cache entry still there
 	})
 	if err != nil {
 		panic(err)
 	}
 
-	l := &LRUStore{
-		store: store,
-		lru:   lru,
-	}
+	l.lru = lru
+
 	go func() {
 		if lstr, ok := store.(lister); ok {
 			err = l.loadExisting(lstr, maxItems)
@@ -42,10 +44,10 @@ func NewLRUStore(component string, store BlobStore, maxItems int) *LRUStore {
 	return l
 }
 
-const nameLRU = "lru"
-
 // Name is the cache type name
-func (l *LRUStore) Name() string { return nameLRU }
+func (l *LRUStore) Name() string {
+	return "lru_" + l.store.Name()
+}
 
 // Has returns whether the blob is in the store, without updating the recent-ness.
 func (l *LRUStore) Has(hash string) (bool, error) {
