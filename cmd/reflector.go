@@ -159,9 +159,10 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLRUStore("peer_server", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
+			store.NewLRUStore("hdd", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
 		)
 	}
+
 	diskCacheMaxSize, diskCachePath = diskCacheParams(bufferReflectorCmdDiskCache)
 	if diskCacheMaxSize > 0 {
 		err := os.MkdirAll(diskCachePath, os.ModePerm)
@@ -171,14 +172,15 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLRUStore("peer_server", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
+			store.NewLRUStore("nvme", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
 		)
 	}
+
 	if reflectorCmdMemCache > 0 {
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLRUStore("peer_server", store.NewMemStore(), reflectorCmdMemCache),
+			store.NewLRUStore("mem", store.NewMemStore(), reflectorCmdMemCache),
 		)
 	}
 

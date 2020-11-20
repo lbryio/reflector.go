@@ -32,8 +32,8 @@ func (s *singleflightStore) Name() string {
 // Get ensures that only one request per hash is sent to the origin at a time,
 // thereby protecting against https://en.wikipedia.org/wiki/Thundering_herd_problem
 func (s *singleflightStore) Get(hash string) (stream.Blob, error) {
-	metrics.CacheWaitingRequestsCount.With(metrics.CacheLabels(s.BlobStore.Name(), s.component)).Inc()
-	defer metrics.CacheWaitingRequestsCount.With(metrics.CacheLabels(s.BlobStore.Name(), s.component)).Dec()
+	metrics.CacheWaitingRequestsCount.With(metrics.CacheLabels(s.Name(), s.component)).Inc()
+	defer metrics.CacheWaitingRequestsCount.With(metrics.CacheLabels(s.Name(), s.component)).Dec()
 
 	blob, err, _ := s.sf.Do(hash, s.getter(hash))
 	if err != nil {
@@ -46,8 +46,8 @@ func (s *singleflightStore) Get(hash string) (stream.Blob, error) {
 // only one getter per hash will be executing at a time
 func (s *singleflightStore) getter(hash string) func() (interface{}, error) {
 	return func() (interface{}, error) {
-		metrics.CacheOriginRequestsCount.With(metrics.CacheLabels(s.BlobStore.Name(), s.component)).Inc()
-		defer metrics.CacheOriginRequestsCount.With(metrics.CacheLabels(s.BlobStore.Name(), s.component)).Dec()
+		metrics.CacheOriginRequestsCount.With(metrics.CacheLabels(s.Name(), s.component)).Inc()
+		defer metrics.CacheOriginRequestsCount.With(metrics.CacheLabels(s.Name(), s.component)).Dec()
 
 		start := time.Now()
 		blob, err := s.BlobStore.Get(hash)
@@ -57,7 +57,7 @@ func (s *singleflightStore) getter(hash string) func() (interface{}, error) {
 
 		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
 		metrics.CacheRetrievalSpeed.With(map[string]string{
-			metrics.LabelCacheType: s.BlobStore.Name(),
+			metrics.LabelCacheType: s.Name(),
 			metrics.LabelComponent: s.component,
 			metrics.LabelSource:    "origin",
 		}).Set(rate)
