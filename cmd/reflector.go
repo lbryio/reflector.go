@@ -22,19 +22,20 @@ import (
 )
 
 var (
-	tcpPeerPort           int
-	http3PeerPort         int
-	receiverPort          int
-	metricsPort           int
-	disableUploads        bool
-	disableBlocklist      bool
-	proxyAddress          string
-	proxyPort             string
-	proxyProtocol         string
-	useDB                 bool
-	cloudFrontEndpoint    string
-	reflectorCmdDiskCache string
-	reflectorCmdMemCache  int
+	tcpPeerPort                 int
+	http3PeerPort               int
+	receiverPort                int
+	metricsPort                 int
+	disableUploads              bool
+	disableBlocklist            bool
+	proxyAddress                string
+	proxyPort                   string
+	proxyProtocol               string
+	useDB                       bool
+	cloudFrontEndpoint          string
+	reflectorCmdDiskCache       string
+	bufferReflectorCmdDiskCache string
+	reflectorCmdMemCache        int
 )
 
 func init() {
@@ -56,6 +57,8 @@ func init() {
 	cmd.Flags().BoolVar(&useDB, "use-db", true, "whether to connect to the reflector db or not")
 	cmd.Flags().StringVar(&reflectorCmdDiskCache, "disk-cache", "",
 		"enable disk cache, setting max size and path where to store blobs. format is 'MAX_BLOBS:CACHE_PATH'")
+	cmd.Flags().StringVar(&bufferReflectorCmdDiskCache, "buffer-disk-cache", "",
+		"enable buffer disk cache, setting max size and path where to store blobs. format is 'MAX_BLOBS:CACHE_PATH'")
 	cmd.Flags().IntVar(&reflectorCmdMemCache, "mem-cache", 0, "enable in-memory cache with a max size of this many blobs")
 	rootCmd.AddCommand(cmd)
 }
@@ -147,7 +150,7 @@ func setupStore() store.BlobStore {
 func wrapWithCache(s store.BlobStore) store.BlobStore {
 	wrapped := s
 
-	diskCacheMaxSize, diskCachePath := diskCacheParams()
+	diskCacheMaxSize, diskCachePath := diskCacheParams(reflectorCmdDiskCache)
 	if diskCacheMaxSize > 0 {
 		err := os.MkdirAll(diskCachePath, os.ModePerm)
 		if err != nil {
@@ -159,7 +162,18 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 			store.NewLRUStore("peer_server", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
 		)
 	}
-
+	diskCacheMaxSize, diskCachePath = diskCacheParams(bufferReflectorCmdDiskCache)
+	if diskCacheMaxSize > 0 {
+		err := os.MkdirAll(diskCachePath, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+		wrapped = store.NewCachingStore(
+			"reflector",
+			wrapped,
+			store.NewLRUStore("peer_server", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
+		)
+	}
 	if reflectorCmdMemCache > 0 {
 		wrapped = store.NewCachingStore(
 			"reflector",
@@ -171,12 +185,12 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 	return wrapped
 }
 
-func diskCacheParams() (int, string) {
-	if reflectorCmdDiskCache == "" {
+func diskCacheParams(diskParams string) (int, string) {
+	if diskParams == "" {
 		return 0, ""
 	}
 
-	parts := strings.Split(reflectorCmdDiskCache, ":")
+	parts := strings.Split(diskParams, ":")
 	if len(parts) != 2 {
 		log.Fatalf("--disk-cache must be a number, followed by ':', followed by a string")
 	}
