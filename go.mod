@@ -5,6 +5,7 @@ replace github.com/btcsuite/btcd => github.com/lbryio/lbrycrd.go v0.0.0-20200203
 require (
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/aws/aws-sdk-go v1.16.11
+	github.com/bparli/lfuda-go v0.3.0
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
 	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 	github.com/davecgh/go-spew v1.1.1
@@ -25,7 +26,7 @@ require (
 	github.com/lbryio/lbry.go v1.1.2 // indirect
 	github.com/lbryio/lbry.go/v2 v2.6.1-0.20200901175808-73382bb02128
 	github.com/lbryio/types v0.0.0-20191228214437-05a22073b4ec
-	github.com/lucas-clemente/quic-go v0.19.1
+	github.com/lucas-clemente/quic-go v0.19.2
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
 	github.com/prometheus/client_golang v0.9.2
 	github.com/sirupsen/logrus v1.4.2

@@ -58,6 +58,7 @@ func TestCachingStore_CacheMiss(t *testing.T) {
 	if !bytes.Equal(b, res) {
 		t.Errorf("expected Get() to return %s, got %s", string(b), string(res))
 	}
+	time.Sleep(10 * time.Millisecond) //storing to cache is done async so let's give it some time
 
 	has, err := cache.Has(hash)
 	if err != nil {
