@@ -151,6 +151,7 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 	wrapped := s
 
 	diskCacheMaxSize, diskCachePath := diskCacheParams(reflectorCmdDiskCache)
+	cacheMaxSizeInBytes := float64(diskCacheMaxSize * 2 * 1000 * 1000)
 	if diskCacheMaxSize > 0 {
 		err := os.MkdirAll(diskCachePath, os.ModePerm)
 		if err != nil {
@@ -159,7 +160,7 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLRUStore("hdd", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
+			store.NewLFUDAStore("hdd", store.NewDiskStore(diskCachePath, 2), cacheMaxSizeInBytes),
 		)
 	}
 
@@ -172,7 +173,7 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLRUStore("nvme", store.NewDiskStore(diskCachePath, 2), diskCacheMaxSize),
+			store.NewLFUDAStore("nvme", store.NewDiskStore(diskCachePath, 2), cacheMaxSizeInBytes),
 		)
 	}
 
