@@ -58,17 +58,15 @@ func (d *DiskStore) Get(hash string) (stream.Blob, error) {
 		return nil, err
 	}
 
-	file, err := os.Open(d.path(hash))
+	blob, err := ioutil.ReadFile(d.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, errors.Err(ErrBlobNotFound)
 		}
-		return nil, err
+		return nil, errors.Err(err)
 	}
-	defer file.Close()
 
-	blob, err := ioutil.ReadAll(file)
-	return blob, errors.Err(err)
+	return blob, nil
 }
 
 // Put stores the blob on disk
