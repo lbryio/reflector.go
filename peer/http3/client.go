@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -80,18 +81,47 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 		return nil, errors.Err(err)
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode == http.StatusNotFound {
 		fmt.Printf("%s blob not found %d\n", hash, resp.StatusCode)
 		return nil, errors.Err(store.ErrBlobNotFound)
-	}
-	if resp.StatusCode != http.StatusOK {
+	} else if resp.StatusCode != http.StatusOK {
 		return nil, errors.Err("non 200 status code returned: %d", resp.StatusCode)
 	}
-	body := &bytes.Buffer{}
-	_, err = io.Copy(body, resp.Body)
+
+	tmp := getBuffer()
+	defer putBuffer(tmp)
+
+	written, err := io.Copy(tmp, resp.Body)
 	if err != nil {
 		return nil, errors.Err(err)
 	}
-	metrics.MtrInBytesUdp.Add(float64(len(body.Bytes())))
-	return body.Bytes(), nil
+
+	blob := make([]byte, written)
+	copy(blob, tmp.Bytes())
+
+	metrics.MtrInBytesUdp.Add(float64(len(blob)))
+
+	return blob, nil
+}
+
+// buffer pool to reduce GC
+// https://www.captaincodeman.com/2017/06/02/golang-buffer-pool-gotcha
+var buffers = sync.Pool{
+	// New is called when a new instance is needed
+	New: func() interface{} {
+		buf := make([]byte, 0, stream.MaxBlobSize)
+		return bytes.NewBuffer(buf)
+	},
+}
+
+// getBuffer fetches a buffer from the pool
+func getBuffer() *bytes.Buffer {
+	return buffers.Get().(*bytes.Buffer)
+}
+
+// putBuffer returns a buffer to the pool
+func putBuffer(buf *bytes.Buffer) {
+	buf.Reset()
+	buffers.Put(buf)
 }
