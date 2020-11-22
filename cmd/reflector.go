@@ -16,8 +16,10 @@ import (
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
+	"github.com/lbryio/lbry.go/v2/stream"
+
+	"github.com/c2h5oh/datasize"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 )
 
@@ -56,9 +58,9 @@ func init() {
 	cmd.Flags().BoolVar(&disableBlocklist, "disable-blocklist", false, "Disable blocklist watching/updating")
 	cmd.Flags().BoolVar(&useDB, "use-db", true, "whether to connect to the reflector db or not")
 	cmd.Flags().StringVar(&reflectorCmdDiskCache, "disk-cache", "",
-		"enable disk cache, setting max size and path where to store blobs. format is 'MAX_BLOBS:CACHE_PATH'")
+		"enable disk cache, setting max size and path where to store blobs. format is 'sizeGB:CACHE_PATH'")
 	cmd.Flags().StringVar(&bufferReflectorCmdDiskCache, "buffer-disk-cache", "",
-		"enable buffer disk cache, setting max size and path where to store blobs. format is 'MAX_BLOBS:CACHE_PATH'")
+		"enable buffer disk cache, setting max size and path where to store blobs. format is 'sizeGB:CACHE_PATH'")
 	cmd.Flags().IntVar(&reflectorCmdMemCache, "mem-cache", 0, "enable in-memory cache with a max size of this many blobs")
 	rootCmd.AddCommand(cmd)
 }
@@ -151,7 +153,9 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 	wrapped := s
 
 	diskCacheMaxSize, diskCachePath := diskCacheParams(reflectorCmdDiskCache)
-	cacheMaxSizeInBytes := float64(diskCacheMaxSize * 2 * 1000 * 1000)
+	//we are tracking blobs in memory with a 1 byte long boolean, which means that for each 2MB (a blob) we need 1Byte
+	// so if the underlying cache holds 10MB, 10MB/2MB=5Bytes which is also the exact count of objects to restore on startup
+	realCacheSize := float64(diskCacheMaxSize) / float64(stream.MaxBlobSize)
 	if diskCacheMaxSize > 0 {
 		err := os.MkdirAll(diskCachePath, os.ModePerm)
 		if err != nil {
@@ -160,12 +164,12 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLFUDAStore("hdd", store.NewDiskStore(diskCachePath, 2), cacheMaxSizeInBytes),
+			store.NewLFUDAStore("hdd", store.NewDiskStore(diskCachePath, 2), realCacheSize),
 		)
 	}
 
 	diskCacheMaxSize, diskCachePath = diskCacheParams(bufferReflectorCmdDiskCache)
-	cacheMaxSizeInBytes = float64(diskCacheMaxSize * 2 * 1000 * 1000)
+	realCacheSize = float64(diskCacheMaxSize) / float64(stream.MaxBlobSize)
 	if diskCacheMaxSize > 0 {
 		err := os.MkdirAll(diskCachePath, os.ModePerm)
 		if err != nil {
@@ -174,7 +178,7 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLFUDAStore("nvme", store.NewDiskStore(diskCachePath, 2), cacheMaxSizeInBytes),
+			store.NewLFUDAStore("nvme", store.NewDiskStore(diskCachePath, 2), realCacheSize),
 		)
 	}
 
@@ -199,15 +203,19 @@ func diskCacheParams(diskParams string) (int, string) {
 		log.Fatalf("--disk-cache must be a number, followed by ':', followed by a string")
 	}
 
-	maxSize := cast.ToInt(parts[0])
-	if maxSize <= 0 {
-		log.Fatalf("--disk-cache max size must be more than 0")
-	}
-
+	diskCacheSize := parts[0]
 	path := parts[1]
 	if len(path) == 0 || path[0] != '/' {
 		log.Fatalf("--disk-cache path must start with '/'")
 	}
 
-	return maxSize, path
+	var maxSize datasize.ByteSize
+	err := maxSize.UnmarshalText([]byte(diskCacheSize))
+	if err != nil {
+		log.Fatal(err)
+	}
+	if maxSize <= 0 {
+		log.Fatal("--disk-cache size must be more than 0")
+	}
+	return int(maxSize), path
 }
