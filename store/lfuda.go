@@ -5,6 +5,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/sirupsen/logrus"
 )
 
 // LRUStore adds a max cache size and LRU eviction to a BlobStore
@@ -21,14 +22,13 @@ func NewLFUDAStore(component string, store BlobStore, maxSize float64) *LFUDASto
 		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(store.Name(), component)).Inc()
 		_ = store.Delete(key.(string)) // TODO: log this error. may happen if underlying entry is gone but cache entry still there
 	})
-	lfuda.Age()
 	l := &LFUDAStore{
 		store: store,
 		lfuda: lfuda,
 	}
 	go func() {
 		if lstr, ok := store.(lister); ok {
-			err := l.loadExisting(lstr, int(maxSize/2000000.0))
+			err := l.loadExisting(lstr, int(maxSize))
 			if err != nil {
 				panic(err) // TODO: what should happen here? panic? return nil? just keep going?
 			}
@@ -101,6 +101,7 @@ func (l *LFUDAStore) Delete(hash string) error {
 
 // loadExisting imports existing blobs from the underlying store into the LRU cache
 func (l *LFUDAStore) loadExisting(store lister, maxItems int) error {
+	logrus.Infof("loading at most %d items", maxItems)
 	existing, err := store.list()
 	if err != nil {
 		return err
