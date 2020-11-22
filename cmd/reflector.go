@@ -165,6 +165,7 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 	}
 
 	diskCacheMaxSize, diskCachePath = diskCacheParams(bufferReflectorCmdDiskCache)
+	cacheMaxSizeInBytes = float64(diskCacheMaxSize * 2 * 1000 * 1000)
 	if diskCacheMaxSize > 0 {
 		err := os.MkdirAll(diskCachePath, os.ModePerm)
 		if err != nil {
