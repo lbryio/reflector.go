@@ -66,11 +66,14 @@ func (l *LFUDAStore) Get(hash string) (stream.Blob, error) {
 
 // Put stores the blob. Following LFUDA rules it's not guaranteed that a SET will store the value!!!
 func (l *LFUDAStore) Put(hash string, blob stream.Blob) error {
-	err := l.store.Put(hash, blob)
-	if err != nil {
-		return err
-	}
 	l.lfuda.Set(hash, fakeTrue)
+	has, _ := l.Has(hash)
+	if has {
+		err := l.store.Put(hash, blob)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
