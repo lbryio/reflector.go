@@ -5,7 +5,7 @@ replace github.com/btcsuite/btcd => github.com/lbryio/lbrycrd.go v0.0.0-20200203
 require (
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/aws/aws-sdk-go v1.16.11
-	github.com/bparli/lfuda-go v0.3.0
+	github.com/bparli/lfuda-go v0.3.1
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
 	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2
