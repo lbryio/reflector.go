@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,8 +67,6 @@ func TestFUDAStore_Eviction(t *testing.T) {
 
 	assert.Equal(t, cacheMaxBlobs, len(mem.Debug()))
 
-	keys := lfuda.lfuda.Keys()
-	log.Infof("%+v", keys)
 	for k, v := range map[string]bool{
 		"one":   false,
 		"two":   true,

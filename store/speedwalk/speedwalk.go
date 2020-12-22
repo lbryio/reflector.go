@@ -83,6 +83,5 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 
 	close(pathChan)
 	pathWG.Wait()
-	logrus.Infoln("loaded LRU")
 	return paths, nil
 }

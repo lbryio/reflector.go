@@ -6,6 +6,7 @@ import (
 	"github.com/lbryio/reflector.go/internal/metrics"
 
 	golru "github.com/hashicorp/golang-lru"
+	"github.com/sirupsen/logrus"
 )
 
 // LRUStore adds a max cache size and LRU eviction to a BlobStore
@@ -106,11 +107,12 @@ func (l *LRUStore) Delete(hash string) error {
 
 // loadExisting imports existing blobs from the underlying store into the LRU cache
 func (l *LRUStore) loadExisting(store lister, maxItems int) error {
+	logrus.Infof("loading at most %d items", maxItems)
 	existing, err := store.list()
 	if err != nil {
 		return err
 	}
-
+	logrus.Infof("read %d files from disk", len(existing))
 	added := 0
 	for _, h := range existing {
 		l.lru.Add(h, true)

@@ -40,8 +40,6 @@ func NewLFUDAStore(component string, store BlobStore, maxSize float64) *LFUDASto
 
 const nameLFUDA = "lfuda"
 
-var fakeTrue = []byte{'t'}
-
 // Name is the cache type name
 func (l *LFUDAStore) Name() string { return nameLFUDA }
 
@@ -66,7 +64,7 @@ func (l *LFUDAStore) Get(hash string) (stream.Blob, error) {
 
 // Put stores the blob. Following LFUDA rules it's not guaranteed that a SET will store the value!!!
 func (l *LFUDAStore) Put(hash string, blob stream.Blob) error {
-	l.lfuda.Set(hash, fakeTrue)
+	l.lfuda.Set(hash, true)
 	has, _ := l.Has(hash)
 	if has {
 		err := l.store.Put(hash, blob)
@@ -77,14 +75,16 @@ func (l *LFUDAStore) Put(hash string, blob stream.Blob) error {
 	return nil
 }
 
-// PutSD stores the sd blob
+// PutSD stores the sd blob. Following LFUDA rules it's not guaranteed that a SET will store the value!!!
 func (l *LFUDAStore) PutSD(hash string, blob stream.Blob) error {
-	err := l.store.PutSD(hash, blob)
-	if err != nil {
-		return err
+	l.lfuda.Set(hash, true)
+	has, _ := l.Has(hash)
+	if has {
+		err := l.store.PutSD(hash, blob)
+		if err != nil {
+			return err
+		}
 	}
-
-	l.lfuda.Set(hash, fakeTrue)
 	return nil
 }
 
@@ -109,12 +109,13 @@ func (l *LFUDAStore) loadExisting(store lister, maxItems int) error {
 	if err != nil {
 		return err
 	}
+	logrus.Infof("read %d files from disk", len(existing))
 
 	added := 0
 	for _, h := range existing {
-		l.lfuda.Set(h, fakeTrue)
+		l.lfuda.Set(h, true)
 		added++
-		if maxItems > 0 && added >= maxItems { // underlying cache is bigger than LRU cache
+		if maxItems > 0 && added >= maxItems { // underlying cache is bigger than the cache
 			break
 		}
 	}
