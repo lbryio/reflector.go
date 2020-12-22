@@ -56,7 +56,7 @@ func startCmd(cmd *cobra.Command, args []string) {
 	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 	s3 := store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
-	comboStore := store.NewDBBackedStore(s3, db)
+	comboStore := store.NewDBBackedStore(s3, db, false)
 
 	conf := prism.DefaultConf()
 
