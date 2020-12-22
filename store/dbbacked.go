@@ -14,15 +14,16 @@ import (
 
 // DBBackedStore is a store that's backed by a DB. The DB contains data about what's in the store.
 type DBBackedStore struct {
-	blobs     BlobStore
-	db        *db.SQL
-	blockedMu sync.RWMutex
-	blocked   map[string]bool
+	blobs        BlobStore
+	db           *db.SQL
+	blockedMu    sync.RWMutex
+	blocked      map[string]bool
+	deleteOnMiss bool
 }
 
 // NewDBBackedStore returns an initialized store pointer.
-func NewDBBackedStore(blobs BlobStore, db *db.SQL) *DBBackedStore {
-	return &DBBackedStore{blobs: blobs, db: db}
+func NewDBBackedStore(blobs BlobStore, db *db.SQL, deleteOnMiss bool) *DBBackedStore {
+	return &DBBackedStore{blobs: blobs, db: db, deleteOnMiss: deleteOnMiss}
 }
 
 const nameDBBacked = "db-backed"
@@ -43,6 +44,16 @@ func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
 	}
 	if !has {
 		return nil, ErrBlobNotFound
+	}
+	if d.deleteOnMiss {
+		b, err := d.blobs.Get(hash)
+		if err != nil && errors.Is(err, ErrBlobNotFound) {
+			e2 := d.Delete(hash)
+			if e2 != nil {
+				log.Errorf("error while deleting blob from db: %s", errors.FullTrace(err))
+			}
+			return b, err
+		}
 	}
 
 	return d.blobs.Get(hash)

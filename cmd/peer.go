@@ -37,7 +37,7 @@ func peerCmd(cmd *cobra.Command, args []string) {
 		err = db.Connect(globalConfig.DBConn)
 		checkErr(err)
 
-		combo := store.NewDBBackedStore(s3, db)
+		combo := store.NewDBBackedStore(s3, db, false)
 		peerServer = peer.NewServer(combo)
 	}
 

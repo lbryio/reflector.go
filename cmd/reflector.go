@@ -127,11 +127,21 @@ func setupStore() store.BlobStore {
 			log.Fatalf("protocol is not recognized: %s", proxyProtocol)
 		}
 	} else {
-		s3Store := store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+		var s3Store *store.S3Store
+		if conf != "none" {
+			s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+		}
 		if cloudFrontEndpoint != "" {
-			s = store.NewCloudFrontRWStore(store.NewCloudFrontROStore(cloudFrontEndpoint), s3Store)
-		} else {
+			cfs := store.NewCloudFrontROStore(cloudFrontEndpoint)
+			if s3Store != nil {
+				s = store.NewCloudFrontRWStore(cfs, s3Store)
+			} else {
+				s = cfs
+			}
+		} else if s3Store != nil {
 			s = s3Store
+		} else {
+			log.Fatalf("this configuration does not include a valid upstream source")
 		}
 	}
 
@@ -143,7 +153,7 @@ func setupStore() store.BlobStore {
 			log.Fatal(err)
 		}
 
-		s = store.NewDBBackedStore(s, db)
+		s = store.NewDBBackedStore(s, db, false)
 	}
 
 	return s
