@@ -19,6 +19,8 @@ type BlobStore interface {
 	PutSD(hash string, blob stream.Blob) error
 	// Delete the blob from the store.
 	Delete(hash string) error
+	// Shutdown the store gracefully
+	Shutdown()
 }
 
 // Blocklister is a store that supports blocking blobs to prevent their inclusion in the store.

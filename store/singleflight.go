@@ -65,3 +65,9 @@ func (s *singleflightStore) getter(hash string) func() (interface{}, error) {
 		return blob, nil
 	}
 }
+
+// Shutdown shuts down the store gracefully
+func (s *singleflightStore) Shutdown() {
+	s.BlobStore.Shutdown()
+	return
+}

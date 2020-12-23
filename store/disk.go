@@ -147,3 +147,8 @@ func (d *DiskStore) initOnce() error {
 	d.initialized = true
 	return nil
 }
+
+// Shutdown shuts down the store gracefully
+func (d *DiskStore) Shutdown() {
+	return
+}

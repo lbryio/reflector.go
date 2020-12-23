@@ -168,3 +168,7 @@ func (s *SlowBlobStore) Delete(hash string) error {
 	time.Sleep(s.delay)
 	return s.mem.Delete(hash)
 }
+
+func (s *SlowBlobStore) Shutdown() {
+	return
+}
