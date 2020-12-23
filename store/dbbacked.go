@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/lbryio/reflector.go/db"
-
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/db"
 
 	log "github.com/sirupsen/logrus"
 )
