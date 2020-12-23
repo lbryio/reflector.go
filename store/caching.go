@@ -68,7 +68,7 @@ func (c *CachingStore) Get(hash string) (stream.Blob, error) {
 	go func() {
 		err = c.cache.Put(hash, blob)
 		if err != nil {
-			log.Errorf("error saving blob to underlying cache: %s", err.Error())
+			log.Errorf("error saving blob to underlying cache: %s", errors.FullTrace(err))
 		}
 	}()
 	return blob, nil
@@ -99,4 +99,11 @@ func (c *CachingStore) Delete(hash string) error {
 		return err
 	}
 	return c.cache.Delete(hash)
+}
+
+// Shutdown shuts down the store gracefully
+func (c *CachingStore) Shutdown() {
+	c.origin.Shutdown()
+	c.cache.Shutdown()
+	return
 }

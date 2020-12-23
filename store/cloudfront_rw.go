@@ -48,3 +48,10 @@ func (c *CloudFrontRWStore) PutSD(hash string, blob stream.Blob) error {
 func (c *CloudFrontRWStore) Delete(hash string) error {
 	return c.s3.Delete(hash)
 }
+
+// Shutdown shuts down the store gracefully
+func (c *CloudFrontRWStore) Shutdown() {
+	c.s3.Shutdown()
+	c.cf.Shutdown()
+	return
+}

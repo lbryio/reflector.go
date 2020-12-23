@@ -158,3 +158,8 @@ func (s *S3Store) initOnce() error {
 	s.session = sess
 	return nil
 }
+
+// Shutdown shuts down the store gracefully
+func (s *S3Store) Shutdown() {
+	return
+}
