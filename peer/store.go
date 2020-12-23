@@ -66,3 +66,8 @@ func (p *Store) PutSD(hash string, blob stream.Blob) error {
 func (p *Store) Delete(hash string) error {
 	panic("PeerStore cannot put or delete blobs")
 }
+
+// Delete is not supported
+func (p *Store) Shutdown() {
+	return
+}

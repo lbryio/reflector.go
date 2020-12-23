@@ -71,3 +71,8 @@ func (m *MemStore) Debug() map[string]stream.Blob {
 	defer m.mu.RUnlock()
 	return m.blobs
 }
+
+// Shutdown shuts down the store gracefully
+func (m *MemStore) Shutdown() {
+	return
+}

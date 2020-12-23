@@ -10,6 +10,7 @@ import (
 
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/lite_db"
 	"github.com/lbryio/reflector.go/meta"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/peer/http3"
@@ -101,6 +102,8 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	metricsServer := metrics.NewServer(":"+strconv.Itoa(metricsPort), "/metrics")
 	metricsServer.Start()
 	defer metricsServer.Shutdown()
+	defer underlyingStore.Shutdown()
+	defer outerStore.Shutdown()
 
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
@@ -171,10 +174,16 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		if err != nil {
 			log.Fatal(err)
 		}
+		localDb := new(lite_db.SQL)
+		localDb.TrackAccessTime = true
+		err = localDb.Connect("reflector:reflector@tcp(localhost:3306)/reflector")
+		if err != nil {
+			log.Fatal(err)
+		}
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLFUDAStore("hdd", store.NewDiskStore(diskCachePath, 2), realCacheSize),
+			store.NewLiteDBBackedStore("hdd", store.NewDiskStore(diskCachePath, 2), localDb, int(realCacheSize)),
 		)
 	}
 

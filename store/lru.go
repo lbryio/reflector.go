@@ -123,3 +123,8 @@ func (l *LRUStore) loadExisting(store lister, maxItems int) error {
 	}
 	return nil
 }
+
+// Shutdown shuts down the store gracefully
+func (l *LRUStore) Shutdown() {
+	return
+}

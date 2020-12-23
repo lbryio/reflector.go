@@ -193,3 +193,9 @@ func (d *DBBackedStore) initBlocked() error {
 
 	return err
 }
+
+// Shutdown shuts down the store gracefully
+func (d *DBBackedStore) Shutdown() {
+	d.blobs.Shutdown()
+	return
+}

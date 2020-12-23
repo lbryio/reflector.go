@@ -109,7 +109,7 @@ func (l *LFUDAStore) loadExisting(store lister, maxItems int) error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("read %d files from disk", len(existing))
+	logrus.Infof("read %d files from underlying store", len(existing))
 
 	added := 0
 	for _, h := range existing {
@@ -120,4 +120,9 @@ func (l *LFUDAStore) loadExisting(store lister, maxItems int) error {
 		}
 	}
 	return nil
+}
+
+// Shutdown shuts down the store gracefully
+func (l *LFUDAStore) Shutdown() {
+	return
 }

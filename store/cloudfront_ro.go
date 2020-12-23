@@ -103,3 +103,8 @@ func (c *CloudFrontROStore) PutSD(_ string, _ stream.Blob) error {
 func (c *CloudFrontROStore) Delete(_ string) error {
 	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
 }
+
+// Shutdown shuts down the store gracefully
+func (c *CloudFrontROStore) Shutdown() {
+	return
+}
