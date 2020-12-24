@@ -12,8 +12,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/protobuf v1.4.2
-	github.com/google/btree v1.0.0 // indirect
-	github.com/google/gops v0.3.7 // indirect
+	github.com/google/gops v0.3.7
 	github.com/gorilla/mux v1.7.4
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
 	github.com/hashicorp/golang-lru v0.5.4
@@ -33,7 +32,6 @@ require (
 	github.com/spf13/afero v1.4.1 // indirect
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/spf13/viper v1.7.1 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/volatiletech/null v8.0.0+incompatible

@@ -8,9 +8,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/stop"
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/internal/metrics"
-	"github.com/lbryio/reflector.go/lite_db"
 	"github.com/lbryio/reflector.go/meta"
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/peer/http3"
@@ -68,10 +69,11 @@ func init() {
 
 func reflectorCmd(cmd *cobra.Command, args []string) {
 	log.Printf("reflector %s", meta.VersionString())
+	cleanerStopper := stop.New()
 
 	// the blocklist logic requires the db backed store to be the outer-most store
 	underlyingStore := setupStore()
-	outerStore := wrapWithCache(underlyingStore)
+	outerStore := wrapWithCache(underlyingStore, cleanerStopper)
 
 	if !disableUploads {
 		reflectorServer := reflector.NewServer(underlyingStore)
@@ -102,13 +104,14 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	metricsServer := metrics.NewServer(":"+strconv.Itoa(metricsPort), "/metrics")
 	metricsServer.Start()
 	defer metricsServer.Shutdown()
-	defer underlyingStore.Shutdown()
 	defer outerStore.Shutdown()
+	defer underlyingStore.Shutdown()
 
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	<-interruptChan
 	// deferred shutdowns happen now
+	cleanerStopper.StopAndWait()
 }
 
 func setupStore() store.BlobStore {
@@ -149,20 +152,20 @@ func setupStore() store.BlobStore {
 	}
 
 	if useDB {
-		db := new(db.SQL)
-		db.TrackAccessTime = true
-		err := db.Connect(globalConfig.DBConn)
+		dbInst := new(db.SQL)
+		dbInst.TrackAccess = db.TrackAccessStreams
+		err := dbInst.Connect(globalConfig.DBConn)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		s = store.NewDBBackedStore(s, db, false)
+		s = store.NewDBBackedStore(s, dbInst, false)
 	}
 
 	return s
 }
 
-func wrapWithCache(s store.BlobStore) store.BlobStore {
+func wrapWithCache(s store.BlobStore, cleanerStopper *stop.Group) store.BlobStore {
 	wrapped := s
 
 	diskCacheMaxSize, diskCachePath := diskCacheParams(reflectorCmdDiskCache)
@@ -174,17 +177,22 @@ func wrapWithCache(s store.BlobStore) store.BlobStore {
 		if err != nil {
 			log.Fatal(err)
 		}
-		localDb := new(lite_db.SQL)
-		localDb.TrackAccessTime = true
+
+		localDb := new(db.SQL)
+		localDb.SoftDelete = true
+		localDb.TrackAccess = db.TrackAccessBlobs
 		err = localDb.Connect("reflector:reflector@tcp(localhost:3306)/reflector")
 		if err != nil {
 			log.Fatal(err)
 		}
+		dbBackedDiskStore := store.NewDBBackedStore(store.NewDiskStore(diskCachePath, 2), localDb, false)
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewLiteDBBackedStore("hdd", store.NewDiskStore(diskCachePath, 2), localDb, int(realCacheSize)),
+			store.NewDBBackedStore(store.NewDiskStore(diskCachePath, 2), localDb, false),
 		)
+
+		go cleanOldestBlobs(int(realCacheSize), localDb, dbBackedDiskStore, cleanerStopper)
 	}
 
 	diskCacheMaxSize, diskCachePath = diskCacheParams(bufferReflectorCmdDiskCache)
@@ -237,4 +245,50 @@ func diskCacheParams(diskParams string) (int, string) {
 		log.Fatal("--disk-cache size must be more than 0")
 	}
 	return int(maxSize), path
+}
+
+func cleanOldestBlobs(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Group) {
+	const cleanupInterval = 10 * time.Second
+
+	for {
+		select {
+		case <-stopper.Ch():
+			log.Infoln("stopping self cleanup")
+			return
+		case <-time.After(cleanupInterval):
+			err := doClean(maxItems, db, store, stopper)
+			if err != nil {
+				log.Error(errors.FullTrace(err))
+			}
+		}
+	}
+}
+
+func doClean(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Group) error {
+	blobsCount, err := db.Count()
+	if err != nil {
+		return err
+	}
+
+	if blobsCount >= maxItems {
+		itemsToDelete := blobsCount / 10
+		blobs, err := db.LeastRecentlyAccessedHashes(itemsToDelete)
+		if err != nil {
+			return err
+		}
+
+		for _, hash := range blobs {
+			select {
+			case <-stopper.Ch():
+				return nil
+			default:
+			}
+
+			err = store.Delete(hash)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
