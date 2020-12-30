@@ -44,18 +44,18 @@ func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
 	if !has {
 		return nil, ErrBlobNotFound
 	}
+
+	b, err := d.blobs.Get(hash)
 	if d.deleteOnMiss {
-		b, err := d.blobs.Get(hash)
 		if err != nil && errors.Is(err, ErrBlobNotFound) {
 			e2 := d.Delete(hash)
 			if e2 != nil {
 				log.Errorf("error while deleting blob from db: %s", errors.FullTrace(err))
 			}
-			return b, err
 		}
 	}
 
-	return d.blobs.Get(hash)
+	return b, err
 }
 
 // Put stores the blob in the S3 store and stores the blob information in the DB.
