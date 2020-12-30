@@ -179,18 +179,20 @@ func wrapWithCache(s store.BlobStore, cleanerStopper *stop.Group) store.BlobStor
 		}
 
 		localDb := new(db.SQL)
+		localDb.SoftDelete = true
 		localDb.TrackAccess = db.TrackAccessBlobs
 		err = localDb.Connect("reflector:reflector@tcp(localhost:3306)/reflector")
 		if err != nil {
 			log.Fatal(err)
 		}
+		dbBackedDiskStore := store.NewDBBackedStore(store.NewDiskStore(diskCachePath, 2), localDb, true)
 		wrapped = store.NewCachingStore(
 			"reflector",
 			wrapped,
-			store.NewDBBackedStore(store.NewDiskStore(diskCachePath, 2), localDb, false),
+			dbBackedDiskStore,
 		)
 
-		go cleanOldestBlobs(int(realCacheSize), localDb, wrapped, cleanerStopper)
+		go cleanOldestBlobs(int(realCacheSize), localDb, dbBackedDiskStore, cleanerStopper)
 	}
 
 	diskCacheMaxSize, diskCachePath = diskCacheParams(bufferReflectorCmdDiskCache)
@@ -246,8 +248,7 @@ func diskCacheParams(diskParams string) (int, string) {
 }
 
 func cleanOldestBlobs(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Group) {
-	const cleanupInterval = 10 * time.Second
-
+	const cleanupInterval = 10 * time.Minute
 	for {
 		select {
 		case <-stopper.Ch():
@@ -288,4 +289,5 @@ func doClean(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Grou
 			}
 		}
 	}
+	return nil
 }

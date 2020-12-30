@@ -3,11 +3,13 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/lbryio/lbry.go/v2/dht/bits"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	qt "github.com/lbryio/lbry.go/v2/extras/query"
+	"github.com/lbryio/lbry.go/v2/stream"
 
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql" // blank import for db driver ensures its imported even if its not used
@@ -88,6 +90,27 @@ func (s *SQL) AddBlob(hash string, length int, isStored bool) error {
 	return err
 }
 
+// AddBlob adds a blob to the database.
+func (s *SQL) AddBlobs(hash []string) error {
+	if s.conn == nil {
+		return errors.Err("not connected")
+	}
+	// Split the slice into batches of 20 items.
+	batch := 10000
+
+	for i := 0; i < len(hash); i += batch {
+		j := i + batch
+		if j > len(hash) {
+			j = len(hash)
+		}
+		err := s.insertBlobs(hash[i:j]) // Process the batch.
+		if err != nil {
+			log.Errorf("error while inserting batch: %s", errors.FullTrace(err))
+		}
+	}
+	return nil
+}
+
 func (s *SQL) insertBlob(hash string, length int, isStored bool) (int64, error) {
 	if length <= 0 {
 		return 0, errors.Err("length must be positive")
@@ -128,6 +151,26 @@ func (s *SQL) insertBlob(hash string, length int, isStored bool) (int64, error) 
 	}
 
 	return blobID, nil
+}
+
+func (s *SQL) insertBlobs(hashes []string) error {
+	var (
+		q    string
+		args []interface{}
+	)
+	dayAgo := time.Now().AddDate(0, 0, -1)
+	q = "insert into blob_ (hash, is_stored, length, last_accessed_at) values "
+	for _, hash := range hashes {
+		q += "(?,?,?,?),"
+		args = append(args, hash, true, stream.MaxBlobSize, dayAgo)
+	}
+	q = strings.TrimSuffix(q, ",")
+	_, err := s.exec(q, args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *SQL) insertStream(hash string, sdBlobID int64) (int64, error) {
@@ -180,12 +223,13 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 // HasBlobs checks if the database contains the set of blobs and returns a bool map.
 func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 	exists, idsNeedingTouch, err := s.hasBlobs(hashes)
-
-	if s.TrackAccess == TrackAccessBlobs {
-		s.touchBlobs(idsNeedingTouch)
-	} else if s.TrackAccess == TrackAccessStreams {
-		s.touchStreams(idsNeedingTouch)
-	}
+	go func() {
+		if s.TrackAccess == TrackAccessBlobs {
+			s.touchBlobs(idsNeedingTouch)
+		} else if s.TrackAccess == TrackAccessStreams {
+			s.touchStreams(idsNeedingTouch)
+		}
+	}()
 
 	return exists, err
 }
