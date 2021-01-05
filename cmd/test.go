@@ -31,7 +31,7 @@ func testCmd(cmd *cobra.Command, args []string) {
 
 	memStore := store.NewMemStore()
 
-	reflectorServer := reflector.NewServer(memStore)
+	reflectorServer := reflector.NewServer(memStore, memStore)
 	reflectorServer.Timeout = 3 * time.Minute
 
 	err := reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
