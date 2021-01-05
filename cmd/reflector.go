@@ -76,7 +76,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	outerStore := wrapWithCache(underlyingStore, cleanerStopper)
 
 	if !disableUploads {
-		reflectorServer := reflector.NewServer(underlyingStore)
+		reflectorServer := reflector.NewServer(underlyingStore, outerStore)
 		reflectorServer.Timeout = 3 * time.Minute
 		reflectorServer.EnableBlocklist = !disableBlocklist
 

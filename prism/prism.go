@@ -79,7 +79,7 @@ func New(conf *Config) *Prism {
 		dht:       d,
 		cluster:   c,
 		peer:      peer.NewServer(conf.Blobs),
-		reflector: reflector.NewServer(conf.Blobs),
+		reflector: reflector.NewServer(conf.Blobs, conf.Blobs),
 
 		grp: stop.New(),
 	}
