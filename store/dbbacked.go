@@ -32,12 +32,12 @@ func (d *DBBackedStore) Name() string { return nameDBBacked }
 
 // Has returns true if the blob is in the store
 func (d *DBBackedStore) Has(hash string) (bool, error) {
-	return d.db.HasBlob(hash)
+	return d.db.HasBlob(hash, false)
 }
 
 // Get gets the blob
 func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
-	has, err := d.db.HasBlob(hash)
+	has, err := d.db.HasBlob(hash, true)
 	if err != nil {
 		return nil, err
 	}
@@ -46,12 +46,10 @@ func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
 	}
 
 	b, err := d.blobs.Get(hash)
-	if d.deleteOnMiss {
-		if err != nil && errors.Is(err, ErrBlobNotFound) {
-			e2 := d.Delete(hash)
-			if e2 != nil {
-				log.Errorf("error while deleting blob from db: %s", errors.FullTrace(err))
-			}
+	if d.deleteOnMiss && errors.Is(err, ErrBlobNotFound) {
+		e2 := d.Delete(hash)
+		if e2 != nil {
+			log.Errorf("error while deleting blob from db: %s", errors.FullTrace(err))
 		}
 	}
 
@@ -110,7 +108,7 @@ func (d *DBBackedStore) Block(hash string) error {
 		return err
 	}
 
-	has, err := d.db.HasBlob(hash)
+	has, err := d.db.HasBlob(hash, false)
 	if err != nil {
 		return err
 	}
