@@ -297,20 +297,23 @@ func (s *SQL) hasBlobs(hashes []string) (map[string]bool, []uint64, error) {
 		log.Debugf("getting hashes[%d:%d] of %d", doneIndex, sliceEnd, len(hashes))
 		batch := hashes[doneIndex:sliceEnd]
 
-		var lastAccessedAtSelect string
+		var query string
 		if s.TrackAccess == TrackAccessBlobs {
-			lastAccessedAtSelect = "b.last_accessed_at"
+			query = `SELECT b.hash, b.id, NULL, b.last_accessed_at
+FROM blob_ b
+WHERE b.is_stored = 1 and b.hash IN (` + qt.Qs(len(batch)) + `)`
 		} else if s.TrackAccess == TrackAccessStreams {
-			lastAccessedAtSelect = "s.last_accessed_at"
-		} else {
-			lastAccessedAtSelect = "NULL"
-		}
-
-		query := `SELECT b.hash, b.id, s.id, ` + lastAccessedAtSelect + `
+			query = `SELECT b.hash, b.id, s.id, s.last_accessed_at
 FROM blob_ b
 LEFT JOIN stream_blob sb ON b.id = sb.blob_id
-LEFT JOIN stream s on (sb.stream_id = s.id or s.sd_blob_id = b.id)
+INNER JOIN stream s on (sb.stream_id = s.id or s.sd_blob_id = b.id)
 WHERE b.is_stored = 1 and b.hash IN (` + qt.Qs(len(batch)) + `)`
+		} else {
+			query = `SELECT b.hash, b.id, NULL, NULL
+FROM blob_ b
+WHERE b.is_stored = 1 and b.hash IN (` + qt.Qs(len(batch)) + `)`
+		}
+
 		args := make([]interface{}, len(batch))
 		for i := range batch {
 			args[i] = batch[i]
