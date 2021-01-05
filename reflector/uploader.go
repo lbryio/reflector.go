@@ -74,7 +74,7 @@ func (u *Uploader) Upload(dirOrFilePath string) error {
 
 	var exists map[string]bool
 	if !u.skipExistsCheck {
-		exists, err = u.db.HasBlobs(hashes)
+		exists, err = u.db.HasBlobs(hashes, false)
 		if err != nil {
 			return err
 		}
