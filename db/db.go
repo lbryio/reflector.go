@@ -52,14 +52,21 @@ type SQL struct {
 
 	// Instead of deleting a blob, marked it as not stored in the db
 	SoftDelete bool
+
+	// Log executed queries. qt.InterpolateParams is cpu-heavy. This avoids that call if not needed.
+	LogQueries bool
 }
 
-func logQuery(query string, args ...interface{}) {
-	s, err := qt.InterpolateParams(query, args...)
+func (s SQL) logQuery(query string, args ...interface{}) {
+	if !s.LogQueries {
+		return
+	}
+
+	qStr, err := qt.InterpolateParams(query, args...)
 	if err != nil {
 		log.Errorln(err)
 	} else {
-		log.Debugln(s)
+		log.Debugln(qStr)
 	}
 }
 
@@ -319,7 +326,7 @@ WHERE b.is_stored = 1 and b.hash IN (` + qt.Qs(len(batch)) + `)`
 			args[i] = batch[i]
 		}
 
-		logQuery(query, args...)
+		s.logQuery(query, args...)
 
 		err := func() error {
 			startTime := time.Now()
@@ -389,7 +396,7 @@ func (s *SQL) LeastRecentlyAccessedHashes(maxBlobs int) ([]string, error) {
 	}
 
 	query := "SELECT hash from blob_ where is_stored = 1 order by last_accessed_at limit ?"
-	logQuery(query, maxBlobs)
+	s.logQuery(query, maxBlobs)
 
 	rows, err := s.conn.Query(query, maxBlobs)
 	if err != nil {
@@ -421,7 +428,7 @@ func (s *SQL) LeastRecentlyAccessedHashes(maxBlobs int) ([]string, error) {
 //	if s.SoftDelete {
 //		query += " where is_stored = 1"
 //	}
-//	logQuery(query)
+//	s.logQuery(query)
 //
 //	rows, err := s.conn.Query(query)
 //	if err != nil {
@@ -453,7 +460,7 @@ func (s *SQL) Count() (int, error) {
 	if s.SoftDelete {
 		query += " where is_stored = 1"
 	}
-	logQuery(query)
+	s.logQuery(query)
 
 	var count int
 	err := s.conn.QueryRow(query).Scan(&count)
@@ -464,7 +471,7 @@ func (s *SQL) Count() (int, error) {
 func (s *SQL) Block(hash string) error {
 	query := "INSERT IGNORE INTO blocked SET hash = ?"
 	args := []interface{}{hash}
-	logQuery(query, args...)
+	s.logQuery(query, args...)
 	_, err := s.conn.Exec(query, args...)
 	return errors.Err(err)
 }
@@ -472,7 +479,7 @@ func (s *SQL) Block(hash string) error {
 // GetBlocked will return a list of blocked hashes
 func (s *SQL) GetBlocked() (map[string]bool, error) {
 	query := "SELECT hash FROM blocked"
-	logQuery(query)
+	s.logQuery(query)
 	rows, err := s.conn.Query(query)
 	if err != nil {
 		return nil, errors.Err(err)
@@ -515,7 +522,7 @@ func (s *SQL) MissingBlobsForKnownStream(sdHash string) ([]string, error) {
 	`
 	args := []interface{}{sdHash}
 
-	logQuery(query, args...)
+	s.logQuery(query, args...)
 
 	rows, err := s.conn.Query(query, args...)
 	if err != nil {
@@ -594,7 +601,7 @@ func (s *SQL) GetHashRange() (string, string, error) {
 
 	query := "SELECT MIN(hash), MAX(hash) from blob_"
 
-	logQuery(query)
+	s.logQuery(query)
 
 	err := s.conn.QueryRow(query).Scan(&min, &max)
 	return min, max, err
@@ -618,7 +625,7 @@ func (s *SQL) GetStoredHashesInRange(ctx context.Context, start, end bits.Bitmap
 		query := "SELECT hash FROM blob_ WHERE hash >= ? AND hash <= ? AND is_stored = 1"
 		args := []interface{}{start.Hex(), end.Hex()}
 
-		logQuery(query, args...)
+		s.logQuery(query, args...)
 
 		rows, err := s.conn.Query(query, args...)
 		defer closeRows(rows)
@@ -699,7 +706,7 @@ func closeRows(rows *sql.Rows) {
 }
 
 func (s *SQL) exec(query string, args ...interface{}) (int64, error) {
-	logQuery(query, args...)
+	s.logQuery(query, args...)
 	attempt, maxAttempts := 0, 3
 Retry:
 	attempt++

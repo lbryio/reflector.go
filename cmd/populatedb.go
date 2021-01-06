@@ -30,9 +30,11 @@ func populateDbCmd(cmd *cobra.Command, args []string) {
 	if diskStorePath == "" {
 		log.Fatal("store-path must be defined")
 	}
-	localDb := new(db.SQL)
-	localDb.SoftDelete = true
-	localDb.TrackAccess = db.TrackAccessBlobs
+	localDb := &db.SQL{
+		SoftDelete:  true,
+		TrackAccess: db.TrackAccessBlobs,
+		LogQueries:  log.GetLevel() == log.DebugLevel,
+	}
 	err := localDb.Connect("reflector:reflector@tcp(localhost:3306)/reflector")
 	if err != nil {
 		log.Fatal(err)

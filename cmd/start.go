@@ -52,7 +52,9 @@ func init() {
 }
 
 func startCmd(cmd *cobra.Command, args []string) {
-	db := new(db.SQL)
+	db := &db.SQL{
+		LogQueries: log.GetLevel() == log.DebugLevel,
+	}
 	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 	s3 := store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
