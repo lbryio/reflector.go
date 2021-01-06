@@ -152,8 +152,10 @@ func setupStore() store.BlobStore {
 	}
 
 	if useDB {
-		dbInst := new(db.SQL)
-		dbInst.TrackAccess = db.TrackAccessStreams
+		dbInst := &db.SQL{
+			TrackAccess: db.TrackAccessStreams,
+			LogQueries:  log.GetLevel() == log.DebugLevel,
+		}
 		err := dbInst.Connect(globalConfig.DBConn)
 		if err != nil {
 			log.Fatal(err)
@@ -178,9 +180,11 @@ func wrapWithCache(s store.BlobStore, cleanerStopper *stop.Group) store.BlobStor
 			log.Fatal(err)
 		}
 
-		localDb := new(db.SQL)
-		localDb.SoftDelete = true
-		localDb.TrackAccess = db.TrackAccessBlobs
+		localDb := &db.SQL{
+			SoftDelete:  true,
+			TrackAccess: db.TrackAccessBlobs,
+			LogQueries:  log.GetLevel() == log.DebugLevel,
+		}
 		err = localDb.Connect("reflector:reflector@tcp(localhost:3306)/reflector")
 		if err != nil {
 			log.Fatal(err)

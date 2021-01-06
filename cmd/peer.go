@@ -33,7 +33,9 @@ func peerCmd(cmd *cobra.Command, args []string) {
 	peerServer := peer.NewServer(s3)
 
 	if !peerNoDB {
-		db := new(db.SQL)
+		db := &db.SQL{
+			LogQueries: log.GetLevel() == log.DebugLevel,
+		}
 		err = db.Connect(globalConfig.DBConn)
 		checkErr(err)
 
