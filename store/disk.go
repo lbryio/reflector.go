@@ -4,9 +4,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store/speedwalk"
 )
 
@@ -52,21 +54,22 @@ func (d *DiskStore) Has(hash string) (bool, error) {
 }
 
 // Get returns the blob or an error if the blob doesn't exist.
-func (d *DiskStore) Get(hash string) (stream.Blob, error) {
+func (d *DiskStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	err := d.initOnce()
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), err
 	}
 
 	blob, err := ioutil.ReadFile(d.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, errors.Err(ErrBlobNotFound)
+			return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(ErrBlobNotFound)
 		}
-		return nil, errors.Err(err)
+		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(err)
 	}
 
-	return blob, nil
+	return blob, shared.NewBlobTrace(time.Since(start), d.Name()), nil
 }
 
 // Put stores the blob on disk

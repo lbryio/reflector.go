@@ -5,6 +5,7 @@ import (
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/shared"
 )
 
 // Store is a blob store that gets blobs from a peer.
@@ -43,10 +44,11 @@ func (p *Store) Has(hash string) (bool, error) {
 }
 
 // Get downloads the blob from the peer
-func (p *Store) Get(hash string) (stream.Blob, error) {
+func (p *Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	c, err := p.getClient()
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), p.Name()), err
 	}
 	defer c.Close()
 	return c.GetBlob(hash)

@@ -3,6 +3,7 @@ package store
 import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/shared"
 )
 
 // BlobStore is an interface for handling blob storage.
@@ -12,7 +13,7 @@ type BlobStore interface {
 	// Does blob exist in the store.
 	Has(hash string) (bool, error)
 	// Get the blob from the store. Must return ErrBlobNotFound if blob is not in store.
-	Get(hash string) (stream.Blob, error)
+	Get(hash string) (stream.Blob, shared.BlobTrace, error)
 	// Put the blob into the store.
 	Put(hash string, blob stream.Blob) error
 	// Put an SD blob into the store.

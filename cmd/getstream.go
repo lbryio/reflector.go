@@ -41,7 +41,7 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 
 	var sd stream.SDBlob
 
-	sdb, err := s.Get(sdHash)
+	sdb, _, err := s.Get(sdHash)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 	}
 
 	for i := 0; i < len(sd.BlobInfos)-1; i++ {
-		b, err := s.Get(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
+		b, _, err := s.Get(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
 		if err != nil {
 			log.Fatal(err)
 		}

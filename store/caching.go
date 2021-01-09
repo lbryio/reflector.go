@@ -5,6 +5,7 @@ import (
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/shared"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -43,9 +44,9 @@ func (c *CachingStore) Has(hash string) (bool, error) {
 
 // Get tries to get the blob from the cache first, falling back to the origin. If the blob comes
 // from the origin, it is also stored in the cache.
-func (c *CachingStore) Get(hash string) (stream.Blob, error) {
+func (c *CachingStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
-	blob, err := c.cache.Get(hash)
+	blob, trace, err := c.cache.Get(hash)
 	if err == nil || !errors.Is(err, ErrBlobNotFound) {
 		metrics.CacheHitCount.With(metrics.CacheLabels(c.cache.Name(), c.component)).Inc()
 		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
@@ -54,14 +55,14 @@ func (c *CachingStore) Get(hash string) (stream.Blob, error) {
 			metrics.LabelComponent: c.component,
 			metrics.LabelSource:    "cache",
 		}).Set(rate)
-		return blob, err
+		return blob, trace.Stack(time.Since(start), c.Name()), err
 	}
 
 	metrics.CacheMissCount.With(metrics.CacheLabels(c.cache.Name(), c.component)).Inc()
 
-	blob, err = c.origin.Get(hash)
+	blob, trace, err = c.origin.Get(hash)
 	if err != nil {
-		return nil, err
+		return nil, trace.Stack(time.Since(start), c.Name()), err
 	}
 	// there is no need to wait for the blob to be stored before we return it
 	// TODO: however this should be refactored to limit the amount of routines that the process can spawn to avoid a possible DoS
@@ -71,7 +72,7 @@ func (c *CachingStore) Get(hash string) (stream.Blob, error) {
 			log.Errorf("error saving blob to underlying cache: %s", errors.FullTrace(err))
 		}
 	}()
-	return blob, nil
+	return blob, trace.Stack(time.Since(start), c.Name()), nil
 }
 
 // Put stores the blob in the origin and the cache
