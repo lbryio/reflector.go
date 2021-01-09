@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -71,7 +72,26 @@ func (s *Server) Start(address string) error {
 	r.HandleFunc("/get/{hash}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		requestedBlob := vars["hash"]
-		blob, err := s.store.Get(requestedBlob)
+		traceParam := r.URL.Query().Get("trace")
+		var err error
+		wantsTrace := false
+		if traceParam != "" {
+			wantsTrace, err = strconv.ParseBool(traceParam)
+			if err != nil {
+				wantsTrace = false
+			}
+		}
+		blob, trace, err := s.store.Get(requestedBlob)
+
+		if wantsTrace {
+			serialized, err := trace.Serialize()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			w.Header().Add("Via", serialized)
+			log.Debug(trace.String())
+		}
 		if err != nil {
 			if errors.Is(err, store.ErrBlobNotFound) {
 				http.Error(w, err.Error(), http.StatusNotFound)

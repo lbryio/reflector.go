@@ -89,7 +89,7 @@ func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
 	// hash still exists in lru
 	assert.True(t, lru.lru.Contains(hash))
 
-	blob, err := lru.Get(hash)
+	blob, _, err := lru.Get(hash)
 	assert.Nil(t, blob)
 	assert.True(t, errors.Is(err, ErrBlobNotFound), "expected (%s) %s, got (%s) %s",
 		reflect.TypeOf(ErrBlobNotFound).String(), ErrBlobNotFound.Error(),

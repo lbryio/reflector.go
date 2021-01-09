@@ -40,11 +40,11 @@ func TestFUDAStore_Eviction(t *testing.T) {
 	err = lfuda.Put("two", b)
 	require.NoError(t, err)
 
-	_, err = lfuda.Get("five")
+	_, _, err = lfuda.Get("five")
 	require.NoError(t, err)
-	_, err = lfuda.Get("four")
+	_, _, err = lfuda.Get("four")
 	require.NoError(t, err)
-	_, err = lfuda.Get("two")
+	_, _, err = lfuda.Get("two")
 	require.NoError(t, err)
 	assert.Equal(t, cacheMaxBlobs, len(mem.Debug()))
 
@@ -102,7 +102,7 @@ func TestFUDAStore_UnderlyingBlobMissing(t *testing.T) {
 	// hash still exists in lru
 	assert.True(t, lfuda.lfuda.Contains(hash))
 
-	blob, err := lfuda.Get(hash)
+	blob, _, err := lfuda.Get(hash)
 	assert.Nil(t, blob)
 	assert.True(t, errors.Is(err, ErrBlobNotFound), "expected (%s) %s, got (%s) %s",
 		reflect.TypeOf(ErrBlobNotFound).String(), ErrBlobNotFound.Error(),

@@ -28,7 +28,7 @@ func TestDiskStore_Get(t *testing.T) {
 	err = ioutil.WriteFile(expectedPath, data, os.ModePerm)
 	require.NoError(t, err)
 
-	blob, err := d.Get(hash)
+	blob, _, err := d.Get(hash)
 	assert.NoError(t, err)
 	assert.EqualValues(t, data, blob)
 }
@@ -39,7 +39,7 @@ func TestDiskStore_GetNonexistentBlob(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	d := NewDiskStore(tmpDir, 2)
 
-	blob, err := d.Get("nonexistent")
+	blob, _, err := d.Get("nonexistent")
 	assert.Nil(t, blob)
 	assert.True(t, errors.Is(err, ErrBlobNotFound))
 }

@@ -1,9 +1,12 @@
 package store
 
 import (
+	"time"
+
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/shared"
 
 	golru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
@@ -56,17 +59,18 @@ func (l *LRUStore) Has(hash string) (bool, error) {
 }
 
 // Get returns the blob or an error if the blob doesn't exist.
-func (l *LRUStore) Get(hash string) (stream.Blob, error) {
+func (l *LRUStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	_, has := l.lru.Get(hash)
 	if !has {
-		return nil, errors.Err(ErrBlobNotFound)
+		return nil, shared.NewBlobTrace(time.Since(start), l.Name()), errors.Err(ErrBlobNotFound)
 	}
-	blob, err := l.store.Get(hash)
+	blob, stack, err := l.store.Get(hash)
 	if errors.Is(err, ErrBlobNotFound) {
 		// Blob disappeared from underlying store
 		l.lru.Remove(hash)
 	}
-	return blob, err
+	return blob, stack.Stack(time.Since(start), l.Name()), err
 }
 
 // Put stores the blob

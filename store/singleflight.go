@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/shared"
 
 	"github.com/lbryio/lbry.go/v2/stream"
 
@@ -29,17 +30,24 @@ func (s *singleflightStore) Name() string {
 	return "sf_" + s.BlobStore.Name()
 }
 
+type getterResponse struct {
+	blob  stream.Blob
+	stack shared.BlobTrace
+}
+
 // Get ensures that only one request per hash is sent to the origin at a time,
 // thereby protecting against https://en.wikipedia.org/wiki/Thundering_herd_problem
-func (s *singleflightStore) Get(hash string) (stream.Blob, error) {
+func (s *singleflightStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	metrics.CacheWaitingRequestsCount.With(metrics.CacheLabels(s.Name(), s.component)).Inc()
 	defer metrics.CacheWaitingRequestsCount.With(metrics.CacheLabels(s.Name(), s.component)).Dec()
 
-	blob, err, _ := s.sf.Do(hash, s.getter(hash))
+	gr, err, _ := s.sf.Do(hash, s.getter(hash))
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), s.Name()), err
 	}
-	return blob.(stream.Blob), nil
+	rsp := gr.(getterResponse)
+	return rsp.blob, rsp.stack, nil
 }
 
 // getter returns a function that gets a blob from the origin
@@ -50,9 +58,12 @@ func (s *singleflightStore) getter(hash string) func() (interface{}, error) {
 		defer metrics.CacheOriginRequestsCount.With(metrics.CacheLabels(s.Name(), s.component)).Dec()
 
 		start := time.Now()
-		blob, err := s.BlobStore.Get(hash)
+		blob, stack, err := s.BlobStore.Get(hash)
 		if err != nil {
-			return nil, err
+			return getterResponse{
+				blob:  nil,
+				stack: stack.Stack(time.Since(start), s.Name()),
+			}, err
 		}
 
 		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
@@ -62,7 +73,10 @@ func (s *singleflightStore) getter(hash string) func() (interface{}, error) {
 			metrics.LabelSource:    "origin",
 		}).Set(rate)
 
-		return blob, nil
+		return getterResponse{
+			blob:  blob,
+			stack: stack.Stack(time.Since(start), s.Name()),
+		}, nil
 	}
 }
 

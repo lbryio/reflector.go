@@ -1,7 +1,10 @@
 package store
 
 import (
+	"time"
+
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/shared"
 )
 
 // CloudFrontRWStore combines a Cloudfront and an S3 store. Reads go to Cloudfront, writes go to S3.
@@ -30,8 +33,10 @@ func (c *CloudFrontRWStore) Has(hash string) (bool, error) {
 }
 
 // Get gets the blob from Cloudfront.
-func (c *CloudFrontRWStore) Get(hash string) (stream.Blob, error) {
-	return c.cf.Get(hash)
+func (c *CloudFrontRWStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
+	blob, trace, err := c.cf.Get(hash)
+	return blob, trace.Stack(time.Since(start), c.Name()), err
 }
 
 // Put stores the blob on S3

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/lbryio/reflector.go/shared"
 )
 
 func TestCachingStore_Put(t *testing.T) {
@@ -51,7 +52,7 @@ func TestCachingStore_CacheMiss(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := s.Get(hash)
+	res, stack, err := s.Get(hash)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,14 +68,16 @@ func TestCachingStore_CacheMiss(t *testing.T) {
 	if !has {
 		t.Errorf("Get() did not copy blob to cache")
 	}
+	t.Logf("stack: %s", stack.String())
 
-	res, err = cache.Get(hash)
+	res, stack, err = cache.Get(hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(b, res) {
 		t.Errorf("expected cached Get() to return %s, got %s", string(b), string(res))
 	}
+	t.Logf("stack: %s", stack.String())
 }
 
 func TestCachingStore_ThunderingHerd(t *testing.T) {
@@ -93,7 +96,7 @@ func TestCachingStore_ThunderingHerd(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
 	getNoErr := func() {
-		res, err := s.Get(hash)
+		res, _, err := s.Get(hash)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -149,7 +152,7 @@ func (s *SlowBlobStore) Has(hash string) (bool, error) {
 	return s.mem.Has(hash)
 }
 
-func (s *SlowBlobStore) Get(hash string) (stream.Blob, error) {
+func (s *SlowBlobStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	time.Sleep(s.delay)
 	return s.mem.Get(hash)
 }

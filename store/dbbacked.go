@@ -3,10 +3,12 @@ package store
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/db"
+	"github.com/lbryio/reflector.go/shared"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -36,16 +38,17 @@ func (d *DBBackedStore) Has(hash string) (bool, error) {
 }
 
 // Get gets the blob
-func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
+func (d *DBBackedStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	has, err := d.db.HasBlob(hash, true)
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), err
 	}
 	if !has {
-		return nil, ErrBlobNotFound
+		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), ErrBlobNotFound
 	}
 
-	b, err := d.blobs.Get(hash)
+	b, stack, err := d.blobs.Get(hash)
 	if d.deleteOnMiss && errors.Is(err, ErrBlobNotFound) {
 		e2 := d.Delete(hash)
 		if e2 != nil {
@@ -53,7 +56,7 @@ func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
 		}
 	}
 
-	return b, err
+	return b, stack.Stack(time.Since(start), d.Name()), err
 }
 
 // Put stores the blob in the S3 store and stores the blob information in the DB.
