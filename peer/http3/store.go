@@ -13,6 +13,9 @@ import (
 	"github.com/lucas-clemente/quic-go/http3"
 )
 
+//ErrNotImplemented is a standard error when a store that implements the store interface does not implement a method
+var ErrNotImplemented = errors.Base("this store does not implement this method")
+
 // Store is a blob store that gets blobs from a peer.
 // It satisfies the store.BlobStore interface but cannot put or delete blobs.
 type Store struct {
@@ -81,17 +84,17 @@ func (p *Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 
 // Put is not supported
 func (p *Store) Put(hash string, blob stream.Blob) error {
-	panic("http3Store cannot put or delete blobs")
+	return errors.Err(ErrNotImplemented)
 }
 
 // PutSD is not supported
 func (p *Store) PutSD(hash string, blob stream.Blob) error {
-	panic("http3Store cannot put or delete blobs")
+	return errors.Err(ErrNotImplemented)
 }
 
 // Delete is not supported
 func (p *Store) Delete(hash string) error {
-	panic("http3Store cannot put or delete blobs")
+	return errors.Err(ErrNotImplemented)
 }
 
 // Delete is not supported

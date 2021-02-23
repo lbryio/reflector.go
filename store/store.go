@@ -40,3 +40,6 @@ type lister interface {
 
 //ErrBlobNotFound is a standard error when a blob is not found in the store.
 var ErrBlobNotFound = errors.Base("blob not found")
+
+//ErrNotImplemented is a standard error when a store that implements this interface does not implement a method
+var ErrNotImplemented = errors.Base("this store does not implement this method")
