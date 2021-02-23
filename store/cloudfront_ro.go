@@ -93,15 +93,15 @@ func (c *CloudFrontROStore) cfRequest(method, hash string) (int, io.ReadCloser, 
 }
 
 func (c *CloudFrontROStore) Put(_ string, _ stream.Blob) error {
-	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
+	return errors.Err(ErrNotImplemented)
 }
 
 func (c *CloudFrontROStore) PutSD(_ string, _ stream.Blob) error {
-	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
+	return errors.Err(ErrNotImplemented)
 }
 
 func (c *CloudFrontROStore) Delete(_ string) error {
-	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
+	return errors.Err(ErrNotImplemented)
 }
 
 // Shutdown shuts down the store gracefully
