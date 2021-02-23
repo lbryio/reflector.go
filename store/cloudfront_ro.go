@@ -93,15 +93,15 @@ func (c *CloudFrontROStore) cfRequest(method, hash string) (int, io.ReadCloser, 
 }
 
 func (c *CloudFrontROStore) Put(_ string, _ stream.Blob) error {
-	return errors.Err(ErrNotImplemented)
+	return errors.Err(shared.ErrNotImplemented)
 }
 
 func (c *CloudFrontROStore) PutSD(_ string, _ stream.Blob) error {
-	return errors.Err(ErrNotImplemented)
+	return errors.Err(shared.ErrNotImplemented)
 }
 
 func (c *CloudFrontROStore) Delete(_ string) error {
-	return errors.Err(ErrNotImplemented)
+	return errors.Err(shared.ErrNotImplemented)
 }
 
 // Shutdown shuts down the store gracefully
