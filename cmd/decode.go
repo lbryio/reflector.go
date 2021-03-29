@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/lbryio/lbry.go/v2/schema/claim"
+	"github.com/lbryio/lbry.go/v2/schema/stake"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/golang/protobuf/jsonpb"
@@ -23,7 +23,7 @@ func init() {
 }
 
 func decodeCmd(cmd *cobra.Command, args []string) {
-	c, err := claim.DecodeClaimHex(args[0], "")
+	c, err := stake.DecodeClaimHex(args[0], "")
 	if err != nil {
 		log.Fatal(err)
 	}

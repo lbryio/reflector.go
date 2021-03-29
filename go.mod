@@ -23,8 +23,8 @@ require (
 	github.com/karrick/godirwalk v1.16.1
 	github.com/lbryio/chainquery v1.9.0
 	github.com/lbryio/lbry.go v1.1.2 // indirect
-	github.com/lbryio/lbry.go/v2 v2.6.1-0.20200901175808-73382bb02128
-	github.com/lbryio/types v0.0.0-20191228214437-05a22073b4ec
+	github.com/lbryio/lbry.go/v2 v2.7.2-0.20210316000044-988178df5011
+	github.com/lbryio/types v0.0.0-20201019032447-f0b4476ef386
 	github.com/lucas-clemente/quic-go v0.19.3
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
 	github.com/prometheus/client_golang v0.9.3
@@ -33,7 +33,7 @@ require (
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.7.1 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.7.0
 	github.com/volatiletech/null v8.0.0+incompatible
 	go.uber.org/atomic v1.5.1
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
