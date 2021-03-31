@@ -25,7 +25,7 @@ require (
 	github.com/lbryio/lbry.go v1.1.2 // indirect
 	github.com/lbryio/lbry.go/v2 v2.7.2-0.20210316000044-988178df5011
 	github.com/lbryio/types v0.0.0-20201019032447-f0b4476ef386
-	github.com/lucas-clemente/quic-go v0.19.3
+	github.com/lucas-clemente/quic-go v0.20.0
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
 	github.com/prometheus/client_golang v0.9.3
 	github.com/sirupsen/logrus v1.4.2

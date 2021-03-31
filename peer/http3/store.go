@@ -4,11 +4,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/shared"
+	"github.com/lbryio/reflector.go/store"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 )
@@ -16,7 +19,8 @@ import (
 // Store is a blob store that gets blobs from a peer.
 // It satisfies the store.BlobStore interface but cannot put or delete blobs.
 type Store struct {
-	opts StoreOpts
+	opts          StoreOpts
+	NotFoundCache *sync.Map
 }
 
 // StoreOpts allows to set options for a new Store.
@@ -27,12 +31,12 @@ type StoreOpts struct {
 
 // NewStore makes a new peer store.
 func NewStore(opts StoreOpts) *Store {
-	return &Store{opts: opts}
+	return &Store{opts: opts, NotFoundCache: &sync.Map{}}
 }
 
 func (p *Store) getClient() (*Client, error) {
 	var qconf quic.Config
-	qconf.HandshakeTimeout = 4 * time.Second
+	qconf.HandshakeIdleTimeout = 4 * time.Second
 	qconf.MaxIdleTimeout = 20 * time.Second
 	pool, err := x509.SystemCertPool()
 	if err != nil {
@@ -71,7 +75,15 @@ func (p *Store) Has(hash string) (bool, error) {
 // Get downloads the blob from the peer
 func (p *Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
+	if lastChecked, ok := p.NotFoundCache.Load(hash); ok {
+		if lastChecked.(time.Time).After(time.Now().Add(-5 * time.Minute)) {
+			return nil, shared.NewBlobTrace(time.Since(start), p.Name()+"-notfoundcache"), store.ErrBlobNotFound
+		}
+	}
 	c, err := p.getClient()
+	if err != nil && strings.Contains(err.Error(), "blob not found") {
+		p.NotFoundCache.Store(hash, time.Now())
+	}
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), p.Name()), err
 	}
