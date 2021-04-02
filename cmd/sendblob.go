@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"crypto/rand"
-	"io/ioutil"
 	"os"
 
 	"github.com/lbryio/reflector.go/reflector"
@@ -52,9 +51,8 @@ func sendBlobCmd(cmd *cobra.Command, args []string) {
 
 	file, err := os.Open(path)
 	checkErr(err)
-	data, err := ioutil.ReadAll(file)
-	checkErr(err)
-	s, err := stream.New(data)
+	defer file.Close()
+	s, err := stream.New(file)
 	checkErr(err)
 
 	sdBlob := &stream.SDBlob{}

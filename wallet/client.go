@@ -6,7 +6,7 @@ import (
 
 	"github.com/lbryio/chainquery/lbrycrd"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/schema/claim"
+	"github.com/lbryio/lbry.go/v2/schema/stake"
 	types "github.com/lbryio/types/v2/go"
 
 	"github.com/btcsuite/btcutil"
@@ -140,7 +140,7 @@ func (n *Node) GetClaimInTx(txid string, nout int) (*types.Claim, error) {
 		return nil, errors.Err(err)
 	}
 
-	ch, err := claim.DecodeClaimBytes(value, "")
+	ch, err := stake.DecodeClaimBytes(value, "")
 	if err != nil {
 		return nil, errors.Err(err)
 	}
