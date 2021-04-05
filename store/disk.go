@@ -1,6 +1,9 @@
 package store
 
 import (
+	"crypto/sha512"
+	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -10,6 +13,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store/speedwalk"
+	log "github.com/sirupsen/logrus"
 )
 
 // DiskStore stores blobs on a local disk
@@ -67,6 +71,17 @@ func (d *DiskStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 			return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(ErrBlobNotFound)
 		}
 		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(err)
+	}
+	hashBytes := sha512.Sum384(blob)
+	readHash := hex.EncodeToString(hashBytes[:])
+	if hash != readHash {
+		message := fmt.Sprintf("[%s] found a broken blob while reading from disk. Actual hash: %s", hash, readHash)
+		log.Errorf("%s", message)
+		err := d.Delete(hash)
+		if err != nil {
+			return nil, shared.NewBlobTrace(time.Since(start), d.Name()), err
+		}
+		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(message)
 	}
 
 	return blob, shared.NewBlobTrace(time.Since(start), d.Name()), nil
