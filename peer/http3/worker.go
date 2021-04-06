@@ -9,8 +9,9 @@ import (
 )
 
 type blobRequest struct {
-	request *http.Request
-	reply   http.ResponseWriter
+	request  *http.Request
+	reply    http.ResponseWriter
+	finished *stop.Group
 }
 
 var getReqCh = make(chan *blobRequest)
@@ -37,4 +38,5 @@ func enqueue(b *blobRequest) {
 
 func process(server *Server, r *blobRequest) {
 	server.HandleGetBlob(r.reply, r.request)
+	r.finished.Done()
 }
