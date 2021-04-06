@@ -2,6 +2,7 @@ package http3
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
 
@@ -11,7 +12,7 @@ import (
 type blobRequest struct {
 	request  *http.Request
 	reply    http.ResponseWriter
-	finished *stop.Group
+	finished *sync.WaitGroup
 }
 
 var getReqCh = make(chan *blobRequest)
