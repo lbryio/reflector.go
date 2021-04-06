@@ -70,7 +70,11 @@ func (s *Server) Start(address string) error {
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/get/{hash}", func(w http.ResponseWriter, r *http.Request) {
-		enqueue(&blobRequest{request: r, reply: w})
+		waiter := stop.New()
+		enqueue(&blobRequest{request: r, reply: w, finished: waiter})
+		select {
+		case <-waiter.Ch():
+		}
 	})
 	r.HandleFunc("/has/{hash}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
