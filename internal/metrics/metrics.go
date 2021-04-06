@@ -201,6 +201,11 @@ var (
 		Name:      "s3_in_bytes",
 		Help:      "Total number of incoming bytes (from S3-CF)",
 	})
+	Http3BlobReqQueue = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "http3_blob_request_queue_size",
+		Help:      "Blob requests of https queue size",
+	})
 )
 
 func CacheLabels(name, component string) prometheus.Labels {
