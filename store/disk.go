@@ -14,6 +14,7 @@ import (
 	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store/speedwalk"
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/atomic"
 )
 
 // DiskStore stores blobs on a local disk
@@ -25,7 +26,11 @@ type DiskStore struct {
 
 	// true if initOnce ran, false otherwise
 	initialized bool
+
+	concurrentChecks atomic.Int32
 }
+
+const maxConcurrentChecks = 3
 
 // NewDiskStore returns an initialized file disk store pointer.
 func NewDiskStore(dir string, prefixLength int) *DiskStore {
@@ -72,16 +77,23 @@ func (d *DiskStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 		}
 		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(err)
 	}
-	hashBytes := sha512.Sum384(blob)
-	readHash := hex.EncodeToString(hashBytes[:])
-	if hash != readHash {
-		message := fmt.Sprintf("[%s] found a broken blob while reading from disk. Actual hash: %s", hash, readHash)
-		log.Errorf("%s", message)
-		err := d.Delete(hash)
-		if err != nil {
-			return nil, shared.NewBlobTrace(time.Since(start), d.Name()), err
+
+	// this is a rather poor yet effective way of throttling how many blobs can be checked concurrently
+	// poor because there is a possible race condition between the check and the actual +1
+	if d.concurrentChecks.Load() < maxConcurrentChecks {
+		d.concurrentChecks.Add(1)
+		defer d.concurrentChecks.Sub(1)
+		hashBytes := sha512.Sum384(blob)
+		readHash := hex.EncodeToString(hashBytes[:])
+		if hash != readHash {
+			message := fmt.Sprintf("[%s] found a broken blob while reading from disk. Actual hash: %s", hash, readHash)
+			log.Errorf("%s", message)
+			err := d.Delete(hash)
+			if err != nil {
+				return nil, shared.NewBlobTrace(time.Since(start), d.Name()), err
+			}
+			return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(message)
 		}
-		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(message)
 	}
 
 	return blob, shared.NewBlobTrace(time.Since(start), d.Name()), nil

@@ -15,21 +15,23 @@ type blobRequest struct {
 	finished *sync.WaitGroup
 }
 
-var getReqCh = make(chan *blobRequest)
+var getReqCh = make(chan *blobRequest, 20000)
 
-func InitWorkers(server *Server, workers int) error {
+func InitWorkers(server *Server, workers int) {
 	stopper := stop.New(server.grp)
 	for i := 0; i < workers; i++ {
 		go func(worker int) {
-			select {
-			case <-stopper.Ch():
-			case r := <-getReqCh:
-				metrics.Http3BlobReqQueue.Dec()
-				process(server, r)
+			for {
+				select {
+				case <-stopper.Ch():
+				case r := <-getReqCh:
+					metrics.Http3BlobReqQueue.Dec()
+					process(server, r)
+				}
 			}
 		}(i)
 	}
-	return nil
+	return
 }
 
 func enqueue(b *blobRequest) {
