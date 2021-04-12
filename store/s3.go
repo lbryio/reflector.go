@@ -112,10 +112,11 @@ func (s *S3Store) Put(hash string, blob stream.Blob) error {
 	}(time.Now())
 
 	_, err = s3manager.NewUploader(s.session).Upload(&s3manager.UploadInput{
-		Bucket:       aws.String(s.bucket),
-		Key:          aws.String(hash),
-		Body:         bytes.NewBuffer(blob),
-		StorageClass: aws.String(s3.StorageClassIntelligentTiering),
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(hash),
+		Body:   bytes.NewBuffer(blob),
+		ACL:    aws.String("public-read"),
+		//StorageClass: aws.String(s3.StorageClassIntelligentTiering),
 	})
 	metrics.MtrOutBytesReflector.Add(float64(blob.Size()))
 
@@ -152,6 +153,7 @@ func (s *S3Store) initOnce() error {
 	sess, err := session.NewSession(&aws.Config{
 		Credentials: credentials.NewStaticCredentials(s.awsID, s.awsSecret, ""),
 		Region:      aws.String(s.region),
+		Endpoint:    aws.String("https://s3.wasabisys.com"),
 	})
 	if err != nil {
 		return err

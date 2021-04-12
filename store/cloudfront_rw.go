@@ -7,15 +7,15 @@ import (
 	"github.com/lbryio/reflector.go/shared"
 )
 
-// CloudFrontRWStore combines a Cloudfront and an S3 store. Reads go to Cloudfront, writes go to S3.
+// CloudFrontRWStore combines a Cloudfront and an S3 store. Reads go to Cloudfront/Wasabi, writes go to S3.
 type CloudFrontRWStore struct {
-	cf *CloudFrontROStore
+	cf *ITTTStore
 	s3 *S3Store
 }
 
 // NewCloudFrontRWStore returns an initialized CloudFrontRWStore store pointer.
 // NOTE: It panics if either argument is nil.
-func NewCloudFrontRWStore(cf *CloudFrontROStore, s3 *S3Store) *CloudFrontRWStore {
+func NewCloudFrontRWStore(cf *ITTTStore, s3 *S3Store) *CloudFrontRWStore {
 	if cf == nil || s3 == nil {
 		panic("both stores must be set")
 	}

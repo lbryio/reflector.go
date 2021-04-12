@@ -37,6 +37,7 @@ var (
 	proxyProtocol               string
 	useDB                       bool
 	cloudFrontEndpoint          string
+	WasabiEndpoint              string
 	reflectorCmdDiskCache       string
 	bufferReflectorCmdDiskCache string
 	reflectorCmdMemCache        int
@@ -52,6 +53,7 @@ func init() {
 	cmd.Flags().StringVar(&proxyPort, "proxy-port", "5567", "port of another reflector server where blobs are fetched from")
 	cmd.Flags().StringVar(&proxyProtocol, "proxy-protocol", "http3", "protocol used to fetch blobs from another reflector server (tcp/http3)")
 	cmd.Flags().StringVar(&cloudFrontEndpoint, "cloudfront-endpoint", "", "CloudFront edge endpoint for standard HTTP retrieval")
+	cmd.Flags().StringVar(&WasabiEndpoint, "wasabi-endpoint", "", "Wasabi edge endpoint for standard HTTP retrieval")
 	cmd.Flags().IntVar(&tcpPeerPort, "tcp-peer-port", 5567, "The port reflector will distribute content from")
 	cmd.Flags().IntVar(&http3PeerPort, "http3-peer-port", 5568, "The port reflector will distribute content from over HTTP3 protocol")
 	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
@@ -137,12 +139,12 @@ func setupStore() store.BlobStore {
 		if conf != "none" {
 			s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 		}
-		if cloudFrontEndpoint != "" {
-			cfs := store.NewCloudFrontROStore(cloudFrontEndpoint)
+		if cloudFrontEndpoint != "" && WasabiEndpoint != "" {
+			ittt := store.NewITTTStore(store.NewCloudFrontROStore(WasabiEndpoint), store.NewCloudFrontROStore(cloudFrontEndpoint))
 			if s3Store != nil {
-				s = store.NewCloudFrontRWStore(cfs, s3Store)
+				s = store.NewCloudFrontRWStore(ittt, s3Store)
 			} else {
-				s = cfs
+				s = ittt
 			}
 		} else if s3Store != nil {
 			s = s3Store
