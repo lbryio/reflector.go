@@ -60,6 +60,7 @@ func (s *Server) Shutdown() {
 const (
 	ns             = "reflector"
 	subsystemCache = "cache"
+	subsystemITTT  = "ittt"
 
 	labelDirection = "direction"
 	labelErrorType = "error_type"
@@ -124,6 +125,18 @@ var (
 		Name:      "hit_total",
 		Help:      "Total number of blobs retrieved from the cache storage",
 	}, []string{LabelCacheType, LabelComponent})
+	ThisHitCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Subsystem: subsystemITTT,
+		Name:      "this_hit_total",
+		Help:      "Total number of blobs retrieved from the this storage",
+	})
+	ThatHitCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Subsystem: subsystemITTT,
+		Name:      "that_hit_total",
+		Help:      "Total number of blobs retrieved from the that storage",
+	})
 	CacheMissCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
 		Subsystem: subsystemCache,

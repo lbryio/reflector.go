@@ -112,7 +112,7 @@ func (s *Server) Start(address string) error {
 		},
 		QuicConfig: quicConf,
 	}
-	go InitWorkers(s, 100)
+	go InitWorkers(s, 200)
 	go s.listenForShutdown(&server)
 	s.grp.Add(1)
 	go func() {
