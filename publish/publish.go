@@ -3,7 +3,6 @@ package publish
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,7 +20,6 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/golang/protobuf/proto"
-	"golang.org/x/crypto/sha3"
 )
 
 var TODO = `
@@ -42,6 +40,14 @@ var TODO = `
 		"Not enough funds to cover this transaction",
 }
 `
+
+type Details struct {
+	Title       string
+	Description string
+	Author      string
+	Tags        []string
+	ReleaseTime int64
+}
 
 func Publish(client *lbrycrd.Client, path, name, address string, details Details, reflectorAddress string) (*wire.MsgTx, *chainhash.Hash, error) {
 	if name == "" {
@@ -69,9 +75,18 @@ func Publish(client *lbrycrd.Client, path, name, address string, details Details
 		return nil, nil, err
 	}
 
-	claim, st, err := makeClaimAndStream(path, details)
+	st, stPB, err := makeStream(path)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	stPB.Author = details.Author
+	stPB.ReleaseTime = details.ReleaseTime
+
+	claim := &pb.Claim{
+		Title:       details.Title,
+		Description: details.Description,
+		Type:        &pb.Claim_Stream{Stream: stPB},
 	}
 
 	err = addClaimToTx(tx, claim, name, amount, addr)
@@ -203,50 +218,31 @@ func reflect(st stream.Stream, reflectorAddress string) error {
 	return nil
 }
 
-type Details struct {
-	Title       string
-	Description string
-	Author      string
-	Tags        []string
-	ReleaseTime int64
-}
-
-func makeClaimAndStream(path string, details Details) (*pb.Claim, stream.Stream, error) {
+func makeStream(path string) (stream.Stream, *pb.Stream, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, nil, errors.Err(err)
 	}
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, nil, errors.Err(err)
-	}
-	s, err := stream.New(data)
-	if err != nil {
-		return nil, nil, errors.Err(err)
-	}
+	defer file.Close()
 
-	// make the claim
-	sdBlob := &stream.SDBlob{}
-	err = sdBlob.FromBlob(s[0])
+	enc := stream.NewEncoder(file)
+
+	s, err := enc.Stream()
 	if err != nil {
 		return nil, nil, errors.Err(err)
 	}
 
-	filehash := sha3.Sum384(data)
-
-	streamPB := &pb.Stream{
-		Author:      details.Author,
-		ReleaseTime: details.ReleaseTime,
+	streamProto := &pb.Stream{
 		Source: &pb.Source{
-			SdHash: s[0].Hash(),
+			SdHash: enc.SDBlob().Hash(),
 			Name:   filepath.Base(file.Name()),
-			Size:   uint64(len(data)),
-			Hash:   filehash[:],
+			Size:   uint64(enc.SourceLen()),
+			Hash:   enc.SourceHash(),
 		},
 	}
 
 	mimeType, category := guessMimeType(filepath.Ext(file.Name()))
-	streamPB.Source.MediaType = mimeType
+	streamProto.Source.MediaType = mimeType
 
 	switch category {
 	case "video":
@@ -254,20 +250,14 @@ func makeClaimAndStream(path string, details Details) (*pb.Claim, stream.Stream,
 		//if err != nil {
 		//	return nil, nil, err
 		//}
-		streamPB.Type = &pb.Stream_Video{}
+		streamProto.Type = &pb.Stream_Video{}
 	case "audio":
-		streamPB.Type = &pb.Stream_Audio{}
+		streamProto.Type = &pb.Stream_Audio{}
 	case "image":
-		streamPB.Type = &pb.Stream_Image{}
+		streamProto.Type = &pb.Stream_Image{}
 	}
 
-	claim := &pb.Claim{
-		Title:       details.Title,
-		Description: details.Description,
-		Type:        &pb.Claim_Stream{Stream: streamPB},
-	}
-
-	return claim, s, nil
+	return s, streamProto, nil
 }
 
 func getClaimPayoutScript(name string, value []byte, address btcutil.Address) ([]byte, error) {
