@@ -19,7 +19,7 @@ func TestDiskStore_Get(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	d := NewDiskStore(tmpDir, 2)
 
-	hash := "1234567890"
+	hash := "f428b8265d65dad7f8ffa52922bba836404cbd62f3ecfe10adba6b444f8f658938e54f5981ac4de39644d5b93d89a94b"
 	data := []byte("oyuntyausntoyaunpdoyruoyduanrstjwfjyuwf")
 
 	expectedPath := path.Join(tmpDir, hash[:2], hash)

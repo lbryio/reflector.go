@@ -3,12 +3,13 @@ package store
 import (
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/shared"
 
-	golru "github.com/hashicorp/golang-lru"
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
+
+	"github.com/bluele/gcache"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,7 +18,7 @@ type LRUStore struct {
 	// underlying store
 	store BlobStore
 	// lru implementation
-	lru *golru.Cache
+	lru gcache.Cache
 }
 
 // NewLRUStore initialize a new LRUStore
@@ -25,20 +26,14 @@ func NewLRUStore(component string, store BlobStore, maxItems int) *LRUStore {
 	l := &LRUStore{
 		store: store,
 	}
-
-	lru, err := golru.NewWithEvict(maxItems, func(key interface{}, value interface{}) {
+	l.lru = gcache.New(maxItems).ARC().EvictedFunc(func(key, value interface{}) {
 		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(l.Name(), component)).Inc()
-		_ = store.Delete(key.(string)) // TODO: log this error. may happen if underlying entry is gone but cache entry still there
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	l.lru = lru
+		_ = store.Delete(key.(string))
+	}).Build()
 
 	go func() {
 		if lstr, ok := store.(lister); ok {
-			err = l.loadExisting(lstr, maxItems)
+			err := l.loadExisting(lstr, maxItems)
 			if err != nil {
 				panic(err) // TODO: what should happen here? panic? return nil? just keep going?
 			}
@@ -55,14 +50,14 @@ func (l *LRUStore) Name() string {
 
 // Has returns whether the blob is in the store, without updating the recent-ness.
 func (l *LRUStore) Has(hash string) (bool, error) {
-	return l.lru.Contains(hash), nil
+	return l.lru.Has(hash), nil
 }
 
 // Get returns the blob or an error if the blob doesn't exist.
 func (l *LRUStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
-	_, has := l.lru.Get(hash)
-	if !has {
+	_, err := l.lru.Get(hash)
+	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), l.Name()), errors.Err(ErrBlobNotFound)
 	}
 	blob, stack, err := l.store.Get(hash)
@@ -80,7 +75,7 @@ func (l *LRUStore) Put(hash string, blob stream.Blob) error {
 		return err
 	}
 
-	l.lru.Add(hash, true)
+	l.lru.Set(hash, true)
 	return nil
 }
 
@@ -91,7 +86,7 @@ func (l *LRUStore) PutSD(hash string, blob stream.Blob) error {
 		return err
 	}
 
-	l.lru.Add(hash, true)
+	_ = l.lru.Set(hash, true)
 	return nil
 }
 
@@ -119,7 +114,7 @@ func (l *LRUStore) loadExisting(store lister, maxItems int) error {
 	logrus.Infof("read %d files from disk", len(existing))
 	added := 0
 	for _, h := range existing {
-		l.lru.Add(h, true)
+		l.lru.Set(h, true)
 		added++
 		if maxItems > 0 && added >= maxItems { // underlying cache is bigger than LRU cache
 			break

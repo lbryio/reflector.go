@@ -317,9 +317,10 @@ func (s *SQL) hasBlobs(hashes []string) (map[string]bool, []uint64, error) {
 	}
 
 	var (
-		hash             string
-		blobID, streamID uint64
-		lastAccessedAt   null.Time
+		hash           string
+		blobID         uint64
+		streamID       null.Uint64
+		lastAccessedAt null.Time
 	)
 
 	var needsTouch []uint64
@@ -379,8 +380,8 @@ WHERE b.is_stored = 1 and b.hash IN (` + qt.Qs(len(batch)) + `)`
 				if !lastAccessedAt.Valid || lastAccessedAt.Time.Before(touchDeadline) {
 					if s.TrackAccess == TrackAccessBlobs {
 						needsTouch = append(needsTouch, blobID)
-					} else if s.TrackAccess == TrackAccessStreams {
-						needsTouch = append(needsTouch, streamID)
+					} else if s.TrackAccess == TrackAccessStreams && !streamID.IsZero() {
+						needsTouch = append(needsTouch, streamID.Uint64)
 					}
 				}
 			}
@@ -779,8 +780,9 @@ CREATE TABLE blob_ (
   length bigint(20) unsigned DEFAULT NULL,
   last_accessed_at TIMESTAMP NULL DEFAULT NULL,
   PRIMARY KEY (id),
-  UNIQUE KEY blob_hash_idx (hash)
-  KEY `blob_last_accessed_idx` (`last_accessed_at`)
+  UNIQUE KEY blob_hash_idx (hash),
+  KEY `blob_last_accessed_idx` (`last_accessed_at`),
+  KEY `is_stored_idx` (`is_stored`)
 );
 
 CREATE TABLE stream (

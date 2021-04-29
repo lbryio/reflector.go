@@ -7,6 +7,7 @@ replace github.com/btcsuite/btcd => github.com/lbryio/lbrycrd.go v0.0.0-20200203
 require (
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/aws/aws-sdk-go v1.16.11
+	github.com/bluele/gcache v0.0.2
 	github.com/bparli/lfuda-go v0.3.1
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
 	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
@@ -17,7 +18,7 @@ require (
 	github.com/google/gops v0.3.7
 	github.com/gorilla/mux v1.7.4
 	github.com/hashicorp/go-msgpack v0.5.5 // indirect
-	github.com/hashicorp/golang-lru v0.5.4
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/memberlist v0.1.4 // indirect
 	github.com/hashicorp/serf v0.8.2
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
