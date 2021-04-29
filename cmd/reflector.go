@@ -254,6 +254,11 @@ func diskCacheParams(diskParams string) (int, string) {
 }
 
 func cleanOldestBlobs(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Group) {
+	// this is so that it runs on startup without having to wait for 10 minutes
+	err := doClean(maxItems, db, store, stopper)
+	if err != nil {
+		log.Error(errors.FullTrace(err))
+	}
 	const cleanupInterval = 10 * time.Minute
 	for {
 		select {
@@ -281,19 +286,38 @@ func doClean(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Grou
 		if err != nil {
 			return err
 		}
-
-		for _, hash := range blobs {
-			select {
-			case <-stopper.Ch():
-				return nil
-			default:
+		blobsChan := make(chan string, len(blobs))
+		wg := &stop.Group{}
+		go func() {
+			for _, hash := range blobs {
+				select {
+				case <-stopper.Ch():
+					return
+				default:
+				}
+				blobsChan <- hash
 			}
-
-			err = store.Delete(hash)
-			if err != nil {
-				return err
-			}
+			close(blobsChan)
+		}()
+		for i := 0; i < 3; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for h := range blobsChan {
+					select {
+					case <-stopper.Ch():
+						return
+					default:
+					}
+					err = store.Delete(h)
+					if err != nil {
+						log.Errorf("error pruning %s: %s", h, errors.FullTrace(err))
+						continue
+					}
+				}
+			}()
 		}
+		wg.Wait()
 	}
 	return nil
 }

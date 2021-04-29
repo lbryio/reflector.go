@@ -87,7 +87,7 @@ func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
 	require.NoError(t, err)
 
 	// hash still exists in lru
-	assert.True(t, lru.lru.Contains(hash))
+	assert.True(t, lru.lru.Has(hash))
 
 	blob, _, err := lru.Get(hash)
 	assert.Nil(t, blob)
@@ -96,7 +96,7 @@ func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
 		reflect.TypeOf(err).String(), err.Error())
 
 	// lru.Get() removes hash if underlying store doesn't have it
-	assert.False(t, lru.lru.Contains(hash))
+	assert.False(t, lru.lru.Has(hash))
 }
 
 func TestLRUStore_loadExisting(t *testing.T) {

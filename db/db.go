@@ -781,7 +781,8 @@ CREATE TABLE blob_ (
   last_accessed_at TIMESTAMP NULL DEFAULT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY blob_hash_idx (hash),
-  KEY `blob_last_accessed_idx` (`last_accessed_at`)
+  KEY `blob_last_accessed_idx` (`last_accessed_at`),
+  KEY `is_stored_idx` (`is_stored`)
 );
 
 CREATE TABLE stream (
