@@ -65,9 +65,14 @@ type availabilityResponse struct {
 // Start starts the server listener to handle connections.
 func (s *Server) Start(address string) error {
 	log.Println("HTTP3 peer listening on " + address)
+	window500M := 500 * 1 << 20
+
 	quicConf := &quic.Config{
-		HandshakeIdleTimeout: 4 * time.Second,
-		MaxIdleTimeout:       20 * time.Second,
+		MaxStreamReceiveWindow:     uint64(window500M),
+		MaxConnectionReceiveWindow: uint64(window500M),
+		EnableDatagrams:            true,
+		HandshakeIdleTimeout:       4 * time.Second,
+		MaxIdleTimeout:             20 * time.Second,
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/get/{hash}", func(w http.ResponseWriter, r *http.Request) {

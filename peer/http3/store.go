@@ -36,6 +36,10 @@ func NewStore(opts StoreOpts) *Store {
 
 func (p *Store) getClient() (*Client, error) {
 	var qconf quic.Config
+	window500M := 500 * 1 << 20
+	qconf.MaxStreamReceiveWindow = uint64(window500M)
+	qconf.MaxConnectionReceiveWindow = uint64(window500M)
+	qconf.EnableDatagrams = true
 	qconf.HandshakeIdleTimeout = 4 * time.Second
 	qconf.MaxIdleTimeout = 20 * time.Second
 	pool, err := x509.SystemCertPool()
