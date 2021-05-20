@@ -219,6 +219,11 @@ var (
 		Name:      "http3_blob_request_queue_size",
 		Help:      "Blob requests of https queue size",
 	})
+	RoutinesQueue = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "routines",
+		Help:      "routines running by type",
+	}, []string{"package", "kind"})
 )
 
 func CacheLabels(name, component string) prometheus.Labels {

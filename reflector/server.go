@@ -74,7 +74,9 @@ func (s *Server) Start(address string) error {
 		log.Fatal(err)
 	}
 	s.grp.Add(1)
+	metrics.RoutinesQueue.WithLabelValues("reflector", "listener").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("reflector", "listener").Dec()
 		<-s.grp.Ch()
 		err := l.Close()
 		if err != nil {
@@ -84,7 +86,9 @@ func (s *Server) Start(address string) error {
 	}()
 
 	s.grp.Add(1)
+	metrics.RoutinesQueue.WithLabelValues("reflector", "start").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("reflector", "start").Dec()
 		s.listenAndServe(l)
 		s.grp.Done()
 	}()
@@ -92,7 +96,9 @@ func (s *Server) Start(address string) error {
 	if s.EnableBlocklist {
 		if b, ok := s.underlyingStore.(store.Blocklister); ok {
 			s.grp.Add(1)
+			metrics.RoutinesQueue.WithLabelValues("reflector", "enableblocklist").Inc()
 			go func() {
+				defer metrics.RoutinesQueue.WithLabelValues("reflector", "enableblocklist").Dec()
 				s.enableBlocklist(b)
 				s.grp.Done()
 			}()
@@ -115,7 +121,9 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			log.Error(err)
 		} else {
 			s.grp.Add(1)
+			metrics.RoutinesQueue.WithLabelValues("reflector", "server-listenandserve").Inc()
 			go func() {
+				defer metrics.RoutinesQueue.WithLabelValues("reflector", "server-listenandserve").Inc()
 				s.handleConn(conn)
 				s.grp.Done()
 			}()
@@ -130,7 +138,9 @@ func (s *Server) handleConn(conn net.Conn) {
 		close(connNeedsClosing)
 	}()
 	s.grp.Add(1)
+	metrics.RoutinesQueue.WithLabelValues("reflector", "server-handleconn").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("reflector", "server-handleconn").Dec()
 		defer s.grp.Done()
 		select {
 		case <-connNeedsClosing:
