@@ -20,7 +20,9 @@ var getReqCh = make(chan *blobRequest, 20000)
 func InitWorkers(server *Server, workers int) {
 	stopper := stop.New(server.grp)
 	for i := 0; i < workers; i++ {
+		metrics.RoutinesQueue.WithLabelValues("http3", "worker").Inc()
 		go func(worker int) {
+			defer metrics.RoutinesQueue.WithLabelValues("http3", "worker").Dec()
 			for {
 				select {
 				case <-stopper.Ch():

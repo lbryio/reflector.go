@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/lbryio/reflector.go/internal/metrics"
+
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 
 	"github.com/karrick/godirwalk"
@@ -24,6 +26,7 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 	paths := make([]string, 0, 1000)
 	pathWG := &sync.WaitGroup{}
 	pathWG.Add(1)
+	metrics.RoutinesQueue.WithLabelValues("speedwalk", "worker").Inc()
 	go func() {
 		defer pathWG.Done()
 		for {

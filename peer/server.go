@@ -89,7 +89,9 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			log.Error(errors.Prefix("accepting conn", err))
 		} else {
 			s.grp.Add(1)
+			metrics.RoutinesQueue.WithLabelValues("peer", "server-handleconn").Inc()
 			go func() {
+				defer metrics.RoutinesQueue.WithLabelValues("peer", "server-handleconn").Dec()
 				s.handleConnection(conn)
 				s.grp.Done()
 			}()
