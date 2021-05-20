@@ -24,7 +24,7 @@ func NewCachingStore(component string, origin, cache BlobStore) *CachingStore {
 	return &CachingStore{
 		component: component,
 		origin:    WithSingleFlight(component, origin),
-		cache:     cache,
+		cache:     WithSingleFlight(component, cache),
 	}
 }
 
