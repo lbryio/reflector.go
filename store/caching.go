@@ -66,7 +66,9 @@ func (c *CachingStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	}
 	// there is no need to wait for the blob to be stored before we return it
 	// TODO: however this should be refactored to limit the amount of routines that the process can spawn to avoid a possible DoS
+	metrics.RoutinesQueue.WithLabelValues("store", "cache-put").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("store", "cache-put").Dec()
 		err = c.cache.Put(hash, blob)
 		if err != nil {
 			log.Errorf("error saving blob to underlying cache: %s", errors.FullTrace(err))
