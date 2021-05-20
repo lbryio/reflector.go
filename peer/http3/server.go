@@ -33,7 +33,7 @@ type Server struct {
 }
 
 // NewServer returns an initialized Server pointer.
-func NewServer(store store.BlobStore) *Server {
+func NewServer(store store.BlobStore, requestQueueSize int) *Server {
 	return &Server{
 		store: store,
 		grp:   stop.New(),

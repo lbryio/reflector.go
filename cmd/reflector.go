@@ -41,6 +41,7 @@ var (
 	reflectorCmdDiskCache       string
 	bufferReflectorCmdDiskCache string
 	reflectorCmdMemCache        int
+	requestQueueSize            int
 )
 
 func init() {
@@ -58,6 +59,7 @@ func init() {
 	cmd.Flags().IntVar(&http3PeerPort, "http3-peer-port", 5568, "The port reflector will distribute content from over HTTP3 protocol")
 	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
 	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for metrics")
+	cmd.Flags().IntVar(&requestQueueSize, "request-queue-size", 200, "How many concurrent requests should be submitted to upstream")
 	cmd.Flags().BoolVar(&disableUploads, "disable-uploads", false, "Disable uploads to this reflector server")
 	cmd.Flags().BoolVar(&disableBlocklist, "disable-blocklist", false, "Disable blocklist watching/updating")
 	cmd.Flags().BoolVar(&useDB, "use-db", true, "whether to connect to the reflector db or not")
@@ -96,7 +98,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 	defer peerServer.Shutdown()
 
-	http3PeerServer := http3.NewServer(outerStore)
+	http3PeerServer := http3.NewServer(outerStore, requestQueueSize)
 	err = http3PeerServer.Start(":" + strconv.Itoa(http3PeerPort))
 	if err != nil {
 		log.Fatal(err)
