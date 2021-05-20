@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -8,13 +9,21 @@ import (
 )
 
 func TestBlobTrace_Serialize(t *testing.T) {
+	hostName, err := os.Hostname()
+	assert.NoError(t, err)
 	stack := NewBlobTrace(10*time.Second, "test")
 	stack.Stack(20*time.Second, "test2")
 	stack.Stack(30*time.Second, "test3")
 	serialized, err := stack.Serialize()
 	assert.NoError(t, err)
 	t.Log(serialized)
-	expected := "{\"stacks\":[{\"timing\":10000000000,\"origin_name\":\"test\"},{\"timing\":20000000000,\"origin_name\":\"test2\"},{\"timing\":30000000000,\"origin_name\":\"test3\"}]}"
+	expected := "{\"stacks\":[{\"timing\":10000000000,\"origin_name\":\"test\",\"host_name\":\"" +
+		hostName +
+		"\"},{\"timing\":20000000000,\"origin_name\":\"test2\",\"host_name\":\"" +
+		hostName +
+		"\"},{\"timing\":30000000000,\"origin_name\":\"test3\",\"host_name\":\"" +
+		hostName +
+		"\"}]}"
 	assert.Equal(t, expected, serialized)
 }
 
