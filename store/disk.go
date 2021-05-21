@@ -12,7 +12,6 @@ import (
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
-	"github.com/lbryio/reflector.go/locks"
 	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store/speedwalk"
 	log "github.com/sirupsen/logrus"
@@ -49,7 +48,6 @@ type DiskStore struct {
 	initialized bool
 
 	concurrentChecks atomic.Int32
-	lock             locks.MultipleLock
 }
 
 const maxConcurrentChecks = 3
@@ -59,7 +57,6 @@ func NewDiskStore(dir string, prefixLength int) *DiskStore {
 	return &DiskStore{
 		blobDir:      dir,
 		prefixLength: prefixLength,
-		lock:         locks.NewMultipleLock(),
 	}
 }
 
@@ -70,8 +67,6 @@ func (d *DiskStore) Name() string { return nameDisk }
 
 // Has returns T/F or Error if it the blob stored already. It will error with any IO disk error.
 func (d *DiskStore) Has(hash string) (bool, error) {
-	d.lock.RLock(hash)
-	defer d.lock.RUnlock(hash)
 	err := d.initOnce()
 	if err != nil {
 		return false, err
@@ -89,8 +84,6 @@ func (d *DiskStore) Has(hash string) (bool, error) {
 
 // Get returns the blob or an error if the blob doesn't exist.
 func (d *DiskStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
-	d.lock.RLock(hash)
-	defer d.lock.RUnlock(hash)
 	start := time.Now()
 	err := d.initOnce()
 	if err != nil {
@@ -128,8 +121,6 @@ func (d *DiskStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 
 // Put stores the blob on disk
 func (d *DiskStore) Put(hash string, blob stream.Blob) error {
-	d.lock.Lock(hash)
-	defer d.lock.Unlock(hash)
 	err := d.initOnce()
 	if err != nil {
 		return err
@@ -145,15 +136,11 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 
 // PutSD stores the sd blob on the disk
 func (d *DiskStore) PutSD(hash string, blob stream.Blob) error {
-	d.lock.Lock(hash)
-	defer d.lock.Unlock(hash)
 	return d.Put(hash, blob)
 }
 
 // Delete deletes the blob from the store
 func (d *DiskStore) Delete(hash string) error {
-	d.lock.Lock(hash)
-	defer d.lock.Unlock(hash)
 	err := d.initOnce()
 	if err != nil {
 		return err
