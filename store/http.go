@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -140,14 +141,20 @@ func putBuffer(buf *bytes.Buffer) {
 // getClient gets an http client that's customized to be more performant when dealing with blobs of 2MB in size (most of our blobs)
 func getClient() *http.Client {
 	// Customize the Transport to have larger connection pool
-	defaultRoundTripper := http.DefaultTransport
-	defaultTransportPointer := defaultRoundTripper.(*http.Transport)
+	defaultTransport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		DisableCompression:    true,
+		MaxIdleConnsPerHost:   100,
+		ReadBufferSize:        stream.MaxBlobSize + 1024*10, //add an extra few KBs to make sure it fits the extra information
+	}
 
-	defaultTransport := *defaultTransportPointer // dereference it to get a copy of the struct that the pointer points to
-	defaultTransport.MaxIdleConns = 100
-	defaultTransport.DisableCompression = true
-	defaultTransport.MaxIdleConnsPerHost = 100
-	defaultTransport.ReadBufferSize = stream.MaxBlobSize + 1024*10 //add an extra few KBs to make sure it fits the extra information
-
-	return &http.Client{Transport: &defaultTransport}
+	return &http.Client{Transport: defaultTransport}
 }
