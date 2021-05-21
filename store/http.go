@@ -22,7 +22,7 @@ type HttpStore struct {
 
 func NewHttpStore(upstream string) *HttpStore {
 	return &HttpStore{
-		upstream:   upstream,
+		upstream:   "http://" + upstream,
 		httpClient: getClient(),
 	}
 }
