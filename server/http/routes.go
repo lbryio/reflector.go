@@ -5,7 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
+
+	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,6 +36,9 @@ func (s *Server) getBlob(c *gin.Context) {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
+	metrics.MtrOutBytesHttp.Add(float64(len(blob)))
+	metrics.BlobDownloadCount.Inc()
+	metrics.HttpDownloadCount.Inc()
 	c.Header("Via", serialized)
 	c.Header("Content-Disposition", "filename="+hash)
 	c.Data(http.StatusOK, "application/octet-stream", blob)
