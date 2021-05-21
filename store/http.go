@@ -94,7 +94,7 @@ func (n *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 		blob := make([]byte, written)
 		copy(blob, tmp.Bytes())
 		metrics.MtrInBytesHttp.Add(float64(len(blob)))
-		return blob, trace.Stack(time.Since(start), n.Name()), ErrBlobNotFound
+		return blob, trace.Stack(time.Since(start), n.Name()), nil
 	}
 	var body []byte
 	if res.Body != nil {
