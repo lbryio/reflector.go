@@ -194,6 +194,11 @@ var (
 		Name:      "udp_in_bytes",
 		Help:      "Total number of bytes downloaded through UDP",
 	})
+	MtrInBytesHttp = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "http_in_bytes",
+		Help:      "Total number of bytes downloaded through HTTP",
+	})
 	MtrOutBytesUdp = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "udp_out_bytes",

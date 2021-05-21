@@ -3,6 +3,7 @@ package store
 import (
 	"time"
 
+	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/shared"
 
@@ -45,6 +46,9 @@ func (s *singleflightStore) Get(hash string) (stream.Blob, shared.BlobTrace, err
 	gr, err, _ := s.sf.Do(hash, s.getter(hash))
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), s.Name()), err
+	}
+	if gr == nil {
+		return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err("getter response is nil")
 	}
 	rsp := gr.(getterResponse)
 	return rsp.blob, rsp.stack, nil
