@@ -16,6 +16,7 @@ import (
 	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/peer/http3"
 	"github.com/lbryio/reflector.go/reflector"
+	"github.com/lbryio/reflector.go/server/http"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/stream"
@@ -28,6 +29,7 @@ import (
 var (
 	tcpPeerPort                 int
 	http3PeerPort               int
+	httpPort                    int
 	receiverPort                int
 	metricsPort                 int
 	disableUploads              bool
@@ -57,6 +59,7 @@ func init() {
 	cmd.Flags().StringVar(&WasabiEndpoint, "wasabi-endpoint", "", "Wasabi edge endpoint for standard HTTP retrieval")
 	cmd.Flags().IntVar(&tcpPeerPort, "tcp-peer-port", 5567, "The port reflector will distribute content from")
 	cmd.Flags().IntVar(&http3PeerPort, "http3-peer-port", 5568, "The port reflector will distribute content from over HTTP3 protocol")
+	cmd.Flags().IntVar(&httpPort, "http-port", 5569, "The port reflector will distribute content from over HTTP protocol")
 	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
 	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for metrics")
 	cmd.Flags().IntVar(&requestQueueSize, "request-queue-size", 200, "How many concurrent requests should be submitted to upstream")
@@ -105,6 +108,13 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 	defer http3PeerServer.Shutdown()
 
+	httpServer := http.NewServer(outerStore)
+	err = httpServer.Start(":" + strconv.Itoa(httpPort))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer httpServer.Shutdown()
+
 	metricsServer := metrics.NewServer(":"+strconv.Itoa(metricsPort), "/metrics")
 	metricsServer.Start()
 	defer metricsServer.Shutdown()
@@ -133,6 +143,8 @@ func setupStore() store.BlobStore {
 				Address: proxyAddress + ":" + proxyPort,
 				Timeout: 30 * time.Second,
 			})
+		case "http":
+			s = store.NewHttpStore(proxyAddress + ":" + proxyPort)
 		default:
 			log.Fatalf("protocol is not recognized: %s", proxyProtocol)
 		}

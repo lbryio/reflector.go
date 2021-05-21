@@ -130,12 +130,6 @@ func (d *DiskStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	d.lock.Lock(hash)
 	defer d.lock.Unlock(hash)
-	start := time.Now()
-	defer func() {
-		if time.Since(start) > 100*time.Millisecond {
-			log.Infof("it took %s to write %s", time.Since(start), hash)
-		}
-	}()
 	err := d.initOnce()
 	if err != nil {
 		return err
@@ -145,23 +139,7 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	if err != nil {
 		return err
 	}
-	hashBytes := sha512.Sum384(blob)
-	readHash := hex.EncodeToString(hashBytes[:])
-	matchesBeforeWriting := readHash == hash
 	writeFile(d.path(hash), blob, 0644)
-	readBlob, err := ioutil.ReadFile(d.path(hash))
-	matchesAfterReading := false
-	if err != nil {
-		log.Errorf("for some fucking reasons I can't read the blob I just wrote %s", err.Error())
-	} else {
-		hashBytes = sha512.Sum384(readBlob)
-		readHash = hex.EncodeToString(hashBytes[:])
-		matchesAfterReading = readHash == hash
-	}
-
-	log.Infof(`writing %s to disk: hash match: %t, error: %t
-reading after writing: hash match: %t`, hash, matchesBeforeWriting, err == nil, matchesAfterReading)
-
 	return errors.Err(err)
 }
 
