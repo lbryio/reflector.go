@@ -23,11 +23,13 @@ func init() {
 	writeCh = make(chan writeRequest)
 	for i := 0; i < runtime.NumCPU(); i++ {
 		go func() {
-			select {
-			case r := <-writeCh:
-				err := ioutil.WriteFile(r.filename, r.data, r.perm)
-				if err != nil {
-					log.Errorf("could not write file %s to disk, failed with error: %s", r.filename, err.Error())
+			for {
+				select {
+				case r := <-writeCh:
+					err := ioutil.WriteFile(r.filename, r.data, r.perm)
+					if err != nil {
+						log.Errorf("could not write file %s to disk, failed with error: %s", r.filename, err.Error())
+					}
 				}
 			}
 		}()
