@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -17,6 +18,23 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 )
+
+func init() {
+	writeCh = make(chan writeRequest)
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			select {
+			case r := <-writeCh:
+				err := ioutil.WriteFile(r.filename, r.data, r.perm)
+				if err != nil {
+					log.Errorf("could not write file %s to disk, failed with error: %s", r.filename, err.Error())
+				}
+			}
+		}()
+	}
+}
+
+var writeCh chan writeRequest
 
 // DiskStore stores blobs on a local disk
 type DiskStore struct {
@@ -128,10 +146,7 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	hashBytes := sha512.Sum384(blob)
 	readHash := hex.EncodeToString(hashBytes[:])
 	matchesBeforeWriting := readHash == hash
-	err = ioutil.WriteFile(d.path(hash), blob, 0644)
-	if err != nil {
-		log.Errorf("Error saving to disk: %s", err.Error())
-	}
+	writeFile(d.path(hash), blob, 0644)
 	readBlob, err := ioutil.ReadFile(d.path(hash))
 	matchesAfterReading := false
 	if err != nil {
@@ -215,7 +230,21 @@ func (d *DiskStore) initOnce() error {
 	return nil
 }
 
+type writeRequest struct {
+	filename string
+	data     []byte
+	perm     os.FileMode
+}
+
 // Shutdown shuts down the store gracefully
 func (d *DiskStore) Shutdown() {
 	return
+}
+
+func writeFile(filename string, data []byte, perm os.FileMode) {
+	writeCh <- writeRequest{
+		filename: filename,
+		data:     data,
+		perm:     perm,
+	}
 }
