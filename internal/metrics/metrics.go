@@ -118,6 +118,11 @@ var (
 		Name:      "http3_blob_download_total",
 		Help:      "Total number of blobs downloaded from reflector through QUIC protocol",
 	})
+	HttpDownloadCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "http_blob_download_total",
+		Help:      "Total number of blobs downloaded from reflector through HTTP protocol",
+	})
 
 	CacheHitCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
@@ -202,6 +207,11 @@ var (
 	MtrOutBytesUdp = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "udp_out_bytes",
+		Help:      "Total number of bytes streamed out through UDP",
+	})
+	MtrOutBytesHttp = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "http_out_bytes",
 		Help:      "Total number of bytes streamed out through UDP",
 	})
 	MtrInBytesReflector = promauto.NewCounter(prometheus.CounterOpts{
