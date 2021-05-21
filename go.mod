@@ -27,7 +27,7 @@ require (
 	github.com/karrick/godirwalk v1.16.1
 	github.com/lbryio/chainquery v1.9.0
 	github.com/lbryio/lbry.go v1.1.2 // indirect
-	github.com/lbryio/lbry.go/v2 v2.7.2-0.20210412222918-ed51ece75c3d
+	github.com/lbryio/lbry.go/v2 v2.7.2-0.20210416195322-6516df1418e3
 	github.com/lbryio/types v0.0.0-20201019032447-f0b4476ef386
 	github.com/lucas-clemente/quic-go v0.20.1
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
