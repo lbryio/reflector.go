@@ -108,7 +108,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 	defer http3PeerServer.Shutdown()
 
-	httpServer := http.NewServer(outerStore)
+	httpServer := http.NewServer(outerStore, requestQueueSize)
 	err = httpServer.Start(":" + strconv.Itoa(httpPort))
 	if err != nil {
 		log.Fatal(err)

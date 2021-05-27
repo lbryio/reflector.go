@@ -234,6 +234,11 @@ var (
 		Name:      "http3_blob_request_queue_size",
 		Help:      "Blob requests of https queue size",
 	})
+	HttpBlobReqQueue = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: ns,
+		Name:      "http_blob_request_queue_size",
+		Help:      "Blob requests queue size of the HTTP protocol",
+	})
 	RoutinesQueue = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: ns,
 		Name:      "routines",

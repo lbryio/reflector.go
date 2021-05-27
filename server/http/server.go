@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bluele/gcache"
 	"github.com/gin-gonic/gin"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 	"github.com/lbryio/reflector.go/store"
@@ -13,15 +14,19 @@ import (
 
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
-	store store.BlobStore
-	grp   *stop.Group
+	store              store.BlobStore
+	grp                *stop.Group
+	concurrentRequests int
+	missesCache        gcache.Cache
 }
 
 // NewServer returns an initialized Server pointer.
-func NewServer(store store.BlobStore) *Server {
+func NewServer(store store.BlobStore, requestQueueSize int) *Server {
 	return &Server{
-		store: store,
-		grp:   stop.New(),
+		store:              store,
+		grp:                stop.New(),
+		concurrentRequests: requestQueueSize,
+		missesCache:        gcache.New(2000).Expiration(5 * time.Minute).ARC().Build(),
 	}
 }
 
@@ -43,6 +48,7 @@ func (s *Server) Start(address string) error {
 		Handler: router,
 	}
 	go s.listenForShutdown(srv)
+	go InitWorkers(s, s.concurrentRequests)
 	// Initializing the server in a goroutine so that
 	// it won't block the graceful shutdown handling below
 	s.grp.Add(1)

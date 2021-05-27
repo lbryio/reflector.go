@@ -28,15 +28,17 @@ import (
 
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
-	store store.BlobStore
-	grp   *stop.Group
+	store              store.BlobStore
+	grp                *stop.Group
+	concurrentRequests int
 }
 
 // NewServer returns an initialized Server pointer.
 func NewServer(store store.BlobStore, requestQueueSize int) *Server {
 	return &Server{
-		store: store,
-		grp:   stop.New(),
+		store:              store,
+		grp:                stop.New(),
+		concurrentRequests: requestQueueSize,
 	}
 }
 
@@ -117,7 +119,7 @@ func (s *Server) Start(address string) error {
 		},
 		QuicConfig: quicConf,
 	}
-	go InitWorkers(s, 200)
+	go InitWorkers(s, s.concurrentRequests)
 	go s.listenForShutdown(&server)
 	s.grp.Add(1)
 	go func() {
