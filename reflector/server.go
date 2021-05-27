@@ -10,7 +10,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/google/gops/agent"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
 
@@ -70,9 +69,6 @@ func (s *Server) Start(address string) error {
 		return errors.Err(err)
 	}
 	log.Println("reflector listening on " + address)
-	if err := agent.Listen(agent.Options{}); err != nil {
-		log.Fatal(err)
-	}
 	s.grp.Add(1)
 	metrics.RoutinesQueue.WithLabelValues("reflector", "listener").Inc()
 	go func() {

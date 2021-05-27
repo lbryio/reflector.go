@@ -2,18 +2,37 @@ package http
 
 import (
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/reflector.go/shared"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func (s *Server) getBlob(c *gin.Context) {
+	waiter := &sync.WaitGroup{}
+	waiter.Add(1)
+	enqueue(&blobRequest{c: c, finished: waiter})
+	waiter.Wait()
+}
+
+func (s *Server) HandleGetBlob(c *gin.Context) {
+	start := time.Now()
 	hash := c.Query("hash")
+	if s.missesCache.Has(hash) {
+		serialized, err := shared.NewBlobTrace(time.Since(start), "http").Serialize()
+		if err != nil {
+			_ = c.AbortWithError(http.StatusInternalServerError, errors.Err(err))
+			return
+		}
+		c.Header("Via", serialized)
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
 	blob, trace, err := s.store.Get(hash)
 	if err != nil {
 		serialized, serializeErr := trace.Serialize()
@@ -24,7 +43,7 @@ func (s *Server) getBlob(c *gin.Context) {
 		c.Header("Via", serialized)
 
 		if errors.Is(err, store.ErrBlobNotFound) {
-			log.Errorf("wtf: %s", err.Error())
+			_ = s.missesCache.Set(hash, true)
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}

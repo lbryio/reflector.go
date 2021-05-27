@@ -1,19 +1,25 @@
 package store
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
+	"syscall"
 	"time"
+
+	"github.com/lbryio/reflector.go/shared"
+	"github.com/lbryio/reflector.go/store/speedwalk"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
-	"github.com/lbryio/reflector.go/shared"
-	"github.com/lbryio/reflector.go/store/speedwalk"
+
+	"github.com/brk0v/directio"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 )
@@ -130,7 +136,22 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	if err != nil {
 		return err
 	}
-	writeFile(d.path(hash), blob, 0644)
+	// Open file with O_DIRECT
+	flags := os.O_WRONLY | os.O_CREATE | syscall.O_DIRECT
+	f, err := os.OpenFile(d.path(hash), flags, 0644)
+	if err != nil {
+		return errors.Err(err)
+	}
+	defer f.Close()
+
+	// Use directio writer
+	dio, err := directio.New(f)
+	if err != nil {
+		return errors.Err(err)
+	}
+	defer dio.Flush()
+	// Write the body to file
+	_, err = io.Copy(dio, bytes.NewReader(blob))
 	return errors.Err(err)
 }
 
