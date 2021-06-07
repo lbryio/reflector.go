@@ -56,7 +56,7 @@ type DiskStore struct {
 	concurrentChecks atomic.Int32
 }
 
-const maxConcurrentChecks = 3
+const maxConcurrentChecks = 30
 
 // NewDiskStore returns an initialized file disk store pointer.
 func NewDiskStore(dir string, prefixLength int) *DiskStore {
@@ -136,9 +136,10 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	if err != nil {
 		return err
 	}
+
 	// Open file with O_DIRECT
 	flags := os.O_WRONLY | os.O_CREATE | syscall.O_DIRECT
-	f, err := os.OpenFile(d.path(hash), flags, 0644)
+	f, err := os.OpenFile(d.tmpPath(hash), flags, 0644)
 	if err != nil {
 		return errors.Err(err)
 	}
@@ -152,6 +153,10 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	defer dio.Flush()
 	// Write the body to file
 	_, err = io.Copy(dio, bytes.NewReader(blob))
+	if err != nil {
+		return errors.Err(err)
+	}
+	err = os.Rename(d.tmpPath(hash), d.path(hash))
 	return errors.Err(err)
 }
 
@@ -195,11 +200,15 @@ func (d *DiskStore) dir(hash string) string {
 	}
 	return path.Join(d.blobDir, hash[:d.prefixLength])
 }
-
+func (d *DiskStore) tmpDir(hash string) string {
+	return path.Join(d.blobDir, "tmp")
+}
 func (d *DiskStore) path(hash string) string {
 	return path.Join(d.dir(hash), hash)
 }
-
+func (d *DiskStore) tmpPath(hash string) string {
+	return path.Join(d.tmpDir(hash), hash)
+}
 func (d *DiskStore) ensureDirExists(dir string) error {
 	return errors.Err(os.MkdirAll(dir, 0755))
 }
@@ -213,7 +222,10 @@ func (d *DiskStore) initOnce() error {
 	if err != nil {
 		return err
 	}
-
+	err = d.ensureDirExists(path.Join(d.blobDir, "tmp"))
+	if err != nil {
+		return err
+	}
 	d.initialized = true
 	return nil
 }
