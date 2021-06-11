@@ -76,3 +76,10 @@ func (s *Server) hasBlob(c *gin.Context) {
 	}
 	c.Status(http.StatusNotFound)
 }
+
+func (s *Server) recoveryHandler(c *gin.Context, err interface{}) {
+	c.JSON(500, gin.H{
+		"title": "Error",
+		"err":   err,
+	})
+}

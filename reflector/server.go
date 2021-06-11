@@ -119,7 +119,7 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			s.grp.Add(1)
 			metrics.RoutinesQueue.WithLabelValues("reflector", "server-listenandserve").Inc()
 			go func() {
-				defer metrics.RoutinesQueue.WithLabelValues("reflector", "server-listenandserve").Inc()
+				defer metrics.RoutinesQueue.WithLabelValues("reflector", "server-listenandserve").Dec()
 				s.handleConn(conn)
 				s.grp.Done()
 			}()
