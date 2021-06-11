@@ -14,6 +14,7 @@ require (
 	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2
 	github.com/davecgh/go-spew v1.1.1
+	github.com/ekyoung/gin-nice-recovery v0.0.0-20160510022553-1654dca486db // indirect
 	github.com/gin-gonic/gin v1.7.1
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/protobuf v1.5.2

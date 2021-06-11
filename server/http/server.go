@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bluele/gcache"
+	nice "github.com/ekyoung/gin-nice-recovery"
 	"github.com/gin-gonic/gin"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 	"github.com/lbryio/reflector.go/store"
@@ -43,6 +44,8 @@ func (s *Server) Start(address string) error {
 	router := gin.Default()
 	router.GET("/blob", s.getBlob)
 	router.HEAD("/blob", s.hasBlob)
+	// Install nice.Recovery, passing the handler to call after recovery
+	router.Use(nice.Recovery(s.recoveryHandler))
 	srv := &http.Server{
 		Addr:    address,
 		Handler: router,
