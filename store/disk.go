@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/lbryio/reflector.go/shared"
@@ -138,8 +137,7 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	}
 
 	// Open file with O_DIRECT
-	flags := os.O_WRONLY | os.O_CREATE | syscall.O_DIRECT
-	f, err := os.OpenFile(d.tmpPath(hash), flags, 0644)
+	f, err := os.OpenFile(d.tmpPath(hash), openFileFlags, 0644)
 	if err != nil {
 		return errors.Err(err)
 	}
