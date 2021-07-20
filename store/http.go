@@ -16,7 +16,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 )
 
-// NoopStore is a store that does nothing
+// HttpStore is a store that works on top of the HTTP protocol
 type HttpStore struct {
 	upstream   string
 	httpClient *http.Client

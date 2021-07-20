@@ -39,11 +39,11 @@ type SdBlob struct {
 type trackAccess int
 
 const (
-	// Don't track accesses
+	//TrackAccessNone Don't track accesses
 	TrackAccessNone trackAccess = iota
-	// Track accesses at the stream level
+	//TrackAccessStreams Track accesses at the stream level
 	TrackAccessStreams
-	// Track accesses at the blob level
+	//TrackAccessBlobs Track accesses at the blob level
 	TrackAccessBlobs
 )
 
@@ -101,7 +101,7 @@ func (s *SQL) AddBlob(hash string, length int, isStored bool) error {
 	return err
 }
 
-// AddBlob adds a blob to the database.
+//AddBlobs adds blobs to the database.
 func (s *SQL) AddBlobs(hash []string) error {
 	if s.conn == nil {
 		return errors.Err("not connected")
@@ -419,7 +419,7 @@ func (s *SQL) Delete(hash string) error {
 	return errors.Err(err)
 }
 
-// GetHashRange gets the smallest and biggest hashes in the db
+//LeastRecentlyAccessedHashes gets the least recently accessed blobs
 func (s *SQL) LeastRecentlyAccessedHashes(maxBlobs int) ([]string, error) {
 	if s.conn == nil {
 		return nil, errors.Err("not connected")
@@ -450,40 +450,6 @@ func (s *SQL) LeastRecentlyAccessedHashes(maxBlobs int) ([]string, error) {
 
 	return blobs, nil
 }
-
-// AllHashes writes all hashes from the db into the channel.
-// It does not close the channel when it finishes.
-//func (s *SQL) AllHashes(ch chan<- string) error {
-//	if s.conn == nil {
-//		return errors.Err("not connected")
-//	}
-//
-//	query := "SELECT hash from blob_"
-//	if s.SoftDelete {
-//		query += " where is_stored = 1"
-//	}
-//	s.logQuery(query)
-//
-//	rows, err := s.conn.Query(query)
-//	if err != nil {
-//		return errors.Err(err)
-//	}
-//	defer closeRows(rows)
-//
-//	for rows.Next() {
-//		var hash string
-//		err := rows.Scan(&hash)
-//		if err != nil {
-//			return errors.Err(err)
-//		}
-//		ch <- hash
-//      // TODO: this needs testing
-//		// TODO: need a way to cancel this early (e.g. in case of shutdown)
-//	}
-//
-//	close(ch)
-//	return nil
-//}
 
 func (s *SQL) Count() (int, error) {
 	if s.conn == nil {
@@ -813,47 +779,3 @@ CREATE TABLE blocked (
 );
 
 */
-
-//func (d *LiteDBBackedStore) selfClean() {
-//	d.stopper.Add(1)
-//	defer d.stopper.Done()
-//	lastCleanup := time.Now()
-//	const cleanupInterval = 10 * time.Second
-//	for {
-//		select {
-//		case <-d.stopper.Ch():
-//			log.Infoln("stopping self cleanup")
-//			return
-//		default:
-//			time.Sleep(1 * time.Second)
-//		}
-//		if time.Since(lastCleanup) < cleanupInterval {
-//			continue
-//
-//		blobsCount, err := d.db.BlobsCount()
-//		if err != nil {
-//			log.Errorf(errors.FullTrace(err))
-//		}
-//		if blobsCount >= d.maxItems {
-//			itemsToDelete := blobsCount / 100 * 10
-//			blobs, err := d.db.GetLRUBlobs(itemsToDelete)
-//			if err != nil {
-//				log.Errorf(errors.FullTrace(err))
-//			}
-//			for _, hash := range blobs {
-//				select {
-//				case <-d.stopper.Ch():
-//					return
-//				default:
-//
-//				}
-//				err = d.Delete(hash)
-//				if err != nil {
-//					log.Errorf(errors.FullTrace(err))
-//				}
-//				metrics.CacheLRUEvictCount.With(metrics.CacheLabels(d.Name(), d.component)).Inc()
-//			}
-//		}
-//		lastCleanup = time.Now()
-//	}
-//}

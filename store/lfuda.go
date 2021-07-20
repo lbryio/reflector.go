@@ -1,17 +1,21 @@
 package store
 
+//TODO: the caching strategy is actually not LFUDA, it should become a parameter and the name of the struct should be changed
+
 import (
 	"time"
 
-	"github.com/bparli/lfuda-go"
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/shared"
+
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
+
+	"github.com/bparli/lfuda-go"
 	"github.com/sirupsen/logrus"
 )
 
-// LRUStore adds a max cache size and LRU eviction to a BlobStore
+// LFUDAStore adds a max cache size and Greedy-Dual-Size-Frequency cache eviction strategy to a BlobStore
 type LFUDAStore struct {
 	// underlying store
 	store BlobStore
@@ -19,7 +23,7 @@ type LFUDAStore struct {
 	lfuda *lfuda.Cache
 }
 
-// NewLRUStore initialize a new LRUStore
+// NewLFUDAStore initialize a new LRUStore
 func NewLFUDAStore(component string, store BlobStore, maxSize float64) *LFUDAStore {
 	lfuda := lfuda.NewGDSFWithEvict(maxSize, func(key interface{}, value interface{}) {
 		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(store.Name(), component)).Inc()

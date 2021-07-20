@@ -154,7 +154,7 @@ var (
 		Name:      "origin_requests_total",
 		Help:      "How many Get requests are in flight from the cache to the origin",
 	}, []string{LabelCacheType, LabelComponent})
-	// during thundering-herd situations, the metric below should be a lot smaller than the metric above
+	//during thundering-herd situations, the metric below should be a lot smaller than the metric above
 	CacheWaitingRequestsCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: ns,
 		Subsystem: subsystemCache,

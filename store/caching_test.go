@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/shared"
+
+	"github.com/lbryio/lbry.go/v2/stream"
 )
 
 func TestCachingStore_Put(t *testing.T) {

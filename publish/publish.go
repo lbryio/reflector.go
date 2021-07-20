@@ -22,24 +22,23 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-var TODO = `
-	import cert from wallet
-	get all utxos from chainquery
-	create transaction
-	sign it with the channel
-	track state of utxos across publishes from this channel so that we can just do one query to get utxos
-	prioritize only confirmed utxos
+/* TODO:
+import cert from wallet
+get all utxos from chainquery
+create transaction
+sign it with the channel
+track state of utxos across publishes from this channel so that we can just do one query to get utxos
+prioritize only confirmed utxos
 
-	Handling all the issues we handle currently with lbrynet:
-		"Couldn't find private key for id",
-		"You already have a stream claim published under the name",
-		"Cannot publish using channel",
-		"txn-mempool-conflict",
-		"too-long-mempool-chain",
-		"Missing inputs",
-		"Not enough funds to cover this transaction",
-}
-`
+Handling all the issues we handle currently with lbrynet:
+	"Couldn't find private key for id",
+	"You already have a stream claim published under the name",
+	"Cannot publish using channel",
+	"txn-mempool-conflict",
+	"too-long-mempool-chain",
+	"Missing inputs",
+	"Not enough funds to cover this transaction",
+*/
 
 type Details struct {
 	Title       string

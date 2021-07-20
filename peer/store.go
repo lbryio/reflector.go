@@ -4,10 +4,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store"
+
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
 )
 
 // Store is a blob store that gets blobs from a peer.

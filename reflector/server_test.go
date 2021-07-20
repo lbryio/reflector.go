@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/dht/bits"
 	"github.com/lbryio/reflector.go/store"
+
+	"github.com/lbryio/lbry.go/v2/dht/bits"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/phayes/freeport"

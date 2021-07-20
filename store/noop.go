@@ -3,8 +3,9 @@ package store
 import (
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/shared"
+
+	"github.com/lbryio/lbry.go/v2/stream"
 )
 
 // NoopStore is a store that does nothing

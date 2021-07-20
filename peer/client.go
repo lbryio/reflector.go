@@ -18,9 +18,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ErrBlobExists is a default error for when a blob already exists on the reflector server.
-var ErrBlobExists = errors.Base("blob exists on server")
-
 // Client is an instance of a client connected to a server.
 type Client struct {
 	Timeout   time.Duration

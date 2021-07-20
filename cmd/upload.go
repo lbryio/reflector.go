@@ -8,8 +8,8 @@ import (
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
-	log "github.com/sirupsen/logrus"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 

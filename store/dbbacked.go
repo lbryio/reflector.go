@@ -5,10 +5,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/shared"
+
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
 )

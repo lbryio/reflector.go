@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
-
 	"github.com/lbryio/reflector.go/store"
 	"github.com/lbryio/reflector.go/wallet"
 

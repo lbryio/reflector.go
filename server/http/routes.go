@@ -5,12 +5,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/reflector.go/shared"
-
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store"
+
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+
+	"github.com/gin-gonic/gin"
 )
 
 func (s *Server) getBlob(c *gin.Context) {

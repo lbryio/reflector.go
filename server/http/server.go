@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lbryio/reflector.go/store"
+
+	"github.com/lbryio/lbry.go/v2/extras/stop"
+
 	"github.com/bluele/gcache"
 	nice "github.com/ekyoung/gin-nice-recovery"
 	"github.com/gin-gonic/gin"
-	"github.com/lbryio/lbry.go/v2/extras/stop"
-	"github.com/lbryio/reflector.go/store"
 	log "github.com/sirupsen/logrus"
 )
 

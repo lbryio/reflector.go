@@ -3,8 +3,9 @@ package store
 import (
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/shared"
+
+	"github.com/lbryio/lbry.go/v2/stream"
 )
 
 // CloudFrontRWStore combines a Cloudfront and an S3 store. Reads go to Cloudfront/Wasabi, writes go to S3.

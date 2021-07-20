@@ -8,8 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/extras/stop"
+	"github.com/lbryio/lbry.go/v2/extras/util"
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/meta"
@@ -19,6 +18,8 @@ import (
 	"github.com/lbryio/reflector.go/server/http"
 	"github.com/lbryio/reflector.go/store"
 
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/stop"
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	"github.com/c2h5oh/datasize"
@@ -27,23 +28,40 @@ import (
 )
 
 var (
-	tcpPeerPort                 int
-	http3PeerPort               int
-	httpPort                    int
-	receiverPort                int
-	metricsPort                 int
-	disableUploads              bool
-	disableBlocklist            bool
-	proxyAddress                string
-	proxyPort                   string
-	proxyProtocol               string
-	useDB                       bool
-	cloudFrontEndpoint          string
-	WasabiEndpoint              string
-	reflectorCmdDiskCache       string
-	bufferReflectorCmdDiskCache string
-	reflectorCmdMemCache        int
-	requestQueueSize            int
+	//port configuration
+	tcpPeerPort   int
+	http3PeerPort int
+	httpPort      int
+	receiverPort  int
+	metricsPort   int
+
+	//flags configuration
+	disableUploads   bool
+	disableBlocklist bool
+	useDB            bool
+
+	//upstream configuration
+	upstreamReflector string
+	upstreamProtocol  string
+
+	//downstream configuration
+	requestQueueSize int
+
+	//upstream edge configuration (to "cold" storage)
+	originEndpoint         string
+	originEndpointFallback string
+
+	//cache configuration
+	diskCache          string
+	secondaryDiskCache string
+	memCache           int
+)
+var cacheManagers = []string{"localdb", "lfuda", "lru"}
+
+const (
+	LOCALDB int = iota
+	LFUDA
+	LRU
 )
 
 func init() {
@@ -52,38 +70,41 @@ func init() {
 		Short: "Run reflector server",
 		Run:   reflectorCmd,
 	}
-	cmd.Flags().StringVar(&proxyAddress, "proxy-address", "", "address of another reflector server where blobs are fetched from")
-	cmd.Flags().StringVar(&proxyPort, "proxy-port", "5567", "port of another reflector server where blobs are fetched from")
-	cmd.Flags().StringVar(&proxyProtocol, "proxy-protocol", "http3", "protocol used to fetch blobs from another reflector server (tcp/http3)")
-	cmd.Flags().StringVar(&cloudFrontEndpoint, "cloudfront-endpoint", "", "CloudFront edge endpoint for standard HTTP retrieval")
-	cmd.Flags().StringVar(&WasabiEndpoint, "wasabi-endpoint", "", "Wasabi edge endpoint for standard HTTP retrieval")
-	cmd.Flags().IntVar(&tcpPeerPort, "tcp-peer-port", 5567, "The port reflector will distribute content from")
+
+	cmd.Flags().IntVar(&tcpPeerPort, "tcp-peer-port", 5567, "The port reflector will distribute content from for the TCP (LBRY) protocol")
 	cmd.Flags().IntVar(&http3PeerPort, "http3-peer-port", 5568, "The port reflector will distribute content from over HTTP3 protocol")
 	cmd.Flags().IntVar(&httpPort, "http-port", 5569, "The port reflector will distribute content from over HTTP protocol")
 	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
-	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for metrics")
-	cmd.Flags().IntVar(&requestQueueSize, "request-queue-size", 200, "How many concurrent requests should be submitted to upstream")
+	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for prometheus metrics")
+
 	cmd.Flags().BoolVar(&disableUploads, "disable-uploads", false, "Disable uploads to this reflector server")
 	cmd.Flags().BoolVar(&disableBlocklist, "disable-blocklist", false, "Disable blocklist watching/updating")
-	cmd.Flags().BoolVar(&useDB, "use-db", true, "whether to connect to the reflector db or not")
-	cmd.Flags().StringVar(&reflectorCmdDiskCache, "disk-cache", "",
-		"enable disk cache, setting max size and path where to store blobs. format is 'sizeGB:CACHE_PATH'")
-	cmd.Flags().StringVar(&bufferReflectorCmdDiskCache, "buffer-disk-cache", "",
-		"enable buffer disk cache, setting max size and path where to store blobs. format is 'sizeGB:CACHE_PATH'")
-	cmd.Flags().IntVar(&reflectorCmdMemCache, "mem-cache", 0, "enable in-memory cache with a max size of this many blobs")
+	cmd.Flags().BoolVar(&useDB, "use-db", true, "Whether to connect to the reflector db or not")
+
+	cmd.Flags().StringVar(&upstreamReflector, "upstream-reflector", "", "host:port of a reflector server where blobs are fetched from")
+	cmd.Flags().StringVar(&upstreamProtocol, "proxy-protocol", "http", "protocol used to fetch blobs from another reflector server (tcp/http3/http)")
+
+	cmd.Flags().IntVar(&requestQueueSize, "request-queue-size", 200, "How many concurrent requests from downstream should be handled at once (the rest will wait)")
+
+	cmd.Flags().StringVar(&originEndpoint, "origin-endpoint", "", "HTTP edge endpoint for standard HTTP retrieval")
+	cmd.Flags().StringVar(&originEndpointFallback, "origin-endpoint-fallback", "", "HTTP edge endpoint for standard HTTP retrieval if first origin fails")
+
+	cmd.Flags().StringVar(&diskCache, "disk-cache", "100GB:/tmp/downloaded_blobs:localdb", "Where to cache blobs on the file system. format is 'sizeGB:CACHE_PATH:cachemanager' (cachemanagers: localdb/lfuda/lru)")
+	cmd.Flags().StringVar(&secondaryDiskCache, "optional-disk-cache", "", "Optional secondary file system cache for blobs. format is 'sizeGB:CACHE_PATH:cachemanager' (cachemanagers: localdb/lfuda/lru) (this would get hit before the one specified in disk-cache)")
+	cmd.Flags().IntVar(&memCache, "mem-cache", 0, "enable in-memory cache with a max size of this many blobs")
+
 	rootCmd.AddCommand(cmd)
 }
 
 func reflectorCmd(cmd *cobra.Command, args []string) {
 	log.Printf("reflector %s", meta.VersionString())
-	cleanerStopper := stop.New()
 
 	// the blocklist logic requires the db backed store to be the outer-most store
-	underlyingStore := setupStore()
-	outerStore := wrapWithCache(underlyingStore, cleanerStopper)
+	underlyingStore := initStores()
+	underlyingStoreWithCaches, cleanerStopper := initCaches(underlyingStore)
 
 	if !disableUploads {
-		reflectorServer := reflector.NewServer(underlyingStore, outerStore)
+		reflectorServer := reflector.NewServer(underlyingStore, underlyingStoreWithCaches)
 		reflectorServer.Timeout = 3 * time.Minute
 		reflectorServer.EnableBlocklist = !disableBlocklist
 
@@ -94,21 +115,21 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		defer reflectorServer.Shutdown()
 	}
 
-	peerServer := peer.NewServer(outerStore)
+	peerServer := peer.NewServer(underlyingStoreWithCaches)
 	err := peerServer.Start(":" + strconv.Itoa(tcpPeerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer peerServer.Shutdown()
 
-	http3PeerServer := http3.NewServer(outerStore, requestQueueSize)
+	http3PeerServer := http3.NewServer(underlyingStoreWithCaches, requestQueueSize)
 	err = http3PeerServer.Start(":" + strconv.Itoa(http3PeerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer http3PeerServer.Shutdown()
 
-	httpServer := http.NewServer(outerStore, requestQueueSize)
+	httpServer := http.NewServer(underlyingStoreWithCaches, requestQueueSize)
 	err = httpServer.Start(":" + strconv.Itoa(httpPort))
 	if err != nil {
 		log.Fatal(err)
@@ -118,8 +139,8 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	metricsServer := metrics.NewServer(":"+strconv.Itoa(metricsPort), "/metrics")
 	metricsServer.Start()
 	defer metricsServer.Shutdown()
-	defer outerStore.Shutdown()
-	defer underlyingStore.Shutdown()
+	defer underlyingStoreWithCaches.Shutdown()
+	defer underlyingStore.Shutdown() //do we actually need this? Oo
 
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
@@ -128,45 +149,52 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	cleanerStopper.StopAndWait()
 }
 
-func setupStore() store.BlobStore {
+func initUpstreamStore() store.BlobStore {
+	var s store.BlobStore
+	if upstreamReflector == "" {
+		return nil
+	}
+	switch upstreamProtocol {
+	case "tcp":
+		s = peer.NewStore(peer.StoreOpts{
+			Address: upstreamReflector,
+			Timeout: 30 * time.Second,
+		})
+	case "http3":
+		s = http3.NewStore(http3.StoreOpts{
+			Address: upstreamReflector,
+			Timeout: 30 * time.Second,
+		})
+	case "http":
+		s = store.NewHttpStore(upstreamReflector)
+	default:
+		log.Fatalf("protocol is not recognized: %s", upstreamProtocol)
+	}
+	return s
+}
+func initEdgeStore() store.BlobStore {
+	var s3Store *store.S3Store
 	var s store.BlobStore
 
-	if proxyAddress != "" {
-		switch proxyProtocol {
-		case "tcp":
-			s = peer.NewStore(peer.StoreOpts{
-				Address: proxyAddress + ":" + proxyPort,
-				Timeout: 30 * time.Second,
-			})
-		case "http3":
-			s = http3.NewStore(http3.StoreOpts{
-				Address: proxyAddress + ":" + proxyPort,
-				Timeout: 30 * time.Second,
-			})
-		case "http":
-			s = store.NewHttpStore(proxyAddress + ":" + proxyPort)
-		default:
-			log.Fatalf("protocol is not recognized: %s", proxyProtocol)
-		}
-	} else {
-		var s3Store *store.S3Store
-		if conf != "none" {
-			s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
-		}
-		if cloudFrontEndpoint != "" && WasabiEndpoint != "" {
-			ittt := store.NewITTTStore(store.NewCloudFrontROStore(WasabiEndpoint), store.NewCloudFrontROStore(cloudFrontEndpoint))
-			if s3Store != nil {
-				s = store.NewCloudFrontRWStore(ittt, s3Store)
-			} else {
-				s = ittt
-			}
-		} else if s3Store != nil {
-			s = s3Store
-		} else {
-			log.Fatalf("this configuration does not include a valid upstream source")
-		}
+	if conf != "none" {
+		s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
 	}
+	if originEndpointFallback != "" && originEndpoint != "" {
+		ittt := store.NewITTTStore(store.NewCloudFrontROStore(originEndpoint), store.NewCloudFrontROStore(originEndpointFallback))
+		if s3Store != nil {
+			s = store.NewCloudFrontRWStore(ittt, s3Store)
+		} else {
+			s = ittt
+		}
+	} else if s3Store != nil {
+		s = s3Store
+	} else {
+		log.Fatalf("this configuration does not include a valid upstream source")
+	}
+	return s
+}
 
+func initDBStore(s store.BlobStore) store.BlobStore {
 	if useDB {
 		dbInst := &db.SQL{
 			TrackAccess: db.TrackAccessStreams,
@@ -176,26 +204,55 @@ func setupStore() store.BlobStore {
 		if err != nil {
 			log.Fatal(err)
 		}
-
 		s = store.NewDBBackedStore(s, dbInst, false)
 	}
-
 	return s
 }
 
-func wrapWithCache(s store.BlobStore, cleanerStopper *stop.Group) store.BlobStore {
-	wrapped := s
+func initStores() store.BlobStore {
+	s := initUpstreamStore()
+	if s == nil {
+		s = initEdgeStore()
+	}
+	s = initDBStore(s)
+	return s
+}
 
-	diskCacheMaxSize, diskCachePath := diskCacheParams(reflectorCmdDiskCache)
+// initCaches returns a store wrapped with caches and a stop group to execute a clean shutdown
+func initCaches(s store.BlobStore) (store.BlobStore, *stop.Group) {
+	stopper := stop.New()
+	diskStore := initDiskStore(s, diskCache, stopper)
+	finalStore := initDiskStore(diskStore, secondaryDiskCache, stopper)
+	stop.New()
+	if memCache > 0 {
+		finalStore = store.NewCachingStore(
+			"reflector",
+			finalStore,
+			store.NewLRUStore("mem", store.NewMemStore(), memCache),
+		)
+	}
+	return finalStore, stopper
+}
+
+func initDiskStore(upstreamStore store.BlobStore, diskParams string, stopper *stop.Group) store.BlobStore {
+	diskCacheMaxSize, diskCachePath, cacheManager := diskCacheParams(diskParams)
 	//we are tracking blobs in memory with a 1 byte long boolean, which means that for each 2MB (a blob) we need 1Byte
 	// so if the underlying cache holds 10MB, 10MB/2MB=5Bytes which is also the exact count of objects to restore on startup
 	realCacheSize := float64(diskCacheMaxSize) / float64(stream.MaxBlobSize)
-	if diskCacheMaxSize > 0 {
-		err := os.MkdirAll(diskCachePath, os.ModePerm)
-		if err != nil {
-			log.Fatal(err)
-		}
+	if diskCacheMaxSize == 0 {
+		return upstreamStore
+	}
+	err := os.MkdirAll(diskCachePath, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	diskStore := store.NewDiskStore(diskCachePath, 2)
+	var unwrappedStore store.BlobStore
+	cleanerStopper := stop.New(stopper)
+
+	switch cacheManager {
+	case cacheManagers[LOCALDB]:
 		localDb := &db.SQL{
 			SoftDelete:  true,
 			TrackAccess: db.TrackAccessBlobs,
@@ -205,55 +262,41 @@ func wrapWithCache(s store.BlobStore, cleanerStopper *stop.Group) store.BlobStor
 		if err != nil {
 			log.Fatal(err)
 		}
-		dbBackedDiskStore := store.NewDBBackedStore(store.NewDiskStore(diskCachePath, 2), localDb, true)
-		wrapped = store.NewCachingStore(
-			"reflector",
-			wrapped,
-			dbBackedDiskStore,
-		)
-
-		go cleanOldestBlobs(int(realCacheSize), localDb, dbBackedDiskStore, cleanerStopper)
+		unwrappedStore = store.NewDBBackedStore(diskStore, localDb, true)
+		go cleanOldestBlobs(int(realCacheSize), localDb, unwrappedStore, cleanerStopper)
+	case cacheManagers[LFUDA]:
+		unwrappedStore = store.NewLFUDAStore("nvme", store.NewDiskStore(diskCachePath, 2), realCacheSize)
+	case cacheManagers[LRU]:
+		unwrappedStore = store.NewLRUStore("nvme", store.NewDiskStore(diskCachePath, 2), int(realCacheSize))
 	}
-
-	diskCacheMaxSize, diskCachePath = diskCacheParams(bufferReflectorCmdDiskCache)
-	realCacheSize = float64(diskCacheMaxSize) / float64(stream.MaxBlobSize)
-	if diskCacheMaxSize > 0 {
-		err := os.MkdirAll(diskCachePath, os.ModePerm)
-		if err != nil {
-			log.Fatal(err)
-		}
-		wrapped = store.NewCachingStore(
-			"reflector",
-			wrapped,
-			store.NewLFUDAStore("nvme", store.NewDiskStore(diskCachePath, 2), realCacheSize),
-		)
-	}
-
-	if reflectorCmdMemCache > 0 {
-		wrapped = store.NewCachingStore(
-			"reflector",
-			wrapped,
-			store.NewLRUStore("mem", store.NewMemStore(), reflectorCmdMemCache),
-		)
-	}
-
+	wrapped := store.NewCachingStore(
+		"reflector",
+		upstreamStore,
+		unwrappedStore,
+	)
 	return wrapped
 }
 
-func diskCacheParams(diskParams string) (int, string) {
+func diskCacheParams(diskParams string) (int, string, string) {
 	if diskParams == "" {
-		return 0, ""
+		return 0, "", ""
 	}
 
 	parts := strings.Split(diskParams, ":")
-	if len(parts) != 2 {
-		log.Fatalf("--disk-cache must be a number, followed by ':', followed by a string")
+	if len(parts) != 3 {
+		log.Fatalf("%s does is formatted incorrectly. Expected format: 'sizeGB:CACHE_PATH:cachemanager' for example: '100GB:/tmp/downloaded_blobs:localdb'", diskParams)
 	}
 
 	diskCacheSize := parts[0]
 	path := parts[1]
+	cacheManager := parts[2]
+
 	if len(path) == 0 || path[0] != '/' {
-		log.Fatalf("--disk-cache path must start with '/'")
+		log.Fatalf("disk cache paths must start with '/'")
+	}
+
+	if !util.InSlice(cacheManager, cacheManagers) {
+		log.Fatalf("specified cache manager '%s' is not supported. Use one of the following: %v", cacheManager, cacheManagers)
 	}
 
 	var maxSize datasize.ByteSize
@@ -262,9 +305,9 @@ func diskCacheParams(diskParams string) (int, string) {
 		log.Fatal(err)
 	}
 	if maxSize <= 0 {
-		log.Fatal("--disk-cache size must be more than 0")
+		log.Fatal("disk cache size must be more than 0")
 	}
-	return int(maxSize), path
+	return int(maxSize), path, cacheManager
 }
 
 func cleanOldestBlobs(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Group) {

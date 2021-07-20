@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lbryio/lbry.go/v2/extras/util"
+
 	"github.com/stretchr/testify/assert"
 )
 

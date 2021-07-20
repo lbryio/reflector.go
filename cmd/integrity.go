@@ -10,9 +10,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/reflector.go/meta"
 	"github.com/lbryio/reflector.go/store/speedwalk"
+
+	"github.com/lbryio/lbry.go/v2/extras/errors"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -39,7 +40,7 @@ func integrityCheckCmd(cmd *cobra.Command, args []string) {
 
 	blobs, err := speedwalk.AllFiles(diskStorePath, true)
 	if err != nil {
-		log.Errorf("error while reading blobs from disk %s", errors.FullTrace(err))
+		log.Fatalf("error while reading blobs from disk %s", errors.FullTrace(err))
 	}
 	tasks := make(chan string, len(blobs))
 	done := make(chan bool)
@@ -63,12 +64,12 @@ func consume(worker int, tasks <-chan string, done chan<- bool, totalTasks int, 
 	start := time.Now()
 
 	for b := range tasks {
-		checked := atomic.AddInt32(processed, 1)
+		processedSoFar := atomic.AddInt32(processed, 1)
 		if worker == 0 {
-			remaining := int32(totalTasks) - checked
-			timePerBlob := time.Since(start).Microseconds() / int64(checked)
+			remaining := int32(totalTasks) - processedSoFar
+			timePerBlob := time.Since(start).Microseconds() / int64(processedSoFar)
 			remainingTime := time.Duration(int64(remaining)*timePerBlob) * time.Microsecond
-			log.Infof("[T%d] %d/%d blobs checked. ETA: %s", worker, checked, totalTasks, remainingTime.String())
+			log.Infof("[T%d] %d/%d blobs processed so far. ETA: %s", worker, processedSoFar, totalTasks, remainingTime.String())
 		}
 		blobPath := path.Join(diskStorePath, b[:2], b)
 		blob, err := ioutil.ReadFile(blobPath)

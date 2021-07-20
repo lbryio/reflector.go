@@ -3,10 +3,10 @@ package store
 import (
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/shared"
 
+	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	"golang.org/x/sync/singleflight"
