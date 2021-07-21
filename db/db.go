@@ -39,12 +39,9 @@ type SdBlob struct {
 type trackAccess int
 
 const (
-	//TrackAccessNone Don't track accesses
-	TrackAccessNone trackAccess = iota
-	//TrackAccessStreams Track accesses at the stream level
-	TrackAccessStreams
-	//TrackAccessBlobs Track accesses at the blob level
-	TrackAccessBlobs
+	TrackAccessNone    trackAccess = iota // Don't track accesses
+	TrackAccessStreams                    // Track accesses at the stream level
+	TrackAccessBlobs                      // Track accesses at the blob level
 )
 
 // SQL implements the DB interface
@@ -106,13 +103,14 @@ func (s *SQL) AddBlobs(hash []string) error {
 	if s.conn == nil {
 		return errors.Err("not connected")
 	}
-	// Split the slice into batches of 20 items.
+
 	batch := 10000
 	totalBlobs := int64(len(hash))
 	work := make(chan []string, 1000)
 	stopper := stop.New()
 	var totalInserted atomic.Int64
 	start := time.Now()
+
 	go func() {
 		for i := 0; i < len(hash); i += batch {
 			j := i + batch
@@ -124,6 +122,7 @@ func (s *SQL) AddBlobs(hash []string) error {
 		log.Infof("done loading %d hashes in the work queue", len(hash))
 		close(work)
 	}()
+
 	for i := 0; i < runtime.NumCPU(); i++ {
 		stopper.Add(1)
 		go func(worker int) {
@@ -145,6 +144,7 @@ func (s *SQL) AddBlobs(hash []string) error {
 			}
 		}(i)
 	}
+
 	stopper.Wait()
 	return nil
 }

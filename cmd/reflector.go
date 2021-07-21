@@ -31,7 +31,7 @@ var (
 	//port configuration
 	tcpPeerPort   int
 	http3PeerPort int
-	httpPort      int
+	httpPeerPort  int
 	receiverPort  int
 	metricsPort   int
 
@@ -73,7 +73,7 @@ func init() {
 
 	cmd.Flags().IntVar(&tcpPeerPort, "tcp-peer-port", 5567, "The port reflector will distribute content from for the TCP (LBRY) protocol")
 	cmd.Flags().IntVar(&http3PeerPort, "http3-peer-port", 5568, "The port reflector will distribute content from over HTTP3 protocol")
-	cmd.Flags().IntVar(&httpPort, "http-port", 5569, "The port reflector will distribute content from over HTTP protocol")
+	cmd.Flags().IntVar(&httpPeerPort, "http-peer-port", 5569, "The port reflector will distribute content from over HTTP protocol")
 	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
 	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for prometheus metrics")
 
@@ -82,7 +82,7 @@ func init() {
 	cmd.Flags().BoolVar(&useDB, "use-db", true, "Whether to connect to the reflector db or not")
 
 	cmd.Flags().StringVar(&upstreamReflector, "upstream-reflector", "", "host:port of a reflector server where blobs are fetched from")
-	cmd.Flags().StringVar(&upstreamProtocol, "proxy-protocol", "http", "protocol used to fetch blobs from another reflector server (tcp/http3/http)")
+	cmd.Flags().StringVar(&upstreamProtocol, "upstream-protocol", "http", "protocol used to fetch blobs from another upstream reflector server (tcp/http3/http)")
 
 	cmd.Flags().IntVar(&requestQueueSize, "request-queue-size", 200, "How many concurrent requests from downstream should be handled at once (the rest will wait)")
 
@@ -130,7 +130,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	defer http3PeerServer.Shutdown()
 
 	httpServer := http.NewServer(underlyingStoreWithCaches, requestQueueSize)
-	err = httpServer.Start(":" + strconv.Itoa(httpPort))
+	err = httpServer.Start(":" + strconv.Itoa(httpPeerPort))
 	if err != nil {
 		log.Fatal(err)
 	}
