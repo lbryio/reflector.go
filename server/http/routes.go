@@ -24,13 +24,15 @@ func (s *Server) getBlob(c *gin.Context) {
 func (s *Server) HandleGetBlob(c *gin.Context) {
 	start := time.Now()
 	hash := c.Query("hash")
+
 	if s.missesCache.Has(hash) {
 		serialized, err := shared.NewBlobTrace(time.Since(start), "http").Serialize()
+		c.Header("Via", serialized)
 		if err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, errors.Err(err))
+			_ = c.Error(errors.Err(err))
+			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}
-		c.Header("Via", serialized)
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
@@ -38,7 +40,8 @@ func (s *Server) HandleGetBlob(c *gin.Context) {
 	if err != nil {
 		serialized, serializeErr := trace.Serialize()
 		if serializeErr != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, errors.Prefix(serializeErr.Error(), err))
+			_ = c.Error(errors.Prefix(serializeErr.Error(), err))
+			c.String(http.StatusInternalServerError, errors.Prefix(serializeErr.Error(), err).Error())
 			return
 		}
 		c.Header("Via", serialized)
@@ -48,12 +51,14 @@ func (s *Server) HandleGetBlob(c *gin.Context) {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 	serialized, err := trace.Serialize()
 	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 	metrics.MtrOutBytesHttp.Add(float64(len(blob)))
@@ -68,7 +73,8 @@ func (s *Server) hasBlob(c *gin.Context) {
 	hash := c.Query("hash")
 	has, err := s.store.Has(hash)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.Error(err)
+		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 	if has {
