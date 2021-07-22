@@ -31,7 +31,7 @@ func NewHttpStore(upstream string) *HttpStore {
 
 const nameHttp = "http"
 
-func (n *HttpStore) Name() string { return nameNoop }
+func (n *HttpStore) Name() string { return nameHttp }
 func (n *HttpStore) Has(hash string) (bool, error) {
 	url := n.upstream + "/blob?hash=" + hash
 
