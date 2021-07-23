@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"github.com/lbryio/reflector.go/db"
-	"github.com/lbryio/reflector.go/peer"
+	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"

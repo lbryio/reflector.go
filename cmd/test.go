@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/meta"
-	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/reflector"
+	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"

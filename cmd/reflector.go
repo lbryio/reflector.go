@@ -12,10 +12,10 @@ import (
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/meta"
-	"github.com/lbryio/reflector.go/peer"
-	"github.com/lbryio/reflector.go/peer/http3"
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/server/http"
+	http32 "github.com/lbryio/reflector.go/server/http3"
+	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -122,7 +122,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 	defer peerServer.Shutdown()
 
-	http3PeerServer := http3.NewServer(underlyingStoreWithCaches, requestQueueSize)
+	http3PeerServer := http32.NewServer(underlyingStoreWithCaches, requestQueueSize)
 	err = http3PeerServer.Start(":" + strconv.Itoa(http3PeerPort))
 	if err != nil {
 		log.Fatal(err)
@@ -161,7 +161,7 @@ func initUpstreamStore() store.BlobStore {
 			Timeout: 30 * time.Second,
 		})
 	case "http3":
-		s = http3.NewStore(http3.StoreOpts{
+		s = http32.NewStore(http32.StoreOpts{
 			Address: upstreamReflector,
 			Timeout: 30 * time.Second,
 		})
