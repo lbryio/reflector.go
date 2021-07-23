@@ -112,7 +112,6 @@ func (p *Store) Delete(hash string) error {
 	return errors.Err(shared.ErrNotImplemented)
 }
 
-// Delete is not supported
+// Shutdown is not supported
 func (p *Store) Shutdown() {
-	return
 }

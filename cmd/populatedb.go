@@ -41,6 +41,9 @@ func populateDbCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 	blobs, err := speedwalk.AllFiles(diskStorePath, true)
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = localDb.AddBlobs(blobs)
 	if err != nil {
 		log.Errorf("error while storing to db: %s", errors.FullTrace(err))

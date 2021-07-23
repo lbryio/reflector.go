@@ -59,5 +59,4 @@ func (c *CloudFrontRWStore) Delete(hash string) error {
 func (c *CloudFrontRWStore) Shutdown() {
 	c.s3.Shutdown()
 	c.cf.Shutdown()
-	return
 }

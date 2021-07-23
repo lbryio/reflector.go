@@ -107,5 +107,4 @@ func (c *CloudFrontROStore) Delete(_ string) error {
 
 // Shutdown shuts down the store gracefully
 func (c *CloudFrontROStore) Shutdown() {
-	return
 }

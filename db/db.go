@@ -266,9 +266,9 @@ func (s *SQL) HasBlobs(hashes []string, touch bool) (map[string]bool, error) {
 
 	if touch {
 		if s.TrackAccess == TrackAccessBlobs {
-			s.touchBlobs(idsNeedingTouch)
+			_ = s.touchBlobs(idsNeedingTouch)
 		} else if s.TrackAccess == TrackAccessStreams {
-			s.touchStreams(idsNeedingTouch)
+			_ = s.touchStreams(idsNeedingTouch)
 		}
 	}
 

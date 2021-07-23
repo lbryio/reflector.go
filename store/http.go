@@ -115,7 +115,7 @@ func (n *HttpStore) PutSD(string, stream.Blob) error {
 func (n *HttpStore) Delete(string) error {
 	return shared.ErrNotImplemented
 }
-func (n *HttpStore) Shutdown() { return }
+func (n *HttpStore) Shutdown() {}
 
 // buffer pool to reduce GC
 // https://www.captaincodeman.com/2017/06/02/golang-buffer-pool-gotcha

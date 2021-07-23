@@ -7,7 +7,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/schema/stake"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/gogo/protobuf/jsonpb"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

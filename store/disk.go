@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"runtime"
 	"time"
 
 	"github.com/lbryio/reflector.go/shared"
@@ -22,25 +21,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 )
-
-func init() {
-	writeCh = make(chan writeRequest)
-	for i := 0; i < runtime.NumCPU(); i++ {
-		go func() {
-			for {
-				select {
-				case r := <-writeCh:
-					err := ioutil.WriteFile(r.filename, r.data, r.perm)
-					if err != nil {
-						log.Errorf("could not write file %s to disk, failed with error: %s", r.filename, err.Error())
-					}
-				}
-			}
-		}()
-	}
-}
-
-var writeCh chan writeRequest
 
 // DiskStore stores blobs on a local disk
 type DiskStore struct {
@@ -228,21 +208,6 @@ func (d *DiskStore) initOnce() error {
 	return nil
 }
 
-type writeRequest struct {
-	filename string
-	data     []byte
-	perm     os.FileMode
-}
-
 // Shutdown shuts down the store gracefully
 func (d *DiskStore) Shutdown() {
-	return
-}
-
-func writeFile(filename string, data []byte, perm os.FileMode) {
-	writeCh <- writeRequest{
-		filename: filename,
-		data:     data,
-		perm:     perm,
-	}
 }

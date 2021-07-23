@@ -96,7 +96,7 @@ func (l *GcacheStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 
 // Put stores the blob. Following LFUDA rules it's not guaranteed that a SET will store the value!!!
 func (l *GcacheStore) Put(hash string, blob stream.Blob) error {
-	l.cache.Set(hash, true)
+	_ = l.cache.Set(hash, true)
 	has, _ := l.Has(hash)
 	if has {
 		err := l.store.Put(hash, blob)
@@ -109,7 +109,7 @@ func (l *GcacheStore) Put(hash string, blob stream.Blob) error {
 
 // PutSD stores the sd blob. Following LFUDA rules it's not guaranteed that a SET will store the value!!!
 func (l *GcacheStore) PutSD(hash string, blob stream.Blob) error {
-	l.cache.Set(hash, true)
+	_ = l.cache.Set(hash, true)
 	has, _ := l.Has(hash)
 	if has {
 		err := l.store.PutSD(hash, blob)
@@ -145,7 +145,7 @@ func (l *GcacheStore) loadExisting(store lister, maxItems int) error {
 
 	added := 0
 	for _, h := range existing {
-		l.cache.Set(h, true)
+		_ = l.cache.Set(h, true)
 		added++
 		if maxItems > 0 && added >= maxItems { // underlying cache is bigger than the cache
 			break
@@ -156,5 +156,4 @@ func (l *GcacheStore) loadExisting(store lister, maxItems int) error {
 
 // Shutdown shuts down the store gracefully
 func (l *GcacheStore) Shutdown() {
-	return
 }

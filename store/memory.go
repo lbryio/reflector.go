@@ -77,6 +77,4 @@ func (m *MemStore) Debug() map[string]stream.Blob {
 }
 
 // Shutdown shuts down the store gracefully
-func (m *MemStore) Shutdown() {
-	return
-}
+func (m *MemStore) Shutdown() {}

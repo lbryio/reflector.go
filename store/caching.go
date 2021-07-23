@@ -104,5 +104,4 @@ func (c *CachingStore) Delete(hash string) error {
 func (c *CachingStore) Shutdown() {
 	c.origin.Shutdown()
 	c.cache.Shutdown()
-	return
 }

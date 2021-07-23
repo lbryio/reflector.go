@@ -165,8 +165,8 @@ func mustGetFlagInt64(cmd *cobra.Command, name string) int64 {
 	return v
 }
 
-func mustGetFlagBool(cmd *cobra.Command, name string) bool {
-	v, err := cmd.Flags().GetBool(name)
-	checkErr(err)
-	return v
-}
+//func mustGetFlagBool(cmd *cobra.Command, name string) bool {
+//	v, err := cmd.Flags().GetBool(name)
+//	checkErr(err)
+//	return v
+//}

@@ -33,7 +33,6 @@ func InitWorkers(server *Server, workers int) {
 			}
 		}(i)
 	}
-	return
 }
 
 func enqueue(b *blobRequest) {
