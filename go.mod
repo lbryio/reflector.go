@@ -2,13 +2,10 @@ module github.com/lbryio/reflector.go
 
 replace github.com/btcsuite/btcd => github.com/lbryio/lbrycrd.go v0.0.0-20200203050410-e1076f12bf19
 
-//replace github.com/lbryio/lbry.go/v2 => ../lbry.go
-
 require (
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/aws/aws-sdk-go v1.27.0
 	github.com/bluele/gcache v0.0.2
-	github.com/bparli/lfuda-go v0.3.1
 	github.com/brk0v/directio v0.0.0-20190225130936-69406e757cf7
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
 	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d

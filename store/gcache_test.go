@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -13,93 +14,80 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const cacheMaxBlobs = 3
+const cacheMaxSize = 3
 
-func getTestLRUStore() (*LRUStore, *MemStore) {
+func getTestGcacheStore() (*GcacheStore, *MemStore) {
 	m := NewMemStore()
-	return NewLRUStore("test", m, 3), m
+	return NewGcacheStore("test", m, cacheMaxSize, LFU), m
 }
 
-func TestLRUStore_Eviction(t *testing.T) {
-	lru, mem := getTestLRUStore()
+func TestGcacheStore_Eviction(t *testing.T) {
+	lfu, mem := getTestGcacheStore()
 	b := []byte("x")
-	err := lru.Put("one", b)
-	require.NoError(t, err)
-	err = lru.Put("two", b)
-	require.NoError(t, err)
-	err = lru.Put("three", b)
-	require.NoError(t, err)
-	err = lru.Put("four", b)
-	require.NoError(t, err)
-	err = lru.Put("five", b)
-	require.NoError(t, err)
-
-	assert.Equal(t, cacheMaxBlobs, len(mem.Debug()))
-
+	for i := 0; i < 3; i++ {
+		err := lfu.Put(fmt.Sprintf("%d", i), b)
+		require.NoError(t, err)
+		for j := 0; j < 3-i; j++ {
+			_, _, err = lfu.Get(fmt.Sprintf("%d", i))
+			require.NoError(t, err)
+		}
+	}
 	for k, v := range map[string]bool{
-		"one":   false,
-		"two":   false,
-		"three": true,
-		"four":  true,
-		"five":  true,
-		"six":   false,
+		"0": true,
+		"1": true,
+		"2": true,
 	} {
-		has, err := lru.Has(k)
+		has, err := lfu.Has(k)
 		assert.NoError(t, err)
 		assert.Equal(t, v, has)
 	}
-
-	lru.Get("three") // touch so it stays in cache
-	lru.Put("six", b)
-
-	assert.Equal(t, cacheMaxBlobs, len(mem.Debug()))
-
+	err := lfu.Put("3", b)
+	require.NoError(t, err)
 	for k, v := range map[string]bool{
-		"one":   false,
-		"two":   false,
-		"three": true,
-		"four":  false,
-		"five":  true,
-		"six":   true,
+		"0": true,
+		"1": true,
+		"2": false,
+		"3": true,
 	} {
-		has, err := lru.Has(k)
+		has, err := lfu.Has(k)
 		assert.NoError(t, err)
 		assert.Equal(t, v, has)
 	}
+	assert.Equal(t, cacheMaxSize, len(mem.Debug()))
 
-	err = lru.Delete("three")
+	err = lfu.Delete("0")
 	assert.NoError(t, err)
-	err = lru.Delete("five")
+	err = lfu.Delete("1")
 	assert.NoError(t, err)
-	err = lru.Delete("six")
+	err = lfu.Delete("3")
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(mem.Debug()))
 }
 
-func TestLRUStore_UnderlyingBlobMissing(t *testing.T) {
-	lru, mem := getTestLRUStore()
+func TestGcacheStore_UnderlyingBlobMissing(t *testing.T) {
+	lfu, mem := getTestGcacheStore()
 	hash := "hash"
 	b := []byte("this is a blob of stuff")
-	err := lru.Put(hash, b)
+	err := lfu.Put(hash, b)
 	require.NoError(t, err)
 
 	err = mem.Delete(hash)
 	require.NoError(t, err)
 
 	// hash still exists in lru
-	assert.True(t, lru.lru.Has(hash))
+	assert.True(t, lfu.cache.Has(hash))
 
-	blob, _, err := lru.Get(hash)
+	blob, _, err := lfu.Get(hash)
 	assert.Nil(t, blob)
 	assert.True(t, errors.Is(err, ErrBlobNotFound), "expected (%s) %s, got (%s) %s",
 		reflect.TypeOf(ErrBlobNotFound).String(), ErrBlobNotFound.Error(),
 		reflect.TypeOf(err).String(), err.Error())
 
 	// lru.Get() removes hash if underlying store doesn't have it
-	assert.False(t, lru.lru.Has(hash))
+	assert.False(t, lfu.cache.Has(hash))
 }
 
-func TestLRUStore_loadExisting(t *testing.T) {
+func TestGcacheStore_loadExisting(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "reflector_test_*")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpDir)
@@ -115,9 +103,9 @@ func TestLRUStore_loadExisting(t *testing.T) {
 	require.Equal(t, 1, len(existing), "blob should exist in cache")
 	assert.Equal(t, hash, existing[0])
 
-	lru := NewLRUStore("test", d, 3)   // lru should load existing blobs when it's created
-	time.Sleep(100 * time.Millisecond) // async load so let's wait...
-	has, err := lru.Has(hash)
+	lfu := NewGcacheStore("test", d, 3, LFU) // lru should load existing blobs when it's created
+	time.Sleep(100 * time.Millisecond)       // async load so let's wait...
+	has, err := lfu.Has(hash)
 	require.NoError(t, err)
 	assert.True(t, has, "hash should be loaded from disk store but it's not")
 }

@@ -56,13 +56,14 @@ var (
 	secondaryDiskCache string
 	memCache           int
 )
-var cacheManagers = []string{"localdb", "lfuda", "lru"}
+var cacheManagers = []string{"localdb", "lfu", "arc", "lru", "simple"}
 
-const (
-	LOCALDB int = iota
-	LFUDA
-	LRU
-)
+var cacheMangerToGcache = map[string]store.EvictionStrategy{
+	"lfu":    store.LFU,
+	"arc":    store.ARC,
+	"lru":    store.LRU,
+	"simple": store.SIMPLE,
+}
 
 func init() {
 	var cmd = &cobra.Command{
@@ -89,8 +90,8 @@ func init() {
 	cmd.Flags().StringVar(&originEndpoint, "origin-endpoint", "", "HTTP edge endpoint for standard HTTP retrieval")
 	cmd.Flags().StringVar(&originEndpointFallback, "origin-endpoint-fallback", "", "HTTP edge endpoint for standard HTTP retrieval if first origin fails")
 
-	cmd.Flags().StringVar(&diskCache, "disk-cache", "100GB:/tmp/downloaded_blobs:localdb", "Where to cache blobs on the file system. format is 'sizeGB:CACHE_PATH:cachemanager' (cachemanagers: localdb/lfuda/lru)")
-	cmd.Flags().StringVar(&secondaryDiskCache, "optional-disk-cache", "", "Optional secondary file system cache for blobs. format is 'sizeGB:CACHE_PATH:cachemanager' (cachemanagers: localdb/lfuda/lru) (this would get hit before the one specified in disk-cache)")
+	cmd.Flags().StringVar(&diskCache, "disk-cache", "100GB:/tmp/downloaded_blobs:localdb", "Where to cache blobs on the file system. format is 'sizeGB:CACHE_PATH:cachemanager' (cachemanagers: localdb/lfu/arc/lru)")
+	cmd.Flags().StringVar(&secondaryDiskCache, "optional-disk-cache", "", "Optional secondary file system cache for blobs. format is 'sizeGB:CACHE_PATH:cachemanager' (cachemanagers: localdb/lfu/arc/lru) (this would get hit before the one specified in disk-cache)")
 	cmd.Flags().IntVar(&memCache, "mem-cache", 0, "enable in-memory cache with a max size of this many blobs")
 
 	rootCmd.AddCommand(cmd)
@@ -228,7 +229,7 @@ func initCaches(s store.BlobStore) (store.BlobStore, *stop.Group) {
 		finalStore = store.NewCachingStore(
 			"reflector",
 			finalStore,
-			store.NewLRUStore("mem", store.NewMemStore(), memCache),
+			store.NewGcacheStore("mem", store.NewMemStore(), memCache, store.LRU),
 		)
 	}
 	return finalStore, stopper
@@ -251,8 +252,7 @@ func initDiskStore(upstreamStore store.BlobStore, diskParams string, stopper *st
 	var unwrappedStore store.BlobStore
 	cleanerStopper := stop.New(stopper)
 
-	switch cacheManager {
-	case cacheManagers[LOCALDB]:
+	if cacheManager == "localdb" {
 		localDb := &db.SQL{
 			SoftDelete:  true,
 			TrackAccess: db.TrackAccessBlobs,
@@ -264,11 +264,10 @@ func initDiskStore(upstreamStore store.BlobStore, diskParams string, stopper *st
 		}
 		unwrappedStore = store.NewDBBackedStore(diskStore, localDb, true)
 		go cleanOldestBlobs(int(realCacheSize), localDb, unwrappedStore, cleanerStopper)
-	case cacheManagers[LFUDA]:
-		unwrappedStore = store.NewLFUDAStore("nvme", store.NewDiskStore(diskCachePath, 2), realCacheSize)
-	case cacheManagers[LRU]:
-		unwrappedStore = store.NewLRUStore("nvme", store.NewDiskStore(diskCachePath, 2), int(realCacheSize))
+	} else {
+		unwrappedStore = store.NewGcacheStore("nvme", store.NewDiskStore(diskCachePath, 2), int(realCacheSize), cacheMangerToGcache[cacheManager])
 	}
+
 	wrapped := store.NewCachingStore(
 		"reflector",
 		upstreamStore,

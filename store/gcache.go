@@ -1,7 +1,5 @@
 package store
 
-//TODO: the caching strategy is actually not LFUDA, it should become a parameter and the name of the struct should be changed
-
 import (
 	"time"
 
@@ -11,27 +9,53 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 
-	"github.com/bparli/lfuda-go"
+	"github.com/bluele/gcache"
 	"github.com/sirupsen/logrus"
 )
 
-// LFUDAStore adds a max cache size and Greedy-Dual-Size-Frequency cache eviction strategy to a BlobStore
-type LFUDAStore struct {
+// GcacheStore adds a max cache size and Greedy-Dual-Size-Frequency cache eviction strategy to a BlobStore
+type GcacheStore struct {
 	// underlying store
 	store BlobStore
-	// lfuda implementation
-	lfuda *lfuda.Cache
+	// cache implementation
+	cache gcache.Cache
 }
+type EvictionStrategy int
 
-// NewLFUDAStore initialize a new LRUStore
-func NewLFUDAStore(component string, store BlobStore, maxSize float64) *LFUDAStore {
-	lfuda := lfuda.NewGDSFWithEvict(maxSize, func(key interface{}, value interface{}) {
+const (
+	//LFU Discards the least frequently used items first.
+	LFU EvictionStrategy = iota
+	//ARC Constantly balances between LRU and LFU, to improve the combined result.
+	ARC
+	//LRU Discards the least recently used items first.
+	LRU
+	//SIMPLE has no clear priority for evict cache. It depends on key-value map order.
+	SIMPLE
+)
+
+// NewGcacheStore initialize a new LRUStore
+func NewGcacheStore(component string, store BlobStore, maxSize int, strategy EvictionStrategy) *GcacheStore {
+	cacheBuilder := gcache.New(maxSize)
+	var cache gcache.Cache
+	evictFunc := func(key interface{}, value interface{}) {
+		logrus.Infof("evicting %s", key)
 		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(store.Name(), component)).Inc()
 		_ = store.Delete(key.(string)) // TODO: log this error. may happen if underlying entry is gone but cache entry still there
-	})
-	l := &LFUDAStore{
+	}
+	switch strategy {
+	case LFU:
+		cache = cacheBuilder.LFU().EvictedFunc(evictFunc).Build()
+	case ARC:
+		cache = cacheBuilder.ARC().EvictedFunc(evictFunc).Build()
+	case LRU:
+		cache = cacheBuilder.LRU().EvictedFunc(evictFunc).Build()
+	case SIMPLE:
+		cache = cacheBuilder.Simple().EvictedFunc(evictFunc).Build()
+
+	}
+	l := &GcacheStore{
 		store: store,
-		lfuda: lfuda,
+		cache: cache,
 	}
 	go func() {
 		if lstr, ok := store.(lister); ok {
@@ -45,34 +69,34 @@ func NewLFUDAStore(component string, store BlobStore, maxSize float64) *LFUDASto
 	return l
 }
 
-const nameLFUDA = "lfuda"
+const nameGcache = "gcache"
 
 // Name is the cache type name
-func (l *LFUDAStore) Name() string { return nameLFUDA }
+func (l *GcacheStore) Name() string { return nameGcache }
 
 // Has returns whether the blob is in the store, without updating the recent-ness.
-func (l *LFUDAStore) Has(hash string) (bool, error) {
-	return l.lfuda.Contains(hash), nil
+func (l *GcacheStore) Has(hash string) (bool, error) {
+	return l.cache.Has(hash), nil
 }
 
 // Get returns the blob or an error if the blob doesn't exist.
-func (l *LFUDAStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+func (l *GcacheStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
-	_, has := l.lfuda.Get(hash)
-	if !has {
+	_, err := l.cache.Get(hash)
+	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), l.Name()), errors.Err(ErrBlobNotFound)
 	}
 	blob, stack, err := l.store.Get(hash)
 	if errors.Is(err, ErrBlobNotFound) {
 		// Blob disappeared from underlying store
-		l.lfuda.Remove(hash)
+		l.cache.Remove(hash)
 	}
 	return blob, stack.Stack(time.Since(start), l.Name()), err
 }
 
 // Put stores the blob. Following LFUDA rules it's not guaranteed that a SET will store the value!!!
-func (l *LFUDAStore) Put(hash string, blob stream.Blob) error {
-	l.lfuda.Set(hash, true)
+func (l *GcacheStore) Put(hash string, blob stream.Blob) error {
+	l.cache.Set(hash, true)
 	has, _ := l.Has(hash)
 	if has {
 		err := l.store.Put(hash, blob)
@@ -84,8 +108,8 @@ func (l *LFUDAStore) Put(hash string, blob stream.Blob) error {
 }
 
 // PutSD stores the sd blob. Following LFUDA rules it's not guaranteed that a SET will store the value!!!
-func (l *LFUDAStore) PutSD(hash string, blob stream.Blob) error {
-	l.lfuda.Set(hash, true)
+func (l *GcacheStore) PutSD(hash string, blob stream.Blob) error {
+	l.cache.Set(hash, true)
 	has, _ := l.Has(hash)
 	if has {
 		err := l.store.PutSD(hash, blob)
@@ -97,7 +121,7 @@ func (l *LFUDAStore) PutSD(hash string, blob stream.Blob) error {
 }
 
 // Delete deletes the blob from the store
-func (l *LFUDAStore) Delete(hash string) error {
+func (l *GcacheStore) Delete(hash string) error {
 	err := l.store.Delete(hash)
 	if err != nil {
 		return err
@@ -106,12 +130,12 @@ func (l *LFUDAStore) Delete(hash string) error {
 	// This must come after store.Delete()
 	// Remove triggers onEvict function, which also tries to delete blob from store
 	// We need to delete it manually first so any errors can be propagated up
-	l.lfuda.Remove(hash)
+	l.cache.Remove(hash)
 	return nil
 }
 
 // loadExisting imports existing blobs from the underlying store into the LRU cache
-func (l *LFUDAStore) loadExisting(store lister, maxItems int) error {
+func (l *GcacheStore) loadExisting(store lister, maxItems int) error {
 	logrus.Infof("loading at most %d items", maxItems)
 	existing, err := store.list()
 	if err != nil {
@@ -121,7 +145,7 @@ func (l *LFUDAStore) loadExisting(store lister, maxItems int) error {
 
 	added := 0
 	for _, h := range existing {
-		l.lfuda.Set(h, true)
+		l.cache.Set(h, true)
 		added++
 		if maxItems > 0 && added >= maxItems { // underlying cache is bigger than the cache
 			break
@@ -131,6 +155,6 @@ func (l *LFUDAStore) loadExisting(store lister, maxItems int) error {
 }
 
 // Shutdown shuts down the store gracefully
-func (l *LFUDAStore) Shutdown() {
+func (l *GcacheStore) Shutdown() {
 	return
 }
