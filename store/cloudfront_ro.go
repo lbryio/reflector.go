@@ -8,6 +8,7 @@ import (
 
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/meta"
+	"github.com/lbryio/reflector.go/shared"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
@@ -49,30 +50,30 @@ func (c *CloudFrontROStore) Has(hash string) (bool, error) {
 }
 
 // Get gets the blob from Cloudfront.
-func (c *CloudFrontROStore) Get(hash string) (stream.Blob, error) {
+func (c *CloudFrontROStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	log.Debugf("Getting %s from S3", hash[:8])
+	start := time.Now()
 	defer func(t time.Time) {
 		log.Debugf("Getting %s from S3 took %s", hash[:8], time.Since(t).String())
-	}(time.Now())
+	}(start)
 
 	status, body, err := c.cfRequest(http.MethodGet, hash)
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), c.Name()), err
 	}
 	defer body.Close()
-
 	switch status {
 	case http.StatusNotFound, http.StatusForbidden:
-		return nil, errors.Err(ErrBlobNotFound)
+		return nil, shared.NewBlobTrace(time.Since(start), c.Name()), errors.Err(ErrBlobNotFound)
 	case http.StatusOK:
 		b, err := ioutil.ReadAll(body)
 		if err != nil {
-			return nil, errors.Err(err)
+			return nil, shared.NewBlobTrace(time.Since(start), c.Name()), errors.Err(err)
 		}
 		metrics.MtrInBytesS3.Add(float64(len(b)))
-		return b, nil
+		return b, shared.NewBlobTrace(time.Since(start), c.Name()), nil
 	default:
-		return nil, errors.Err("unexpected status %d", status)
+		return nil, shared.NewBlobTrace(time.Since(start), c.Name()), errors.Err("unexpected status %d", status)
 	}
 }
 
@@ -93,13 +94,17 @@ func (c *CloudFrontROStore) cfRequest(method, hash string) (int, io.ReadCloser, 
 }
 
 func (c *CloudFrontROStore) Put(_ string, _ stream.Blob) error {
-	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
+	return errors.Err(shared.ErrNotImplemented)
 }
 
 func (c *CloudFrontROStore) PutSD(_ string, _ stream.Blob) error {
-	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
+	return errors.Err(shared.ErrNotImplemented)
 }
 
 func (c *CloudFrontROStore) Delete(_ string) error {
-	panic("CloudFrontROStore cannot do writes. Use CloudFrontRWStore")
+	return errors.Err(shared.ErrNotImplemented)
+}
+
+// Shutdown shuts down the store gracefully
+func (c *CloudFrontROStore) Shutdown() {
 }

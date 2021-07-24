@@ -4,8 +4,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/lbryio/lbry.go/v2/dht/bits"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestAnnounceRange(t *testing.T) {

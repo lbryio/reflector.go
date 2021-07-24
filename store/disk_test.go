@@ -19,7 +19,7 @@ func TestDiskStore_Get(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	d := NewDiskStore(tmpDir, 2)
 
-	hash := "1234567890"
+	hash := "f428b8265d65dad7f8ffa52922bba836404cbd62f3ecfe10adba6b444f8f658938e54f5981ac4de39644d5b93d89a94b"
 	data := []byte("oyuntyausntoyaunpdoyruoyduanrstjwfjyuwf")
 
 	expectedPath := path.Join(tmpDir, hash[:2], hash)
@@ -28,7 +28,7 @@ func TestDiskStore_Get(t *testing.T) {
 	err = ioutil.WriteFile(expectedPath, data, os.ModePerm)
 	require.NoError(t, err)
 
-	blob, err := d.Get(hash)
+	blob, _, err := d.Get(hash)
 	assert.NoError(t, err)
 	assert.EqualValues(t, data, blob)
 }
@@ -39,7 +39,7 @@ func TestDiskStore_GetNonexistentBlob(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	d := NewDiskStore(tmpDir, 2)
 
-	blob, err := d.Get("nonexistent")
+	blob, _, err := d.Get("nonexistent")
 	assert.Nil(t, blob)
 	assert.True(t, errors.Is(err, ErrBlobNotFound))
 }

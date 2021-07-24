@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/meta"
-	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/reflector"
+	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
@@ -31,7 +31,7 @@ func testCmd(cmd *cobra.Command, args []string) {
 
 	memStore := store.NewMemStore()
 
-	reflectorServer := reflector.NewServer(memStore)
+	reflectorServer := reflector.NewServer(memStore, memStore)
 	reflectorServer.Timeout = 3 * time.Minute
 
 	err := reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))

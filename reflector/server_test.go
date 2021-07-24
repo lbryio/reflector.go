@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/dht/bits"
 	"github.com/lbryio/reflector.go/store"
+
+	"github.com/lbryio/lbry.go/v2/dht/bits"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/phayes/freeport"
@@ -22,7 +23,7 @@ func startServerOnRandomPort(t *testing.T) (*Server, int) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(store.NewMemStore())
+	srv := NewServer(store.NewMemStore(), store.NewMemStore())
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +120,7 @@ func TestServer_Timeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(store.NewMemStore())
+	srv := NewServer(store.NewMemStore(), store.NewMemStore())
 	srv.Timeout = testTimeout
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
@@ -190,7 +191,7 @@ func TestServer_PartialUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(st)
+	srv := NewServer(st, st)
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)

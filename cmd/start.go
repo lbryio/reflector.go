@@ -7,14 +7,15 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/lbryio/lbry.go/v2/dht"
-	"github.com/lbryio/lbry.go/v2/dht/bits"
 	"github.com/lbryio/reflector.go/cluster"
 	"github.com/lbryio/reflector.go/db"
-	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/prism"
 	"github.com/lbryio/reflector.go/reflector"
+	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
+
+	"github.com/lbryio/lbry.go/v2/dht"
+	"github.com/lbryio/lbry.go/v2/dht/bits"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -52,11 +53,13 @@ func init() {
 }
 
 func startCmd(cmd *cobra.Command, args []string) {
-	db := new(db.SQL)
+	db := &db.SQL{
+		LogQueries: log.GetLevel() == log.DebugLevel,
+	}
 	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 	s3 := store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
-	comboStore := store.NewDBBackedStore(s3, db)
+	comboStore := store.NewDBBackedStore(s3, db, false)
 
 	conf := prism.DefaultConf()
 

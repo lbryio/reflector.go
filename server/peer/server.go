@@ -12,6 +12,7 @@ import (
 
 	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/reflector"
+	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -88,7 +89,9 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			log.Error(errors.Prefix("accepting conn", err))
 		} else {
 			s.grp.Add(1)
+			metrics.RoutinesQueue.WithLabelValues("peer", "server-handleconn").Inc()
 			go func() {
+				defer metrics.RoutinesQueue.WithLabelValues("peer", "server-handleconn").Dec()
 				s.handleConnection(conn)
 				s.grp.Done()
 			}()
@@ -253,6 +256,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 	}
 
 	var blob []byte
+	var trace shared.BlobTrace
 	if request.RequestedBlob != "" {
 		if len(request.RequestedBlob) != stream.BlobHashHexLength {
 			return nil, errors.Err("Invalid blob hash length")
@@ -260,7 +264,8 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 
 		log.Debugln("Sending blob " + request.RequestedBlob[:8])
 
-		blob, err = s.store.Get(request.RequestedBlob)
+		blob, trace, err = s.store.Get(request.RequestedBlob)
+		log.Debug(trace.String())
 		if errors.Is(err, store.ErrBlobNotFound) {
 			response.IncomingBlob = incomingBlob{
 				Error: err.Error(),
@@ -382,6 +387,7 @@ type incomingBlob struct {
 }
 type blobResponse struct {
 	IncomingBlob incomingBlob `json:"incoming_blob"`
+	RequestTrace *shared.BlobTrace
 }
 
 type compositeRequest struct {

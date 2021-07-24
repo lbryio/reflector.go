@@ -3,10 +3,13 @@ package store
 import (
 	"time"
 
+	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/shared"
+
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 
-	"github.com/lbryio/reflector.go/internal/metrics"
+	log "github.com/sirupsen/logrus"
 )
 
 // CachingStore combines two stores, typically a local and a remote store, to improve performance.
@@ -22,7 +25,7 @@ func NewCachingStore(component string, origin, cache BlobStore) *CachingStore {
 	return &CachingStore{
 		component: component,
 		origin:    WithSingleFlight(component, origin),
-		cache:     cache,
+		cache:     WithSingleFlight(component, cache),
 	}
 }
 
@@ -42,9 +45,9 @@ func (c *CachingStore) Has(hash string) (bool, error) {
 
 // Get tries to get the blob from the cache first, falling back to the origin. If the blob comes
 // from the origin, it is also stored in the cache.
-func (c *CachingStore) Get(hash string) (stream.Blob, error) {
+func (c *CachingStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
-	blob, err := c.cache.Get(hash)
+	blob, trace, err := c.cache.Get(hash)
 	if err == nil || !errors.Is(err, ErrBlobNotFound) {
 		metrics.CacheHitCount.With(metrics.CacheLabels(c.cache.Name(), c.component)).Inc()
 		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
@@ -53,18 +56,21 @@ func (c *CachingStore) Get(hash string) (stream.Blob, error) {
 			metrics.LabelComponent: c.component,
 			metrics.LabelSource:    "cache",
 		}).Set(rate)
-		return blob, err
+		return blob, trace.Stack(time.Since(start), c.Name()), err
 	}
 
 	metrics.CacheMissCount.With(metrics.CacheLabels(c.cache.Name(), c.component)).Inc()
 
-	blob, err = c.origin.Get(hash)
+	blob, trace, err = c.origin.Get(hash)
 	if err != nil {
-		return nil, err
+		return nil, trace.Stack(time.Since(start), c.Name()), err
 	}
-
+	// do not do this async unless you're prepared to deal with mayhem
 	err = c.cache.Put(hash, blob)
-	return blob, err
+	if err != nil {
+		log.Errorf("error saving blob to underlying cache: %s", errors.FullTrace(err))
+	}
+	return blob, trace.Stack(time.Since(start), c.Name()), nil
 }
 
 // Put stores the blob in the origin and the cache
@@ -92,4 +98,10 @@ func (c *CachingStore) Delete(hash string) error {
 		return err
 	}
 	return c.cache.Delete(hash)
+}
+
+// Shutdown shuts down the store gracefully
+func (c *CachingStore) Shutdown() {
+	c.origin.Shutdown()
+	c.cache.Shutdown()
 }

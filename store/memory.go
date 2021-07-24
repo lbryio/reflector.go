@@ -2,6 +2,9 @@ package store
 
 import (
 	"sync"
+	"time"
+
+	"github.com/lbryio/reflector.go/shared"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
@@ -34,14 +37,15 @@ func (m *MemStore) Has(hash string) (bool, error) {
 }
 
 // Get returns the blob byte slice if present and errors if the blob is not found.
-func (m *MemStore) Get(hash string) (stream.Blob, error) {
+func (m *MemStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	blob, ok := m.blobs[hash]
 	if !ok {
-		return nil, errors.Err(ErrBlobNotFound)
+		return nil, shared.NewBlobTrace(time.Since(start), m.Name()), errors.Err(ErrBlobNotFound)
 	}
-	return blob, nil
+	return blob, shared.NewBlobTrace(time.Since(start), m.Name()), nil
 }
 
 // Put stores the blob in memory
@@ -71,3 +75,6 @@ func (m *MemStore) Debug() map[string]stream.Blob {
 	defer m.mu.RUnlock()
 	return m.blobs
 }
+
+// Shutdown shuts down the store gracefully
+func (m *MemStore) Shutdown() {}

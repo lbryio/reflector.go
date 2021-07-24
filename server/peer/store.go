@@ -1,15 +1,14 @@
-package http3
+package peer
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"net/http"
+	"strings"
 	"time"
+
+	"github.com/lbryio/reflector.go/shared"
+	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
 )
 
 // Store is a blob store that gets blobs from a peer.
@@ -30,32 +29,12 @@ func NewStore(opts StoreOpts) *Store {
 }
 
 func (p *Store) getClient() (*Client, error) {
-	var qconf quic.Config
-	qconf.HandshakeTimeout = 4 * time.Second
-	qconf.MaxIdleTimeout = 10 * time.Second
-	pool, err := x509.SystemCertPool()
-	if err != nil {
-		return nil, err
-	}
-	roundTripper := &http3.RoundTripper{
-		TLSClientConfig: &tls.Config{
-			RootCAs:            pool,
-			InsecureSkipVerify: true,
-		},
-		QuicConfig: &qconf,
-	}
-	connection := &http.Client{
-		Transport: roundTripper,
-	}
-	c := &Client{
-		conn:         connection,
-		roundTripper: roundTripper,
-		ServerAddr:   p.opts.Address,
-	}
+	c := &Client{Timeout: p.opts.Timeout}
+	err := c.Connect(p.opts.Address)
 	return c, errors.Prefix("connection error", err)
 }
 
-func (p *Store) Name() string { return "http3" }
+func (p *Store) Name() string { return "peer" }
 
 // Has asks the peer if they have a hash
 func (p *Store) Has(hash string) (bool, error) {
@@ -68,26 +47,36 @@ func (p *Store) Has(hash string) (bool, error) {
 }
 
 // Get downloads the blob from the peer
-func (p *Store) Get(hash string) (stream.Blob, error) {
+func (p *Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	c, err := p.getClient()
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), p.Name()), err
 	}
 	defer c.Close()
-	return c.GetBlob(hash)
+	blob, trace, err := c.GetBlob(hash)
+	if err != nil && strings.Contains(err.Error(), "blob not found") {
+		return nil, trace, store.ErrBlobNotFound
+	}
+
+	return blob, trace, err
 }
 
 // Put is not supported
 func (p *Store) Put(hash string, blob stream.Blob) error {
-	panic("http3Store cannot put or delete blobs")
+	return errors.Err(shared.ErrNotImplemented)
 }
 
 // PutSD is not supported
 func (p *Store) PutSD(hash string, blob stream.Blob) error {
-	panic("http3Store cannot put or delete blobs")
+	return errors.Err(shared.ErrNotImplemented)
 }
 
 // Delete is not supported
 func (p *Store) Delete(hash string) error {
-	panic("http3Store cannot put or delete blobs")
+	return errors.Err(shared.ErrNotImplemented)
+}
+
+// Shutdown is not supported
+func (p *Store) Shutdown() {
 }

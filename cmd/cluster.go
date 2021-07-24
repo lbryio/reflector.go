@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/lbryio/lbry.go/v2/extras/crypto"
+
 	"github.com/lbryio/reflector.go/cluster"
 
 	log "github.com/sirupsen/logrus"

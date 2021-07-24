@@ -25,7 +25,7 @@ func TestMemStore_Get(t *testing.T) {
 		t.Error("error getting memory blob - ", err)
 	}
 
-	gotBlob, err := s.Get(hash)
+	gotBlob, _, err := s.Get(hash)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -33,7 +33,7 @@ func TestMemStore_Get(t *testing.T) {
 		t.Error("Got blob that is different from expected blob")
 	}
 
-	missingBlob, err := s.Get("nonexistent hash")
+	missingBlob, _, err := s.Get("nonexistent hash")
 	if err == nil {
 		t.Errorf("Expected ErrBlobNotFound, got nil")
 	}

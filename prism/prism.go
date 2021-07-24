@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/lbryio/lbry.go/v2/dht"
-	"github.com/lbryio/lbry.go/v2/dht/bits"
 	"github.com/lbryio/reflector.go/cluster"
 	"github.com/lbryio/reflector.go/db"
-	"github.com/lbryio/reflector.go/peer"
 	"github.com/lbryio/reflector.go/reflector"
+	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
 
+	"github.com/lbryio/lbry.go/v2/dht"
+	"github.com/lbryio/lbry.go/v2/dht/bits"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 
@@ -79,7 +79,7 @@ func New(conf *Config) *Prism {
 		dht:       d,
 		cluster:   c,
 		peer:      peer.NewServer(conf.Blobs),
-		reflector: reflector.NewServer(conf.Blobs),
+		reflector: reflector.NewServer(conf.Blobs, conf.Blobs),
 
 		grp: stop.New(),
 	}

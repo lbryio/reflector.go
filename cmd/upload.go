@@ -9,6 +9,7 @@ import (
 	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -30,13 +31,15 @@ func init() {
 }
 
 func uploadCmd(cmd *cobra.Command, args []string) {
-	db := new(db.SQL)
+	db := &db.SQL{
+		LogQueries: log.GetLevel() == log.DebugLevel,
+	}
 	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 
 	st := store.NewDBBackedStore(
 		store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName),
-		db)
+		db, false)
 
 	uploader := reflector.NewUploader(db, st, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
 

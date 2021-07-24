@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -26,15 +28,17 @@ import (
 
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
-	store store.BlobStore
-	grp   *stop.Group
+	store              store.BlobStore
+	grp                *stop.Group
+	concurrentRequests int
 }
 
 // NewServer returns an initialized Server pointer.
-func NewServer(store store.BlobStore) *Server {
+func NewServer(store store.BlobStore, requestQueueSize int) *Server {
 	return &Server{
-		store: store,
-		grp:   stop.New(),
+		store:              store,
+		grp:                stop.New(),
+		concurrentRequests: requestQueueSize,
 	}
 }
 
@@ -63,33 +67,21 @@ type availabilityResponse struct {
 // Start starts the server listener to handle connections.
 func (s *Server) Start(address string) error {
 	log.Println("HTTP3 peer listening on " + address)
+	window500M := 500 * 1 << 20
+
 	quicConf := &quic.Config{
-		HandshakeTimeout: 4 * time.Second,
-		MaxIdleTimeout:   10 * time.Second,
+		MaxStreamReceiveWindow:     uint64(window500M),
+		MaxConnectionReceiveWindow: uint64(window500M),
+		EnableDatagrams:            true,
+		HandshakeIdleTimeout:       4 * time.Second,
+		MaxIdleTimeout:             20 * time.Second,
 	}
 	r := mux.NewRouter()
 	r.HandleFunc("/get/{hash}", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		requestedBlob := vars["hash"]
-		blob, err := s.store.Get(requestedBlob)
-		if err != nil {
-			if errors.Is(err, store.ErrBlobNotFound) {
-				http.Error(w, err.Error(), http.StatusNotFound)
-				return
-			}
-			fmt.Printf("%s: %s", requestedBlob, errors.FullTrace(err))
-			s.logError(err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		_, err = w.Write(blob)
-		if err != nil {
-			s.logError(err)
-		}
-		metrics.MtrOutBytesUdp.Add(float64(len(blob)))
-		metrics.BlobDownloadCount.Inc()
-		metrics.Http3DownloadCount.Inc()
+		waiter := &sync.WaitGroup{}
+		waiter.Add(1)
+		enqueue(&blobRequest{request: r, reply: w, finished: waiter})
+		waiter.Wait()
 	})
 	r.HandleFunc("/has/{hash}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -127,7 +119,7 @@ func (s *Server) Start(address string) error {
 		},
 		QuicConfig: quicConf,
 	}
-
+	go InitWorkers(s, s.concurrentRequests)
 	go s.listenForShutdown(&server)
 	s.grp.Add(1)
 	go func() {
@@ -175,4 +167,48 @@ func (s *Server) listenForShutdown(listener *http3.Server) {
 	if err != nil {
 		log.Error("error closing listener for peer server - ", err)
 	}
+}
+
+func (s *Server) HandleGetBlob(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	requestedBlob := vars["hash"]
+	traceParam := r.URL.Query().Get("trace")
+	var err error
+	wantsTrace := false
+	if traceParam != "" {
+		wantsTrace, err = strconv.ParseBool(traceParam)
+		if err != nil {
+			wantsTrace = false
+		}
+	}
+
+	blob, trace, err := s.store.Get(requestedBlob)
+
+	if wantsTrace {
+		serialized, err := trace.Serialize()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Add("Via", serialized)
+		log.Debug(trace.String())
+	}
+	if err != nil {
+		if errors.Is(err, store.ErrBlobNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		fmt.Printf("%s: %s", requestedBlob, errors.FullTrace(err))
+		s.logError(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err = w.Write(blob)
+	if err != nil {
+		s.logError(err)
+	}
+	metrics.MtrOutBytesUdp.Add(float64(len(blob)))
+	metrics.BlobDownloadCount.Inc()
+	metrics.Http3DownloadCount.Inc()
 }

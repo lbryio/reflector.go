@@ -1,6 +1,8 @@
 package store
 
 import (
+	"github.com/lbryio/reflector.go/shared"
+
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 )
@@ -9,16 +11,18 @@ import (
 type BlobStore interface {
 	// Name of blob store (useful for metrics)
 	Name() string
-	// Does blob exist in the store.
+	// Has Does blob exist in the store.
 	Has(hash string) (bool, error)
 	// Get the blob from the store. Must return ErrBlobNotFound if blob is not in store.
-	Get(hash string) (stream.Blob, error)
+	Get(hash string) (stream.Blob, shared.BlobTrace, error)
 	// Put the blob into the store.
 	Put(hash string, blob stream.Blob) error
-	// Put an SD blob into the store.
+	// PutSD an SD blob into the store.
 	PutSD(hash string, blob stream.Blob) error
 	// Delete the blob from the store.
 	Delete(hash string) error
+	// Shutdown the store gracefully
+	Shutdown()
 }
 
 // Blocklister is a store that supports blocking blobs to prevent their inclusion in the store.

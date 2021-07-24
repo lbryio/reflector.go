@@ -9,12 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/stream"
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store"
 
+	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/stream"
+
 	"github.com/lucas-clemente/quic-go/http3"
+	log "github.com/sirupsen/logrus"
 )
 
 // Client is an instance of a client connected to a server.
@@ -35,7 +38,7 @@ func (c *Client) Close() error {
 func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Stream, error) {
 	var sd stream.SDBlob
 
-	b, err := c.GetBlob(sdHash)
+	b, _, err := c.GetBlob(sdHash)
 	if err != nil {
 		return nil, err
 	}
@@ -49,10 +52,12 @@ func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Str
 	s[0] = b
 
 	for i := 0; i < len(sd.BlobInfos)-1; i++ {
-		s[i+1], err = c.GetBlob(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
+		var trace shared.BlobTrace
+		s[i+1], trace, err = c.GetBlob(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
 		if err != nil {
 			return nil, err
 		}
+		log.Debug(trace.String())
 	}
 
 	return s, nil
@@ -75,26 +80,35 @@ func (c *Client) HasBlob(hash string) (bool, error) {
 }
 
 // GetBlob gets a blob
-func (c *Client) GetBlob(hash string) (stream.Blob, error) {
-	resp, err := c.conn.Get(fmt.Sprintf("https://%s/get/%s", c.ServerAddr, hash))
+func (c *Client) GetBlob(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
+	resp, err := c.conn.Get(fmt.Sprintf("https://%s/get/%s?trace=true", c.ServerAddr, hash))
 	if err != nil {
-		return nil, errors.Err(err)
+		return nil, shared.NewBlobTrace(time.Since(start), "http3"), errors.Err(err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
 		fmt.Printf("%s blob not found %d\n", hash, resp.StatusCode)
-		return nil, errors.Err(store.ErrBlobNotFound)
+		return nil, shared.NewBlobTrace(time.Since(start), "http3"), errors.Err(store.ErrBlobNotFound)
 	} else if resp.StatusCode != http.StatusOK {
-		return nil, errors.Err("non 200 status code returned: %d", resp.StatusCode)
+		return nil, shared.NewBlobTrace(time.Since(start), "http3"), errors.Err("non 200 status code returned: %d", resp.StatusCode)
 	}
 
 	tmp := getBuffer()
 	defer putBuffer(tmp)
-
+	serialized := resp.Header.Get("Via")
+	trace := shared.NewBlobTrace(time.Since(start), "http3")
+	if serialized != "" {
+		parsedTrace, err := shared.Deserialize(serialized)
+		if err != nil {
+			return nil, shared.NewBlobTrace(time.Since(start), "http3"), err
+		}
+		trace = *parsedTrace
+	}
 	written, err := io.Copy(tmp, resp.Body)
 	if err != nil {
-		return nil, errors.Err(err)
+		return nil, trace.Stack(time.Since(start), "http3"), errors.Err(err)
 	}
 
 	blob := make([]byte, written)
@@ -102,7 +116,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, error) {
 
 	metrics.MtrInBytesUdp.Add(float64(len(blob)))
 
-	return blob, nil
+	return blob, trace.Stack(time.Since(start), "http3"), nil
 }
 
 // buffer pool to reduce GC

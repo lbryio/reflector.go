@@ -40,16 +40,18 @@ type Server struct {
 
 	EnableBlocklist bool // if true, blocklist checking and blob deletion will be enabled
 
-	store store.BlobStore
-	grp   *stop.Group
+	underlyingStore store.BlobStore
+	outerStore      store.BlobStore
+	grp             *stop.Group
 }
 
 // NewServer returns an initialized reflector server pointer.
-func NewServer(store store.BlobStore) *Server {
+func NewServer(underlying store.BlobStore, outer store.BlobStore) *Server {
 	return &Server{
-		Timeout: DefaultTimeout,
-		store:   store,
-		grp:     stop.New(),
+		Timeout:         DefaultTimeout,
+		underlyingStore: underlying,
+		outerStore:      outer,
+		grp:             stop.New(),
 	}
 }
 
@@ -67,9 +69,10 @@ func (s *Server) Start(address string) error {
 		return errors.Err(err)
 	}
 	log.Println("reflector listening on " + address)
-
 	s.grp.Add(1)
+	metrics.RoutinesQueue.WithLabelValues("reflector", "listener").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("reflector", "listener").Dec()
 		<-s.grp.Ch()
 		err := l.Close()
 		if err != nil {
@@ -79,15 +82,19 @@ func (s *Server) Start(address string) error {
 	}()
 
 	s.grp.Add(1)
+	metrics.RoutinesQueue.WithLabelValues("reflector", "start").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("reflector", "start").Dec()
 		s.listenAndServe(l)
 		s.grp.Done()
 	}()
 
 	if s.EnableBlocklist {
-		if b, ok := s.store.(store.Blocklister); ok {
+		if b, ok := s.underlyingStore.(store.Blocklister); ok {
 			s.grp.Add(1)
+			metrics.RoutinesQueue.WithLabelValues("reflector", "enableblocklist").Inc()
 			go func() {
+				defer metrics.RoutinesQueue.WithLabelValues("reflector", "enableblocklist").Dec()
 				s.enableBlocklist(b)
 				s.grp.Done()
 			}()
@@ -110,7 +117,9 @@ func (s *Server) listenAndServe(listener net.Listener) {
 			log.Error(err)
 		} else {
 			s.grp.Add(1)
+			metrics.RoutinesQueue.WithLabelValues("reflector", "server-listenandserve").Inc()
 			go func() {
+				defer metrics.RoutinesQueue.WithLabelValues("reflector", "server-listenandserve").Dec()
 				s.handleConn(conn)
 				s.grp.Done()
 			}()
@@ -125,7 +134,9 @@ func (s *Server) handleConn(conn net.Conn) {
 		close(connNeedsClosing)
 	}()
 	s.grp.Add(1)
+	metrics.RoutinesQueue.WithLabelValues("reflector", "server-handleconn").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("reflector", "server-handleconn").Dec()
 		defer s.grp.Done()
 		select {
 		case <-connNeedsClosing:
@@ -190,13 +201,13 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	}
 
 	var wantsBlob bool
-	if bl, ok := s.store.(store.Blocklister); ok {
+	if bl, ok := s.underlyingStore.(store.Blocklister); ok {
 		wantsBlob, err = bl.Wants(blobHash)
 		if err != nil {
 			return err
 		}
 	} else {
-		blobExists, err := s.store.Has(blobHash)
+		blobExists, err := s.underlyingStore.Has(blobHash)
 		if err != nil {
 			return err
 		}
@@ -206,7 +217,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	var neededBlobs []string
 
 	if isSdBlob && !wantsBlob {
-		if nbc, ok := s.store.(neededBlobChecker); ok {
+		if nbc, ok := s.underlyingStore.(neededBlobChecker); ok {
 			neededBlobs, err = nbc.MissingBlobsForKnownStream(blobHash)
 			if err != nil {
 				return err
@@ -249,9 +260,9 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	log.Debugln("Got blob " + blobHash[:8])
 
 	if isSdBlob {
-		err = s.store.PutSD(blobHash, blob)
+		err = s.outerStore.PutSD(blobHash, blob)
 	} else {
-		err = s.store.Put(blobHash, blob)
+		err = s.outerStore.Put(blobHash, blob)
 	}
 	if err != nil {
 		return err

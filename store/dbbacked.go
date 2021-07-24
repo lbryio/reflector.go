@@ -3,8 +3,10 @@ package store
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/lbryio/reflector.go/db"
+	"github.com/lbryio/reflector.go/shared"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
@@ -14,15 +16,16 @@ import (
 
 // DBBackedStore is a store that's backed by a DB. The DB contains data about what's in the store.
 type DBBackedStore struct {
-	blobs     BlobStore
-	db        *db.SQL
-	blockedMu sync.RWMutex
-	blocked   map[string]bool
+	blobs        BlobStore
+	db           *db.SQL
+	blockedMu    sync.RWMutex
+	blocked      map[string]bool
+	deleteOnMiss bool
 }
 
 // NewDBBackedStore returns an initialized store pointer.
-func NewDBBackedStore(blobs BlobStore, db *db.SQL) *DBBackedStore {
-	return &DBBackedStore{blobs: blobs, db: db}
+func NewDBBackedStore(blobs BlobStore, db *db.SQL, deleteOnMiss bool) *DBBackedStore {
+	return &DBBackedStore{blobs: blobs, db: db, deleteOnMiss: deleteOnMiss}
 }
 
 const nameDBBacked = "db-backed"
@@ -32,20 +35,29 @@ func (d *DBBackedStore) Name() string { return nameDBBacked }
 
 // Has returns true if the blob is in the store
 func (d *DBBackedStore) Has(hash string) (bool, error) {
-	return d.db.HasBlob(hash)
+	return d.db.HasBlob(hash, false)
 }
 
 // Get gets the blob
-func (d *DBBackedStore) Get(hash string) (stream.Blob, error) {
-	has, err := d.db.HasBlob(hash)
+func (d *DBBackedStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
+	has, err := d.db.HasBlob(hash, true)
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), err
 	}
 	if !has {
-		return nil, ErrBlobNotFound
+		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), ErrBlobNotFound
 	}
 
-	return d.blobs.Get(hash)
+	b, stack, err := d.blobs.Get(hash)
+	if d.deleteOnMiss && errors.Is(err, ErrBlobNotFound) {
+		e2 := d.Delete(hash)
+		if e2 != nil {
+			log.Errorf("error while deleting blob from db: %s", errors.FullTrace(err))
+		}
+	}
+
+	return b, stack.Stack(time.Since(start), d.Name()), err
 }
 
 // Put stores the blob in the S3 store and stores the blob information in the DB.
@@ -100,7 +112,7 @@ func (d *DBBackedStore) Block(hash string) error {
 		return err
 	}
 
-	has, err := d.db.HasBlob(hash)
+	has, err := d.db.HasBlob(hash, false)
 	if err != nil {
 		return err
 	}
@@ -181,4 +193,9 @@ func (d *DBBackedStore) initBlocked() error {
 	d.blocked, err = d.db.GetBlocked()
 
 	return err
+}
+
+// Shutdown shuts down the store gracefully
+func (d *DBBackedStore) Shutdown() {
+	d.blobs.Shutdown()
 }

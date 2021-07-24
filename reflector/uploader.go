@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/db"
+	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -74,7 +75,7 @@ func (u *Uploader) Upload(dirOrFilePath string) error {
 
 	var exists map[string]bool
 	if !u.skipExistsCheck {
-		exists, err = u.db.HasBlobs(hashes)
+		exists, err = u.db.HasBlobs(hashes, false)
 		if err != nil {
 			return err
 		}
@@ -88,7 +89,9 @@ func (u *Uploader) Upload(dirOrFilePath string) error {
 
 	for i := 0; i < u.workers; i++ {
 		workerWG.Add(1)
+		metrics.RoutinesQueue.WithLabelValues("reflector", "upload").Inc()
 		go func(i int) {
+			defer metrics.RoutinesQueue.WithLabelValues("reflector", "upload").Dec()
 			defer workerWG.Done()
 			defer func(i int) { log.Debugf("worker %d quitting", i) }(i)
 			u.worker(pathChan)
@@ -97,7 +100,9 @@ func (u *Uploader) Upload(dirOrFilePath string) error {
 
 	countWG := sync.WaitGroup{}
 	countWG.Add(1)
+	metrics.RoutinesQueue.WithLabelValues("reflector", "uploader").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("reflector", "uploader").Dec()
 		defer countWG.Done()
 		u.counter()
 	}()

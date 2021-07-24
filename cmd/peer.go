@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"github.com/lbryio/reflector.go/db"
-	"github.com/lbryio/reflector.go/peer"
+	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
@@ -33,11 +33,13 @@ func peerCmd(cmd *cobra.Command, args []string) {
 	peerServer := peer.NewServer(s3)
 
 	if !peerNoDB {
-		db := new(db.SQL)
+		db := &db.SQL{
+			LogQueries: log.GetLevel() == log.DebugLevel,
+		}
 		err = db.Connect(globalConfig.DBConn)
 		checkErr(err)
 
-		combo := store.NewDBBackedStore(s3, db)
+		combo := store.NewDBBackedStore(s3, db, false)
 		peerServer = peer.NewServer(combo)
 	}
 

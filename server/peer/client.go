@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -16,9 +17,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
-
-// ErrBlobExists is a default error for when a blob already exists on the reflector server.
-var ErrBlobExists = errors.Base("blob exists on server")
 
 // Client is an instance of a client connected to a server.
 type Client struct {
@@ -57,10 +55,11 @@ func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Str
 
 	var sd stream.SDBlob
 
-	b, err := c.GetBlob(sdHash)
+	b, trace, err := c.GetBlob(sdHash)
 	if err != nil {
 		return nil, err
 	}
+	log.Debug(trace.String())
 
 	err = sd.FromBlob(b)
 	if err != nil {
@@ -71,10 +70,11 @@ func (c *Client) GetStream(sdHash string, blobCache store.BlobStore) (stream.Str
 	s[0] = b
 
 	for i := 0; i < len(sd.BlobInfos)-1; i++ {
-		s[i+1], err = c.GetBlob(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
+		s[i+1], trace, err = c.GetBlob(hex.EncodeToString(sd.BlobInfos[i].BlobHash))
 		if err != nil {
 			return nil, err
 		}
+		log.Debug(trace.String())
 	}
 
 	return s, nil
@@ -114,47 +114,52 @@ func (c *Client) HasBlob(hash string) (bool, error) {
 }
 
 // GetBlob gets a blob
-func (c *Client) GetBlob(hash string) (stream.Blob, error) {
+func (c *Client) GetBlob(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	if !c.connected {
-		return nil, errors.Err("not connected")
+		return nil, shared.NewBlobTrace(time.Since(start), "tcp"), errors.Err("not connected")
 	}
 
 	sendRequest, err := json.Marshal(blobRequest{
 		RequestedBlob: hash,
 	})
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), "tcp"), err
 	}
 
 	err = c.write(sendRequest)
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), "tcp"), err
 	}
 
 	var resp blobResponse
 	err = c.read(&resp)
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), "tcp"), err
 	}
 
+	trace := shared.NewBlobTrace(time.Since(start), "tcp")
+	if resp.RequestTrace != nil {
+		trace = *resp.RequestTrace
+	}
 	if resp.IncomingBlob.Error != "" {
-		return nil, errors.Prefix(hash[:8], resp.IncomingBlob.Error)
+		return nil, trace, errors.Prefix(hash[:8], resp.IncomingBlob.Error)
 	}
 	if resp.IncomingBlob.BlobHash != hash {
-		return nil, errors.Prefix(hash[:8], "blob hash in response does not match requested hash")
+		return nil, trace.Stack(time.Since(start), "tcp"), errors.Prefix(hash[:8], "blob hash in response does not match requested hash")
 	}
 	if resp.IncomingBlob.Length <= 0 {
-		return nil, errors.Prefix(hash[:8], "length reported as <= 0")
+		return nil, trace, errors.Prefix(hash[:8], "length reported as <= 0")
 	}
 
 	log.Debugf("receiving blob %s from %s", hash[:8], c.conn.RemoteAddr())
 
 	blob, err := c.readRawBlob(resp.IncomingBlob.Length)
 	if err != nil {
-		return nil, err
+		return nil, (*resp.RequestTrace).Stack(time.Since(start), "tcp"), err
 	}
 	metrics.MtrInBytesTcp.Add(float64(len(blob)))
-	return blob, nil
+	return blob, trace.Stack(time.Since(start), "tcp"), nil
 }
 
 func (c *Client) read(v interface{}) error {

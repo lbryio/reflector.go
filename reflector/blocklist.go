@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lbryio/reflector.go/internal/metrics"
 	"github.com/lbryio/reflector.go/store"
 	"github.com/lbryio/reflector.go/wallet"
 
@@ -109,8 +110,9 @@ func sdHashesForOutpoints(walletServers, outpoints []string, stopper stop.Chan) 
 	}
 
 	done := make(chan bool)
-
+	metrics.RoutinesQueue.WithLabelValues("reflector", "sdhashesforoutput").Inc()
 	go func() {
+		defer metrics.RoutinesQueue.WithLabelValues("reflector", "sdhashesforoutput").Dec()
 		select {
 		case <-done:
 		case <-stopper:

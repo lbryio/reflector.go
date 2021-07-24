@@ -6,10 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/lbryio/reflector.go/updater"
+
 	"github.com/lbryio/lbry.go/v2/dht"
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/util"
-	"github.com/lbryio/reflector.go/updater"
 
 	"github.com/johntdyer/slackrus"
 	"github.com/sirupsen/logrus"
@@ -164,8 +165,8 @@ func mustGetFlagInt64(cmd *cobra.Command, name string) int64 {
 	return v
 }
 
-func mustGetFlagBool(cmd *cobra.Command, name string) bool {
-	v, err := cmd.Flags().GetBool(name)
-	checkErr(err)
-	return v
-}
+//func mustGetFlagBool(cmd *cobra.Command, name string) bool {
+//	v, err := cmd.Flags().GetBool(name)
+//	checkErr(err)
+//	return v
+//}

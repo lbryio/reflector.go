@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/shared"
+
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
-	"github.com/lbryio/reflector.go/internal/metrics"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -65,17 +67,18 @@ func (s *S3Store) Has(hash string) (bool, error) {
 }
 
 // Get returns the blob slice if present or errors on S3.
-func (s *S3Store) Get(hash string) (stream.Blob, error) {
+func (s *S3Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+	start := time.Now()
 	//Todo-Need to handle error for blob doesn't exist for consistency.
 	err := s.initOnce()
 	if err != nil {
-		return nil, err
+		return nil, shared.NewBlobTrace(time.Since(start), s.Name()), err
 	}
 
 	log.Debugf("Getting %s from S3", hash[:8])
 	defer func(t time.Time) {
 		log.Debugf("Getting %s from S3 took %s", hash[:8], time.Since(t).String())
-	}(time.Now())
+	}(start)
 
 	buf := &aws.WriteAtBuffer{}
 	_, err = s3manager.NewDownloader(s.session).Download(buf, &s3.GetObjectInput{
@@ -86,15 +89,15 @@ func (s *S3Store) Get(hash string) (stream.Blob, error) {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case s3.ErrCodeNoSuchBucket:
-				return nil, errors.Err("bucket %s does not exist", s.bucket)
+				return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err("bucket %s does not exist", s.bucket)
 			case s3.ErrCodeNoSuchKey:
-				return nil, errors.Err(ErrBlobNotFound)
+				return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err(ErrBlobNotFound)
 			}
 		}
-		return buf.Bytes(), err
+		return buf.Bytes(), shared.NewBlobTrace(time.Since(start), s.Name()), err
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes(), shared.NewBlobTrace(time.Since(start), s.Name()), nil
 }
 
 // Put stores the blob on S3 or errors if S3 connection errors.
@@ -110,10 +113,11 @@ func (s *S3Store) Put(hash string, blob stream.Blob) error {
 	}(time.Now())
 
 	_, err = s3manager.NewUploader(s.session).Upload(&s3manager.UploadInput{
-		Bucket:       aws.String(s.bucket),
-		Key:          aws.String(hash),
-		Body:         bytes.NewBuffer(blob),
-		StorageClass: aws.String(s3.StorageClassIntelligentTiering),
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(hash),
+		Body:   bytes.NewBuffer(blob),
+		ACL:    aws.String("public-read"),
+		//StorageClass: aws.String(s3.StorageClassIntelligentTiering),
 	})
 	metrics.MtrOutBytesReflector.Add(float64(blob.Size()))
 
@@ -150,6 +154,7 @@ func (s *S3Store) initOnce() error {
 	sess, err := session.NewSession(&aws.Config{
 		Credentials: credentials.NewStaticCredentials(s.awsID, s.awsSecret, ""),
 		Region:      aws.String(s.region),
+		Endpoint:    aws.String("https://s3.wasabisys.com"),
 	})
 	if err != nil {
 		return err
@@ -157,4 +162,9 @@ func (s *S3Store) initOnce() error {
 
 	s.session = sess
 	return nil
+}
+
+// Shutdown shuts down the store gracefully
+func (s *S3Store) Shutdown() {
+	return
 }
