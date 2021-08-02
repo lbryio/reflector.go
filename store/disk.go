@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"time"
@@ -65,6 +66,14 @@ func (d *DiskStore) Has(hash string) (bool, error) {
 		return false, errors.Err(err)
 	}
 	return true, nil
+}
+
+func (d *DiskStore) Size(hash string) (int64, error) {
+	stat, err := os.Stat(d.path(hash))
+	if err != nil {
+		return 0, err
+	}
+	return stat.Size(), nil
 }
 
 // Get returns the blob or an error if the blob doesn't exist.
@@ -210,4 +219,16 @@ func (d *DiskStore) initOnce() error {
 
 // Shutdown shuts down the store gracefully
 func (d *DiskStore) Shutdown() {
+}
+
+func (d *DiskStore) Sendfile(hash string, conn net.Conn) error {
+	f, err := os.Open(d.path(hash))
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(conn, f)
+	if err != nil {
+		return err
+	}
+	return nil
 }
