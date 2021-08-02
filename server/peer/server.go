@@ -274,7 +274,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 			return nil, err
 		} else {
 			response.IncomingBlob = incomingBlob{
-				BlobHash: reflector.BlobHash(blob),
+				BlobHash: request.RequestedBlob,
 				Length:   len(blob),
 			}
 			metrics.MtrOutBytesTcp.Add(float64(len(blob)))
