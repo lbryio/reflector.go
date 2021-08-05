@@ -12,6 +12,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 func (s *Server) getBlob(c *gin.Context) {
@@ -22,6 +23,11 @@ func (s *Server) getBlob(c *gin.Context) {
 }
 
 func (s *Server) HandleGetBlob(c *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered from panic: %v", r)
+		}
+	}()
 	start := time.Now()
 	hash := c.Query("hash")
 

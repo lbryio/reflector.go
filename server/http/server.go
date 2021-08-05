@@ -43,11 +43,15 @@ func (s *Server) Shutdown() {
 // Start starts the server listener to handle connections.
 func (s *Server) Start(address string) error {
 	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
-	router.GET("/blob", s.getBlob)
-	router.HEAD("/blob", s.hasBlob)
+	router := gin.New()
+	router.Use(gin.Logger())
 	// Install nice.Recovery, passing the handler to call after recovery
 	router.Use(nice.Recovery(s.recoveryHandler))
+	router.GET("/blob", s.getBlob)
+	router.GET("/", func(c *gin.Context) {
+		panic("woops")
+	})
+	router.HEAD("/blob", s.hasBlob)
 	srv := &http.Server{
 		Addr:    address,
 		Handler: router,
