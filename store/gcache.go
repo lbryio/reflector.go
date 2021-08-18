@@ -144,11 +144,15 @@ func (l *GcacheStore) loadExisting(store lister, maxItems int) error {
 	logrus.Infof("read %d files from underlying store", len(existing))
 
 	added := 0
-	for _, h := range existing {
+	for i, h := range existing {
 		_ = l.cache.Set(h, true)
 		added++
 		if maxItems > 0 && added >= maxItems { // underlying cache is bigger than the cache
-			break
+			err := l.Delete(h)
+			logrus.Infof("deleted overflowing blob: %s (%d/%d)", h, i, len(existing))
+			if err != nil {
+				logrus.Warnf("error while deleting a blob that's overflowing the cache: %s", err.Error())
+			}
 		}
 	}
 	return nil
