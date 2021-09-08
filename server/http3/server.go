@@ -208,7 +208,7 @@ func (s *Server) HandleGetBlob(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.logError(err)
 	}
-	metrics.MtrOutBytesUdp.Add(float64(len(blob)))
+	metrics.MtrOutBytesUDP.Add(float64(len(blob)))
 	metrics.BlobDownloadCount.Inc()
-	metrics.Http3DownloadCount.Inc()
+	metrics.HTTP3DownloadCount.Inc()
 }

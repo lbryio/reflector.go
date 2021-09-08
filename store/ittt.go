@@ -37,6 +37,7 @@ func (c *ITTTStore) Has(hash string) (bool, error) {
 	return has, err
 }
 
+// TODO: refactor error check, why return error? should we check if `err == nil` ?
 // Get tries to get the blob from this first, falling back to that.
 func (c *ITTTStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()

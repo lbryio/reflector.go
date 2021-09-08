@@ -277,7 +277,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 				BlobHash: reflector.BlobHash(blob),
 				Length:   len(blob),
 			}
-			metrics.MtrOutBytesTcp.Add(float64(len(blob)))
+			metrics.MtrOutBytesTCP.Add(float64(len(blob)))
 			metrics.BlobDownloadCount.Inc()
 			metrics.PeerDownloadCount.Inc()
 		}
@@ -366,14 +366,6 @@ type availabilityRequest struct {
 type availabilityResponse struct {
 	LbrycrdAddress string   `json:"lbrycrd_address"`
 	AvailableBlobs []string `json:"available_blobs"`
-}
-
-type paymentRateRequest struct {
-	BlobDataPaymentRate float64 `json:"blob_data_payment_rate"`
-}
-
-type paymentRateResponse struct {
-	BlobDataPaymentRate string `json:"blob_data_payment_rate"`
 }
 
 type blobRequest struct {

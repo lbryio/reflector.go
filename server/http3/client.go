@@ -114,7 +114,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, shared.BlobTrace, error) {
 	blob := make([]byte, written)
 	copy(blob, tmp.Bytes())
 
-	metrics.MtrInBytesUdp.Add(float64(len(blob)))
+	metrics.MtrInBytesUDP.Add(float64(len(blob)))
 
 	return blob, trace.Stack(time.Since(start), "http3"), nil
 }

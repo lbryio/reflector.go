@@ -27,7 +27,7 @@ func InitWorkers(server *Server, workers int) {
 				select {
 				case <-stopper.Ch():
 				case r := <-getReqCh:
-					metrics.Http3BlobReqQueue.Dec()
+					metrics.HTTP3BlobReqQueue.Dec()
 					process(server, r)
 				}
 			}
@@ -36,7 +36,7 @@ func InitWorkers(server *Server, workers int) {
 }
 
 func enqueue(b *blobRequest) {
-	metrics.Http3BlobReqQueue.Inc()
+	metrics.HTTP3BlobReqQueue.Inc()
 	getReqCh <- b
 }
 

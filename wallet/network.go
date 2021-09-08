@@ -36,7 +36,7 @@ type response struct {
 
 type Node struct {
 	transport *TCPTransport
-	nextId    atomic.Uint32
+	nextID    atomic.Uint32
 	grp       *stop.Group
 
 	handlersMu *sync.RWMutex
@@ -155,7 +155,7 @@ func (n *Node) listen() {
 			return
 		case bytes := <-n.transport.Responses():
 			msg := &struct {
-				Id     uint32 `json:"id"`
+				ID     uint32 `json:"id"`
 				Method string `json:"method"`
 				Error  struct {
 					Code    int    `json:"code"`
@@ -163,7 +163,7 @@ func (n *Node) listen() {
 				} `json:"error"`
 			}{}
 			msg2 := &struct {
-				Id     uint32 `json:"id"`
+				ID     uint32 `json:"id"`
 				Method string `json:"method"`
 				Error  struct {
 					Code    int `json:"code"`
@@ -181,7 +181,7 @@ func (n *Node) listen() {
 				// maybe that happens because the wallet server passes a lbrycrd error through to us?
 				if err2 := json.Unmarshal(bytes, msg2); err2 == nil {
 					err = nil
-					msg.Id = msg2.Id
+					msg.ID = msg2.ID
 					msg.Method = msg2.Method
 					msg.Error = msg2.Error.Message
 				}
@@ -210,7 +210,7 @@ func (n *Node) listen() {
 			}
 
 			n.handlersMu.RLock()
-			c, ok := n.handlers[msg.Id]
+			c, ok := n.handlers[msg.ID]
 			n.handlersMu.RUnlock()
 			if ok {
 				c <- r
@@ -231,15 +231,15 @@ func (n *Node) listen() {
 // request makes a request to the server and unmarshals the response into v.
 func (n *Node) request(method string, params []string, v interface{}) error {
 	msg := struct {
-		Id     uint32   `json:"id"`
+		ID     uint32   `json:"id"`
 		Method string   `json:"method"`
 		Params []string `json:"params"`
 	}{
-		Id:     n.nextId.Load(),
+		ID:     n.nextID.Load(),
 		Method: method,
 		Params: params,
 	}
-	n.nextId.Inc()
+	n.nextID.Inc()
 
 	bytes, err := json.Marshal(msg)
 	if err != nil {
@@ -250,7 +250,7 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 	c := make(chan response, 1)
 
 	n.handlersMu.Lock()
-	n.handlers[msg.Id] = c
+	n.handlers[msg.ID] = c
 	n.handlersMu.Unlock()
 
 	err = n.transport.Send(bytes)
@@ -268,7 +268,7 @@ func (n *Node) request(method string, params []string, v interface{}) error {
 	}
 
 	n.handlersMu.Lock()
-	delete(n.handlers, msg.Id)
+	delete(n.handlers, msg.ID)
 	n.handlersMu.Unlock()
 
 	if r.err != nil {

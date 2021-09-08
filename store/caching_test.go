@@ -174,5 +174,4 @@ func (s *SlowBlobStore) Delete(hash string) error {
 }
 
 func (s *SlowBlobStore) Shutdown() {
-	return
 }

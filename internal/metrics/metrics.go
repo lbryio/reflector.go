@@ -113,12 +113,12 @@ var (
 		Name:      "peer_download_total",
 		Help:      "Total number of blobs downloaded from reflector through tcp protocol",
 	})
-	Http3DownloadCount = promauto.NewCounter(prometheus.CounterOpts{
+	HTTP3DownloadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "http3_blob_download_total",
 		Help:      "Total number of blobs downloaded from reflector through QUIC protocol",
 	})
-	HttpDownloadCount = promauto.NewCounter(prometheus.CounterOpts{
+	HTTPDownloadCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "http_blob_download_total",
 		Help:      "Total number of blobs downloaded from reflector through HTTP protocol",
@@ -154,7 +154,7 @@ var (
 		Name:      "origin_requests_total",
 		Help:      "How many Get requests are in flight from the cache to the origin",
 	}, []string{LabelCacheType, LabelComponent})
-	//during thundering-herd situations, the metric below should be a lot smaller than the metric above
+	//nolint //during thundering-herd situations, the metric below should be a lot smaller than the metric above
 	CacheWaitingRequestsCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: ns,
 		Subsystem: subsystemCache,
@@ -184,32 +184,32 @@ var (
 		Help:      "Total number of SD blobs (and therefore streams) uploaded to reflector",
 	})
 
-	MtrInBytesTcp = promauto.NewCounter(prometheus.CounterOpts{
+	MtrInBytesTCP = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "tcp_in_bytes",
 		Help:      "Total number of bytes downloaded through TCP",
 	})
-	MtrOutBytesTcp = promauto.NewCounter(prometheus.CounterOpts{
+	MtrOutBytesTCP = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "tcp_out_bytes",
 		Help:      "Total number of bytes streamed out through TCP",
 	})
-	MtrInBytesUdp = promauto.NewCounter(prometheus.CounterOpts{
+	MtrInBytesUDP = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "udp_in_bytes",
 		Help:      "Total number of bytes downloaded through UDP",
 	})
-	MtrInBytesHttp = promauto.NewCounter(prometheus.CounterOpts{
+	MtrInBytesHTTP = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "http_in_bytes",
 		Help:      "Total number of bytes downloaded through HTTP",
 	})
-	MtrOutBytesUdp = promauto.NewCounter(prometheus.CounterOpts{
+	MtrOutBytesUDP = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "udp_out_bytes",
 		Help:      "Total number of bytes streamed out through UDP",
 	})
-	MtrOutBytesHttp = promauto.NewCounter(prometheus.CounterOpts{
+	MtrOutBytesHTTP = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "http_out_bytes",
 		Help:      "Total number of bytes streamed out through UDP",
@@ -229,12 +229,12 @@ var (
 		Name:      "s3_in_bytes",
 		Help:      "Total number of incoming bytes (from S3-CF)",
 	})
-	Http3BlobReqQueue = promauto.NewGauge(prometheus.GaugeOpts{
+	HTTP3BlobReqQueue = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: ns,
 		Name:      "http3_blob_request_queue_size",
 		Help:      "Blob requests of https queue size",
 	})
-	HttpBlobReqQueue = promauto.NewGauge(prometheus.GaugeOpts{
+	HTTPBlobReqQueue = promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: ns,
 		Name:      "http_blob_request_queue_size",
 		Help:      "Blob requests queue size of the HTTP protocol",

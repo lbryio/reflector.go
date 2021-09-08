@@ -124,5 +124,4 @@ func (s *singleflightStore) putter(hash string, blob stream.Blob) func() (interf
 // Shutdown shuts down the store gracefully
 func (s *singleflightStore) Shutdown() {
 	s.BlobStore.Shutdown()
-	return
 }

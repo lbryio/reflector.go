@@ -167,7 +167,7 @@ func initUpstreamStore() store.BlobStore {
 			Timeout: 30 * time.Second,
 		})
 	case "http":
-		s = store.NewHttpStore(upstreamReflector)
+		s = store.NewHTTPStore(upstreamReflector)
 	default:
 		log.Fatalf("protocol is not recognized: %s", upstreamProtocol)
 	}

@@ -21,4 +21,4 @@ func (n *NoopStore) Get(_ string) (stream.Blob, shared.BlobTrace, error) {
 func (n *NoopStore) Put(_ string, _ stream.Blob) error   { return nil }
 func (n *NoopStore) PutSD(_ string, _ stream.Blob) error { return nil }
 func (n *NoopStore) Delete(_ string) error               { return nil }
-func (n *NoopStore) Shutdown()                           { return }
+func (n *NoopStore) Shutdown()                           {}

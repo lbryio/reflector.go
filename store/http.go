@@ -16,23 +16,23 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 )
 
-// HttpStore is a store that works on top of the HTTP protocol
-type HttpStore struct {
+// HTTPStore is a store that works on top of the HTTP protocol
+type HTTPStore struct {
 	upstream   string
 	httpClient *http.Client
 }
 
-func NewHttpStore(upstream string) *HttpStore {
-	return &HttpStore{
+func NewHTTPStore(upstream string) *HTTPStore {
+	return &HTTPStore{
 		upstream:   "http://" + upstream,
 		httpClient: getClient(),
 	}
 }
 
-const nameHttp = "http"
+const nameHTTP = "http"
 
-func (n *HttpStore) Name() string { return nameHttp }
-func (n *HttpStore) Has(hash string) (bool, error) {
+func (n *HTTPStore) Name() string { return nameHTTP }
+func (n *HTTPStore) Has(hash string) (bool, error) {
 	url := n.upstream + "/blob?hash=" + hash
 
 	req, err := http.NewRequest("HEAD", url, nil)
@@ -58,7 +58,7 @@ func (n *HttpStore) Has(hash string) (bool, error) {
 	return false, errors.Err("upstream error. Status code: %d (%s)", res.StatusCode, string(body))
 }
 
-func (n *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+func (n *HTTPStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
 	url := n.upstream + "/blob?hash=" + hash
 
@@ -95,7 +95,7 @@ func (n *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 
 		blob := make([]byte, written)
 		copy(blob, tmp.Bytes())
-		metrics.MtrInBytesHttp.Add(float64(len(blob)))
+		metrics.MtrInBytesHTTP.Add(float64(len(blob)))
 		return blob, trace.Stack(time.Since(start), n.Name()), nil
 	}
 	var body []byte
@@ -106,16 +106,16 @@ func (n *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	return nil, trace.Stack(time.Since(start), n.Name()), errors.Err("upstream error. Status code: %d (%s)", res.StatusCode, string(body))
 }
 
-func (n *HttpStore) Put(string, stream.Blob) error {
+func (n *HTTPStore) Put(string, stream.Blob) error {
 	return shared.ErrNotImplemented
 }
-func (n *HttpStore) PutSD(string, stream.Blob) error {
+func (n *HTTPStore) PutSD(string, stream.Blob) error {
 	return shared.ErrNotImplemented
 }
-func (n *HttpStore) Delete(string) error {
+func (n *HTTPStore) Delete(string) error {
 	return shared.ErrNotImplemented
 }
-func (n *HttpStore) Shutdown() {}
+func (n *HTTPStore) Shutdown() {}
 
 // buffer pool to reduce GC
 // https://www.captaincodeman.com/2017/06/02/golang-buffer-pool-gotcha

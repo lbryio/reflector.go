@@ -166,5 +166,4 @@ func (s *S3Store) initOnce() error {
 
 // Shutdown shuts down the store gracefully
 func (s *S3Store) Shutdown() {
-	return
 }

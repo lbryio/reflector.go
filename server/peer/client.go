@@ -158,7 +158,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, shared.BlobTrace, error) {
 	if err != nil {
 		return nil, (*resp.RequestTrace).Stack(time.Since(start), "tcp"), err
 	}
-	metrics.MtrInBytesTcp.Add(float64(len(blob)))
+	metrics.MtrInBytesTCP.Add(float64(len(blob)))
 	return blob, trace.Stack(time.Since(start), "tcp"), nil
 }
 

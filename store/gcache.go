@@ -59,7 +59,7 @@ func NewGcacheStore(component string, store BlobStore, maxSize int, strategy Evi
 	}
 	go func() {
 		if lstr, ok := store.(lister); ok {
-			err := l.loadExisting(lstr, int(maxSize))
+			err := l.loadExisting(lstr, maxSize)
 			if err != nil {
 				panic(err) // TODO: what should happen here? panic? return nil? just keep going?
 			}

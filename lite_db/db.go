@@ -1,4 +1,4 @@
-package lite_db
+package lite_db //nolint
 
 import (
 	"database/sql"
@@ -111,7 +111,10 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 // HasBlobs checks if the database contains the set of blobs and returns a bool map.
 func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 	exists, streamsNeedingTouch, err := s.hasBlobs(hashes)
-	s.touch(streamsNeedingTouch)
+	if err != nil {
+		return nil, err
+	}
+	err = s.touch(streamsNeedingTouch)
 	return exists, err
 }
 

@@ -659,43 +659,6 @@ func (s *SQL) GetStoredHashesInRange(ctx context.Context, start, end bits.Bitmap
 	return
 }
 
-// txFunc is a function that can be wrapped in a transaction
-type txFunc func(tx *sql.Tx) error
-
-// withTx wraps a function in an sql transaction. the transaction is committed if there's no error, or rolled back if there is one.
-// if dbOrTx is an sql.DB, a new transaction is started
-func withTx(dbOrTx interface{}, f txFunc) (err error) {
-	var tx *sql.Tx
-
-	switch t := dbOrTx.(type) {
-	case *sql.Tx:
-		tx = t
-	case *sql.DB:
-		tx, err = t.Begin()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if p := recover(); p != nil {
-				if rollBackError := tx.Rollback(); rollBackError != nil {
-					log.Error("failed to rollback tx on panic - ", rollBackError)
-				}
-				panic(p)
-			} else if err != nil {
-				if rollBackError := tx.Rollback(); rollBackError != nil {
-					log.Error("failed to rollback tx on panic - ", rollBackError)
-				}
-			} else {
-				err = errors.Err(tx.Commit())
-			}
-		}()
-	default:
-		return errors.Err("db or tx required")
-	}
-
-	return f(tx)
-}
-
 func closeRows(rows *sql.Rows) {
 	if rows != nil {
 		err := rows.Close()

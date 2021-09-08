@@ -67,9 +67,9 @@ func (s *Server) HandleGetBlob(c *gin.Context) {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
-	metrics.MtrOutBytesHttp.Add(float64(len(blob)))
+	metrics.MtrOutBytesHTTP.Add(float64(len(blob)))
 	metrics.BlobDownloadCount.Inc()
-	metrics.HttpDownloadCount.Inc()
+	metrics.HTTPDownloadCount.Inc()
 	c.Header("Via", serialized)
 	c.Header("Content-Disposition", "filename="+hash)
 	c.Data(http.StatusOK, "application/octet-stream", blob)
