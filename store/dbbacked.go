@@ -112,22 +112,22 @@ func (d *DBBackedStore) Block(hash string) error {
 		return err
 	}
 
-	has, err := d.db.HasBlob(hash, false)
-	if err != nil {
-		return err
-	}
-
-	if has {
-		err = d.blobs.Delete(hash)
-		if err != nil {
-			return err
-		}
-
-		err = d.db.Delete(hash)
-		if err != nil {
-			return err
-		}
-	}
+	//has, err := d.db.HasBlob(hash, false)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if has {
+	//	err = d.blobs.Delete(hash)
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	err = d.db.Delete(hash)
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
 
 	return d.markBlocked(hash)
 }
