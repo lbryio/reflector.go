@@ -118,7 +118,7 @@ This project is MIT licensed.
 ## Security
 
 We take security seriously. Please contact security@lbry.com regarding any security issues.
-Our PGP key is [here](https://keybase.io/lbry/key.asc) if you need it.
+Our PGP key is [here](https://lbry.com/faq/pgp-key) if you need it.
 
 ## Contact
 The primary contact for this project is [@Nikooo777](https://github.com/Nikooo777) (niko-at-lbry.com)
