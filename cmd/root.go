@@ -25,6 +25,7 @@ type Config struct {
 	BucketName   string `json:"bucket_name"`
 	DBConn       string `json:"db_conn"`
 	SlackHookURL string `json:"slack_hook_url"`
+	SlackChannel string `json:"slack_channel"`
 	UpdateBinURL string `json:"update_bin_url"`
 	UpdateCmd    string `json:"update_cmd"`
 }
@@ -102,7 +103,7 @@ func preRun(cmd *cobra.Command, args []string) {
 		hook := &slackrus.SlackrusHook{
 			HookURL:        globalConfig.SlackHookURL,
 			AcceptedLevels: slackrus.LevelThreshold(logrus.InfoLevel),
-			Channel:        "#reflector-logs",
+			Channel:        globalConfig.SlackChannel,
 			//IconEmoji:      ":ghost:",
 			//Username:       "reflector.go",
 		}
