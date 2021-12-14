@@ -28,7 +28,7 @@ require (
 	github.com/lbryio/chainquery v1.9.0
 	github.com/lbryio/lbry.go/v2 v2.7.2-0.20210416195322-6516df1418e3
 	github.com/lbryio/types v0.0.0-20201019032447-f0b4476ef386
-	github.com/lucas-clemente/quic-go v0.20.1
+	github.com/lucas-clemente/quic-go v0.24.0
 	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
 	github.com/prometheus/client_golang v1.10.0
 	github.com/sergi/go-diff v1.2.0 // indirect
@@ -40,11 +40,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/volatiletech/null v8.0.0+incompatible
 	go.uber.org/atomic v1.7.0
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
-	golang.org/x/text v0.3.6 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 )
 
