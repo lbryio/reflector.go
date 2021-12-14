@@ -1,12 +1,12 @@
 os: linux
-dist: trusty
+dist: bionic
 language: go
 
-env:
-  - GO111MODULE=on
+#env:
+#  - GO111MODULE=on
 
 go:
-  - 1.15.x
+  - 1.17.x
 
 cache:
   directories:
@@ -17,7 +17,7 @@ notifications:
   email: false
 
 # Skip the install step. Don't `go get` dependencies. Only build with the code in vendor/
-install: true
+#install: true
 
 # Anything in before_script that returns a nonzero exit code will
 # flunk the build and immediately stop. It's sorta like having
@@ -25,14 +25,14 @@ install: true
 before_script:
 # All the .go files, excluding vendor/ and model (auto generated)
   - GO_FILES=$(find . -iname '*.go' ! -iname '*_test.go' -type f | grep -v /vendor/ ) #i wish we were this crazy :p
-  - go get golang.org/x/tools/cmd/goimports                     # Used in build script for generated files
+  - go install golang.org/x/tools/cmd/goimports                     # Used in build script for generated files
 # - go get github.com/golang/lint/golint                        # Linter
 #  - go get honnef.co/go/tools/cmd/megacheck                     # Badass static analyzer/linter
-  - go get github.com/jgautheron/gocyclo                        # Check against high complexity
-  - go get github.com/mdempsky/unconvert                        # Identifies unnecessary type conversions
-  - go get github.com/kisielk/errcheck                          # Checks for unhandled errors
-  - go get github.com/opennota/check/cmd/varcheck               # Checks for unused vars
-  - go get github.com/opennota/check/cmd/structcheck            # Checks for unused fields in structs
+  - go install github.com/fzipp/gocyclo/cmd/gocyclo@latest                 # Check against high complexity
+  - go install github.com/mdempsky/unconvert@latest                        # Identifies unnecessary type conversions
+  - go install github.com/kisielk/errcheck@latest                          # Checks for unhandled errors
+  - go install github.com/opennota/check/cmd/varcheck@latest               # Checks for unused vars
+  - go install github.com/opennota/check/cmd/structcheck@latest            # Checks for unused fields in structs
 
 
 
@@ -40,7 +40,7 @@ before_script:
 # in a modern Go project.
 script:
   # Fail if a .go file hasn't been formatted with gofmt
-  - test -z $(gofmt -s -l $GO_FILES)
+  - for i in $GO_FILES; do test -z $(gofmt -s -l $i); done
   # Run unit tests
   - make test
   # Checks for unused vars and fields on structs
