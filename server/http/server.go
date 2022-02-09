@@ -48,9 +48,6 @@ func (s *Server) Start(address string) error {
 	// Install nice.Recovery, passing the handler to call after recovery
 	router.Use(nice.Recovery(s.recoveryHandler))
 	router.GET("/blob", s.getBlob)
-	router.GET("/", func(c *gin.Context) {
-		panic("woops")
-	})
 	router.HEAD("/blob", s.hasBlob)
 	srv := &http.Server{
 		Addr:    address,
