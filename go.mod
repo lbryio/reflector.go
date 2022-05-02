@@ -5,7 +5,7 @@ go 1.17
 replace github.com/btcsuite/btcd => github.com/lbryio/lbrycrd.go v0.0.0-20200203050410-e1076f12bf19
 
 require (
-	github.com/aws/aws-sdk-go v1.27.0
+	github.com/aws/aws-sdk-go v1.44.5
 	github.com/bluele/gcache v0.0.2
 	github.com/brk0v/directio v0.0.0-20190225130936-69406e757cf7
 	github.com/btcsuite/btcd v0.0.0-20190824003749-130ea5bddde3
@@ -13,28 +13,28 @@ require (
 	github.com/c2h5oh/datasize v0.0.0-20200825124411-48ed595a09d2
 	github.com/davecgh/go-spew v1.1.1
 	github.com/ekyoung/gin-nice-recovery v0.0.0-20160510022553-1654dca486db
-	github.com/gin-gonic/gin v1.7.2
+	github.com/gin-gonic/gin v1.7.7
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/protobuf v1.5.2
-	github.com/google/gops v0.3.18
+	github.com/google/gops v0.3.22
 	github.com/gorilla/mux v1.8.0
-	github.com/hashicorp/serf v0.9.5
+	github.com/hashicorp/serf v0.9.7
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
-	github.com/johntdyer/slackrus v0.0.0-20210521205746-42486fb4c48c
+	github.com/johntdyer/slackrus v0.0.0-20211215141436-33e4a270affb
 	github.com/karrick/godirwalk v1.16.1
-	github.com/lbryio/chainquery v1.9.0
-	github.com/lbryio/lbry.go/v2 v2.7.2-0.20210416195322-6516df1418e3
-	github.com/lbryio/types v0.0.0-20201019032447-f0b4476ef386
-	github.com/lucas-clemente/quic-go v0.24.0
-	github.com/phayes/freeport v0.0.0-20171002185219-e27662a4a9d6
-	github.com/prometheus/client_golang v1.10.0
+	github.com/lbryio/chainquery v1.8.1
+	github.com/lbryio/lbry.go/v2 v2.7.2-0.20220321182539-d0aeb0c22b22
+	github.com/lbryio/types v0.0.0-20220224142228-73610f6654a6
+	github.com/lucas-clemente/quic-go v0.27.0
+	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
+	github.com/prometheus/client_golang v1.12.1
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cast v1.3.0
-	github.com/spf13/cobra v1.1.3
-	github.com/stretchr/testify v1.7.0
+	github.com/spf13/cast v1.4.1
+	github.com/spf13/cobra v1.4.0
+	github.com/stretchr/testify v1.7.1
 	github.com/volatiletech/null v8.0.0+incompatible
-	go.uber.org/atomic v1.7.0
+	go.uber.org/atomic v1.9.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 )
 
@@ -44,7 +44,7 @@ require (
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
 	github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd // indirect
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792 // indirect
-	github.com/cespare/xxhash/v2 v2.1.1 // indirect
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -65,24 +65,25 @@ require (
 	github.com/hashicorp/go-sockaddr v1.0.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/hashicorp/memberlist v0.2.2 // indirect
+	github.com/hashicorp/memberlist v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/johntdyer/slack-go v0.0.0-20180213144715-95fac1160b22 // indirect
-	github.com/json-iterator/go v1.1.10 // indirect
-	github.com/lbryio/lbry.go v1.1.1-0.20190825202001-8fa28d3d656f // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/lbryio/lbry.go v1.1.2 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/lyoshenka/bencode v0.0.0-20180323155644-b7abd7672df5 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/marten-seemann/qpack v0.2.1 // indirect
-	github.com/marten-seemann/qtls-go1-16 v0.1.4 // indirect
-	github.com/marten-seemann/qtls-go1-17 v0.1.0 // indirect
+	github.com/marten-seemann/qtls-go1-16 v0.1.5 // indirect
+	github.com/marten-seemann/qtls-go1-17 v0.1.1 // indirect
+	github.com/marten-seemann/qtls-go1-18 v0.1.1 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/miekg/dns v1.1.26 // indirect
+	github.com/miekg/dns v1.1.41 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nlopes/slack v0.6.0 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
@@ -90,23 +91,23 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.18.0 // indirect
-	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/prometheus/common v0.32.1 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/shopspring/decimal v0.0.0-20191009025716-f1972eb1d1f5 // indirect
 	github.com/spf13/afero v1.1.2 // indirect
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.7.0 // indirect
+	github.com/spf13/viper v1.7.1 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	github.com/volatiletech/inflect v0.0.0-20170731032912-e7201282ae8d // indirect
 	github.com/volatiletech/sqlboiler v3.4.0+incompatible // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	golang.org/x/mod v0.4.2 // indirect
-	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781 // indirect
-	golang.org/x/sys v0.0.0-20210510120138-977fb7262007 // indirect
-	golang.org/x/text v0.3.6 // indirect
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
+	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.1 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
