@@ -22,7 +22,7 @@ require (
 	github.com/hashicorp/serf v0.9.7
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/johntdyer/slackrus v0.0.0-20211215141436-33e4a270affb
-	github.com/karrick/godirwalk v1.16.1
+	github.com/karrick/godirwalk v1.17.0
 	github.com/lbryio/chainquery v1.8.1
 	github.com/lbryio/lbry.go/v2 v2.7.2-0.20220321182539-d0aeb0c22b22
 	github.com/lbryio/types v0.0.0-20220224142228-73610f6654a6
