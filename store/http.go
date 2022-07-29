@@ -64,7 +64,7 @@ func (n *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
 	url := n.upstream + "/blob?hash=" + hash
 	if n.edgeToken != "" {
-		url += "&token=" + n.edgeToken
+		url += "&edge_token=" + n.edgeToken
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
