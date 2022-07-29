@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
@@ -181,7 +182,10 @@ func (s *Server) HandleGetBlob(w http.ResponseWriter, r *http.Request) {
 			wantsTrace = false
 		}
 	}
-
+	if reflector.IsProtected(requestedBlob) {
+		http.Error(w, "requested blob is protected", http.StatusForbidden)
+		return
+	}
 	blob, trace, err := s.store.Get(requestedBlob)
 
 	if wantsTrace {

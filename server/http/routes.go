@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/reflector"
 	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store"
 
@@ -30,7 +31,13 @@ func (s *Server) HandleGetBlob(c *gin.Context) {
 	}()
 	start := time.Now()
 	hash := c.Query("hash")
+	edgeToken := c.Query("edge_token")
 
+	if reflector.IsProtected(hash) && edgeToken != s.edgeToken {
+		_ = c.Error(errors.Err("requested blob is protected"))
+		c.String(http.StatusForbidden, "requested blob is protected")
+		return
+	}
 	if s.missesCache.Has(hash) {
 		serialized, err := shared.NewBlobTrace(time.Since(start), "http").Serialize()
 		c.Header("Via", serialized)

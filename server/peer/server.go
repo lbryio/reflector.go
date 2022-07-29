@@ -239,6 +239,9 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 	if len(request.RequestedBlobs) > 0 {
 		var availableBlobs []string
 		for _, blobHash := range request.RequestedBlobs {
+			if reflector.IsProtected(blobHash) {
+				return nil, errors.Err("requested blob is protected")
+			}
 			exists, err := s.store.Has(blobHash)
 			if err != nil {
 				return nil, err

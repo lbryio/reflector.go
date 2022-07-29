@@ -21,15 +21,17 @@ type Server struct {
 	grp                *stop.Group
 	concurrentRequests int
 	missesCache        gcache.Cache
+	edgeToken          string
 }
 
 // NewServer returns an initialized Server pointer.
-func NewServer(store store.BlobStore, requestQueueSize int) *Server {
+func NewServer(store store.BlobStore, requestQueueSize int, edgeToken string) *Server {
 	return &Server{
 		store:              store,
 		grp:                stop.New(),
 		concurrentRequests: requestQueueSize,
 		missesCache:        gcache.New(2000).Expiration(5 * time.Minute).ARC().Build(),
+		edgeToken:          edgeToken,
 	}
 }
 

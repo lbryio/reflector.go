@@ -43,6 +43,7 @@ var (
 	//upstream configuration
 	upstreamReflector string
 	upstreamProtocol  string
+	upstreamEdgeToken string
 
 	//downstream configuration
 	requestQueueSize int
@@ -84,6 +85,7 @@ func init() {
 
 	cmd.Flags().StringVar(&upstreamReflector, "upstream-reflector", "", "host:port of a reflector server where blobs are fetched from")
 	cmd.Flags().StringVar(&upstreamProtocol, "upstream-protocol", "http", "protocol used to fetch blobs from another upstream reflector server (tcp/http3/http)")
+	cmd.Flags().StringVar(&upstreamEdgeToken, "upstream-edge-token", "", "token used to retrieve/authenticate protected content")
 
 	cmd.Flags().IntVar(&requestQueueSize, "request-queue-size", 200, "How many concurrent requests from downstream should be handled at once (the rest will wait)")
 
@@ -130,7 +132,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	}
 	defer http3PeerServer.Shutdown()
 
-	httpServer := http.NewServer(store.WithSingleFlight("sf-http", underlyingStoreWithCaches), requestQueueSize)
+	httpServer := http.NewServer(store.WithSingleFlight("sf-http", underlyingStoreWithCaches), requestQueueSize, upstreamEdgeToken)
 	err = httpServer.Start(":" + strconv.Itoa(httpPeerPort))
 	if err != nil {
 		log.Fatal(err)
@@ -167,7 +169,7 @@ func initUpstreamStore() store.BlobStore {
 			Timeout: 30 * time.Second,
 		})
 	case "http":
-		s = store.NewHttpStore(upstreamReflector)
+		s = store.NewHttpStore(upstreamReflector, upstreamEdgeToken)
 	default:
 		log.Fatalf("protocol is not recognized: %s", upstreamProtocol)
 	}

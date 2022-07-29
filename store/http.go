@@ -20,12 +20,14 @@ import (
 type HttpStore struct {
 	upstream   string
 	httpClient *http.Client
+	edgeToken  string
 }
 
-func NewHttpStore(upstream string) *HttpStore {
+func NewHttpStore(upstream, edgeToken string) *HttpStore {
 	return &HttpStore{
 		upstream:   "http://" + upstream,
 		httpClient: getClient(),
+		edgeToken:  edgeToken,
 	}
 }
 
@@ -61,6 +63,9 @@ func (n *HttpStore) Has(hash string) (bool, error) {
 func (n *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
 	url := n.upstream + "/blob?hash=" + hash
+	if n.edgeToken != "" {
+		url += "&token=" + n.edgeToken
+	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
