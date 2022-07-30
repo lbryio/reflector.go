@@ -113,11 +113,9 @@ func (s *Server) Start(address string) error {
 		}
 	})
 	server := http3.Server{
-		Server: &http.Server{
-			Handler:   r,
-			Addr:      address,
-			TLSConfig: generateTLSConfig(),
-		},
+		Addr:       address,
+		Handler:    r,
+		TLSConfig:  generateTLSConfig(),
 		QuicConfig: quicConf,
 	}
 	go InitWorkers(s, s.concurrentRequests)
