@@ -155,7 +155,7 @@ func generateTLSConfig() *tls.Config {
 
 func (s *Server) listenAndServe(server *http3.Server) {
 	err := server.ListenAndServe()
-	if err != nil && err.Error() != "server closed" {
+	if err != nil && err != quic.ErrServerClosed {
 		log.Errorln(errors.FullTrace(err))
 	}
 }
