@@ -2,7 +2,10 @@ package peer
 
 import (
 	"bytes"
+	"io"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/lbryio/reflector.go/store"
 )
@@ -74,4 +77,60 @@ func TestAvailabilityRequest_WithBlobs(t *testing.T) {
 			t.Errorf("Response did not match expected response.\nExpected: %s\nGot: %s", string(p.response), string(response))
 		}
 	}
+}
+
+func TestRequestFromConnection(t *testing.T) {
+	s := getServer(t, true)
+	err := s.Start("127.0.0.1:50505")
+	defer s.Shutdown()
+	if err != nil {
+		t.Error("error starting server", err)
+	}
+
+	for _, p := range availabilityRequests {
+		conn, err := net.Dial("tcp", "127.0.0.1:50505")
+		if err != nil {
+			t.Error("error opening connection", err)
+		}
+		defer conn.Close()
+
+		response := make([]byte, 8192)
+		_, err = conn.Write(p.request)
+		if err != nil {
+			t.Error("error writing", err)
+		}
+		_, err = conn.Read(response)
+		if err != nil {
+			t.Error("error reading", err)
+		}
+		if !bytes.Equal(response[:len(p.response)], p.response) {
+			t.Errorf("Response did not match expected response.\nExpected: %s\nGot: %s", string(p.response), string(response))
+		}
+	}
+}
+
+func TestInvalidData(t *testing.T) {
+	s := getServer(t, true)
+	err := s.Start("127.0.0.1:50503")
+	defer s.Shutdown()
+	if err != nil {
+		t.Error("error starting server", err)
+	}
+	conn, err := net.Dial("tcp", "127.0.0.1:50503")
+	if err != nil {
+		t.Error("error opening connection", err)
+	}
+	defer conn.Close()
+
+	response := make([]byte, 8192)
+	_, err = conn.Write([]byte("hello dear server, I would like blobs. Please"))
+	if err != nil {
+		t.Error("error writing", err)
+	}
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_, err = conn.Read(response)
+	if err != io.EOF {
+		t.Error("error reading", err)
+	}
+	println(response)
 }
