@@ -91,6 +91,7 @@ const (
 	errDeadlineExceeded  = "deadline_exceeded"
 	errHashMismatch      = "hash_mismatch"
 	errProtectedBlob     = "protected_blob"
+	errInvalidBlobHash   = "invalid_blob_hash"
 	errZeroByteBlob      = "zero_byte_blob"
 	errInvalidCharacter  = "invalid_character"
 	errBlobNotFound      = "blob_not_found"
@@ -303,6 +304,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errInvalidPeerJSON
 	} else if strings.Contains(err.Error(), "Invalid data") {
 		errType = errInvalidPeerData
+	} else if strings.Contains(err.Error(), "Invalid blob hash length") {
+		errType = errInvalidBlobHash
 	} else if strings.Contains(err.Error(), "hash of received blob data does not match hash from send request") {
 		errType = errHashMismatch
 	} else if strings.Contains(err.Error(), "blob not found") {
