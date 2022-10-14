@@ -86,6 +86,7 @@ const (
 	errUnexpectedEOFStr  = "unexpected_eof_str"
 	errJSONSyntax        = "json_syntax"
 	errBlobTooBig        = "blob_too_big"
+	errInvalidPeerData   = "invalid_peer_data"
 	errDeadlineExceeded  = "deadline_exceeded"
 	errHashMismatch      = "hash_mismatch"
 	errZeroByteBlob      = "zero_byte_blob"
@@ -296,6 +297,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if strings.Contains(err.Error(), "blob must be at most") {
 		//log.Warnln("blob must be at most X bytes is not the same as ErrBlobTooBig")
 		errType = errBlobTooBig
+	} else if strings.Contains(err.Error(), "Invalid data") {
+		errType = errInvalidPeerData
 	} else if strings.Contains(err.Error(), "hash of received blob data does not match hash from send request") {
 		errType = errHashMismatch
 	} else if strings.Contains(err.Error(), "blob not found") {
