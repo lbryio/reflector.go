@@ -90,6 +90,7 @@ const (
 	errInvalidPeerData   = "invalid_peer_data"
 	errDeadlineExceeded  = "deadline_exceeded"
 	errHashMismatch      = "hash_mismatch"
+	errProtectedBlob     = "protected_blob"
 	errZeroByteBlob      = "zero_byte_blob"
 	errInvalidCharacter  = "invalid_character"
 	errBlobNotFound      = "blob_not_found"
@@ -306,6 +307,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errHashMismatch
 	} else if strings.Contains(err.Error(), "blob not found") {
 		errType = errBlobNotFound
+	} else if strings.Contains(err.Error(), "requested blob is protected") {
+		errType = errProtectedBlob
 	} else if strings.Contains(err.Error(), "0-byte blob received") {
 		errType = errZeroByteBlob
 	} else if strings.Contains(err.Error(), "PROTOCOL_VIOLATION: tried to retire connection") {
