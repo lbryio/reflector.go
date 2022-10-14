@@ -88,6 +88,7 @@ const (
 	errBlobTooBig        = "blob_too_big"
 	errInvalidPeerJSON   = "invalid_peer_json"
 	errInvalidPeerData   = "invalid_peer_data"
+	errRequestTooLarge   = "request_too_large"
 	errDeadlineExceeded  = "deadline_exceeded"
 	errHashMismatch      = "hash_mismatch"
 	errProtectedBlob     = "protected_blob"
@@ -304,6 +305,8 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 		errType = errInvalidPeerJSON
 	} else if strings.Contains(err.Error(), "Invalid data") {
 		errType = errInvalidPeerData
+	} else if strings.Contains(err.Error(), "request is too large") {
+		errType = errRequestTooLarge
 	} else if strings.Contains(err.Error(), "Invalid blob hash length") {
 		errType = errInvalidBlobHash
 	} else if strings.Contains(err.Error(), "hash of received blob data does not match hash from send request") {
