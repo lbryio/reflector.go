@@ -86,9 +86,13 @@ const (
 	errUnexpectedEOFStr  = "unexpected_eof_str"
 	errJSONSyntax        = "json_syntax"
 	errBlobTooBig        = "blob_too_big"
+	errInvalidPeerJSON   = "invalid_peer_json"
 	errInvalidPeerData   = "invalid_peer_data"
+	errRequestTooLarge   = "request_too_large"
 	errDeadlineExceeded  = "deadline_exceeded"
 	errHashMismatch      = "hash_mismatch"
+	errProtectedBlob     = "protected_blob"
+	errInvalidBlobHash   = "invalid_blob_hash"
 	errZeroByteBlob      = "zero_byte_blob"
 	errInvalidCharacter  = "invalid_character"
 	errBlobNotFound      = "blob_not_found"
@@ -297,12 +301,20 @@ func TrackError(direction string, e error) (shouldLog bool) { // shouldLog is a 
 	} else if strings.Contains(err.Error(), "blob must be at most") {
 		//log.Warnln("blob must be at most X bytes is not the same as ErrBlobTooBig")
 		errType = errBlobTooBig
+	} else if strings.Contains(err.Error(), "invalid json request") {
+		errType = errInvalidPeerJSON
 	} else if strings.Contains(err.Error(), "Invalid data") {
 		errType = errInvalidPeerData
+	} else if strings.Contains(err.Error(), "request is too large") {
+		errType = errRequestTooLarge
+	} else if strings.Contains(err.Error(), "Invalid blob hash length") {
+		errType = errInvalidBlobHash
 	} else if strings.Contains(err.Error(), "hash of received blob data does not match hash from send request") {
 		errType = errHashMismatch
 	} else if strings.Contains(err.Error(), "blob not found") {
 		errType = errBlobNotFound
+	} else if strings.Contains(err.Error(), "requested blob is protected") {
+		errType = errProtectedBlob
 	} else if strings.Contains(err.Error(), "0-byte blob received") {
 		errType = errZeroByteBlob
 	} else if strings.Contains(err.Error(), "PROTOCOL_VIOLATION: tried to retire connection") {

@@ -227,7 +227,7 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 	if err != nil {
 		var je *json.SyntaxError
 		if ee.As(err, &je) {
-			return nil, errors.Err("invalid json at offset %d in data %s", je.Offset, hex.EncodeToString(data))
+			return nil, errors.Err("invalid json request: offset %d in data %s", je.Offset, hex.EncodeToString(data))
 		}
 		return nil, errors.Err(err)
 	}
