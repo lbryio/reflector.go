@@ -115,7 +115,7 @@ func Publish(client *lbrycrd.Client, path, name, address string, details Details
 	return signedTx, txid, nil
 }
 
-//TODO: lots of assumptions. hardcoded values need to be passed in or calculated
+// TODO: lots of assumptions. hardcoded values need to be passed in or calculated
 func baseTx(client *lbrycrd.Client, amount float64, changeAddress btcutil.Address) (*wire.MsgTx, error) {
 	txFee := 0.0002 // TODO: estimate this better?
 
@@ -222,8 +222,7 @@ func makeStream(path string) (stream.Stream, *pb.Stream, error) {
 	if err != nil {
 		return nil, nil, errors.Err(err)
 	}
-	defer file.Close()
-
+	defer func() { _ = file.Close() }()
 	enc := stream.NewEncoder(file)
 
 	s, err := enc.Stream()

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
@@ -39,13 +38,12 @@ func sendCmd(cmd *cobra.Command, args []string) {
 	reflectorAddress := args[0]
 	err := hackyReflector.Connect(reflectorAddress)
 	checkErr(err)
-	defer hackyReflector.Close()
+	defer func() { _ = hackyReflector.Close() }()
 
 	filePath := args[1]
 	file, err := os.Open(filePath)
 	checkErr(err)
-	defer file.Close()
-
+	defer func() { _ = file.Close() }()
 	sdCachePath := ""
 	sdCacheDir := mustGetFlagString(cmd, "sd-cache")
 	if sdCacheDir != "" {
@@ -60,7 +58,7 @@ func sendCmd(cmd *cobra.Command, args []string) {
 
 	if sdCachePath != "" {
 		if _, err := os.Stat(sdCachePath); !os.IsNotExist(err) {
-			sdBlob, err := ioutil.ReadFile(sdCachePath)
+			sdBlob, err := os.ReadFile(sdCachePath)
 			checkErr(err)
 			cachedSDBlob := &stream.SDBlob{}
 			err = cachedSDBlob.FromBlob(sdBlob)
@@ -110,7 +108,7 @@ func sendCmd(cmd *cobra.Command, args []string) {
 	sd := enc.SDBlob()
 	//sd.StreamName = filepath.Base(filePath)
 	//sd.SuggestedFileName = filepath.Base(filePath)
-	err = ioutil.WriteFile(sdCachePath, sd.ToBlob(), 0666)
+	err = os.WriteFile(sdCachePath, sd.ToBlob(), 0666)
 	if err != nil {
 		fmt.Printf("error saving sd blob: %v\n", err)
 		fmt.Println(sd.ToJson())

@@ -1,7 +1,6 @@
 package store
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -62,7 +61,7 @@ func (d *DiskStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 		return nil, shared.NewBlobTrace(time.Since(start), d.Name()), err
 	}
 
-	blob, err := ioutil.ReadFile(d.path(hash))
+	blob, err := os.ReadFile(d.path(hash))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, shared.NewBlobTrace(time.Since(start), d.Name()), errors.Err(ErrBlobNotFound)

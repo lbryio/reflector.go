@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql" // blank import for db driver ensures its imported even if its not used
 	log "github.com/sirupsen/logrus"
-	"github.com/volatiletech/null"
+	"github.com/volatiletech/null/v8"
 )
 
 // SdBlob is a special blob that contains information on the rest of the blobs in the stream
@@ -111,7 +111,7 @@ func (s *SQL) HasBlob(hash string) (bool, error) {
 // HasBlobs checks if the database contains the set of blobs and returns a bool map.
 func (s *SQL) HasBlobs(hashes []string) (map[string]bool, error) {
 	exists, streamsNeedingTouch, err := s.hasBlobs(hashes)
-	s.touch(streamsNeedingTouch)
+	_ = s.touch(streamsNeedingTouch)
 	return exists, err
 }
 

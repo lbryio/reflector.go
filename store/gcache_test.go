@@ -2,7 +2,6 @@ package store
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -88,9 +87,9 @@ func TestGcacheStore_UnderlyingBlobMissing(t *testing.T) {
 }
 
 func TestGcacheStore_loadExisting(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "reflector_test_*")
+	tmpDir, err := os.MkdirTemp("", "reflector_test_*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 	d := NewDiskStore(tmpDir, 2)
 
 	hash := "hash"

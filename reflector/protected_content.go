@@ -42,7 +42,7 @@ func GetBlockedContent() (map[string]bool, error) {
 	if err != nil {
 		return nil, errors.Err(err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
 		return nil, errors.Err("unexpected status code %d", res.StatusCode)
 	}

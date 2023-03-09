@@ -17,7 +17,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql" // blank import for db driver ensures its imported even if its not used
 	log "github.com/sirupsen/logrus"
-	"github.com/volatiletech/null"
+	"github.com/volatiletech/null/v8"
 	"go.uber.org/atomic"
 )
 

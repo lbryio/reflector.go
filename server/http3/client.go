@@ -16,7 +16,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 
-	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/quic-go/quic-go/http3"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -69,7 +69,7 @@ func (c *Client) HasBlob(hash string) (bool, error) {
 	if err != nil {
 		return false, errors.Err(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusOK {
 		return true, nil
 	}
@@ -86,7 +86,7 @@ func (c *Client) GetBlob(hash string) (stream.Blob, shared.BlobTrace, error) {
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), "http3"), errors.Err(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		fmt.Printf("%s blob not found %d\n", hash, resp.StatusCode)

@@ -2,11 +2,8 @@ os: linux
 dist: bionic
 language: go
 
-#env:
-#  - GO111MODULE=on
-
 go:
-  - 1.17.x
+  - 1.19.x
 
 cache:
   directories:
@@ -59,11 +56,11 @@ script:
   # one last linter - ignore autogen code
   #- golint -set_exit_status $(go list ./... | grep -v /vendor/ )
   # Finally, build the binary
-  - make
+  - make linux
 
 deploy:
   - provider: s3
-    local_dir: ./bin
+    local_dir: ./dist/linux_amd64
     skip_cleanup: true
     on:
       repo: lbryio/reflector.go

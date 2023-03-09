@@ -13,7 +13,7 @@ This code includes a Go implementations of the LBRY peer protocol, reflector pro
 
 - Install mysql 8 (5.7 might work too)
 - add a reflector user and database with password `reflector` with localhost access only
-- Create the tables as described [here](https://github.com/lbryio/reflector.go/blob/ittt/db/db.go#L735) (the link might not update as the code does so just look for the schema in that file)
+- Create the tables as described [here](https://github.com/lbryio/reflector.go/blob/master/db/db.go#L735) (the link might not update as the code does so just look for the schema in that file)
 
 #### We do not support running reflector.go as a blob receiver, however if you want to run it as a private blobcache you may compile it yourself and run it as following:
 ```bash
@@ -96,7 +96,7 @@ Flags:
 ```
 ## Running from Source
 
-This project requires [Go v1.16](https://golang.org/doc/install).
+This project requires [Go v1.19](https://golang.org/doc/install).
 
 On Ubuntu you can install it with `sudo snap install go --classic`
 
@@ -104,7 +104,7 @@ On Ubuntu you can install it with `sudo snap install go --classic`
 git clone git@github.com:lbryio/reflector.go.git
 cd reflector.go
 make
-./bin/prism-bin
+./dist/linux_amd64/prism-bin
 ```
 
 ## Contributing

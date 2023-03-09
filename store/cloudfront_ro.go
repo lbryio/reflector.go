@@ -2,7 +2,6 @@ package store
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -37,8 +36,7 @@ func (c *CloudFrontROStore) Has(hash string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer body.Close()
-
+	defer func() { _ = body.Close() }()
 	switch status {
 	case http.StatusNotFound, http.StatusForbidden:
 		return false, nil
@@ -61,12 +59,12 @@ func (c *CloudFrontROStore) Get(hash string) (stream.Blob, shared.BlobTrace, err
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), c.Name()), err
 	}
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 	switch status {
 	case http.StatusNotFound, http.StatusForbidden:
 		return nil, shared.NewBlobTrace(time.Since(start), c.Name()), errors.Err(ErrBlobNotFound)
 	case http.StatusOK:
-		b, err := ioutil.ReadAll(body)
+		b, err := io.ReadAll(body)
 		if err != nil {
 			return nil, shared.NewBlobTrace(time.Since(start), c.Name()), errors.Err(err)
 		}
@@ -83,7 +81,7 @@ func (c *CloudFrontROStore) cfRequest(method, hash string) (int, io.ReadCloser, 
 	if err != nil {
 		return 0, nil, errors.Err(err)
 	}
-	req.Header.Add("User-Agent", "reflector.go/"+meta.Version)
+	req.Header.Add("User-Agent", "reflector.go/"+meta.Version())
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

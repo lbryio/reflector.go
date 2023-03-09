@@ -34,14 +34,12 @@ func (d *DiskStore) Put(hash string, blob stream.Blob) error {
 	if err != nil {
 		return errors.Err(err)
 	}
-	defer f.Close()
-
+	defer func() { _ = f.Close() }()
 	dio, err := directio.New(f)
 	if err != nil {
 		return errors.Err(err)
 	}
-	defer dio.Flush()
-
+	defer func() { _ = dio.Flush() }()
 	_, err = io.Copy(dio, bytes.NewReader(blob))
 	if err != nil {
 		return errors.Err(err)

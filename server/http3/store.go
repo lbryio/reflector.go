@@ -14,8 +14,8 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 )
 
 // Store is a blob store that gets blobs from a peer.
@@ -74,7 +74,7 @@ func (p *Store) Has(hash string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	return c.HasBlob(hash)
 }
 
@@ -93,7 +93,7 @@ func (p *Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), p.Name()), err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	return c.GetBlob(hash)
 }
 

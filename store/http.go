@@ -2,8 +2,8 @@ package store
 
 import (
 	"bytes"
+	"context"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"sync"
@@ -46,7 +46,7 @@ func (n *HttpStore) Has(hash string) (bool, error) {
 	if err != nil {
 		return false, errors.Err(err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
@@ -55,7 +55,7 @@ func (n *HttpStore) Has(hash string) (bool, error) {
 	}
 	var body []byte
 	if res.Body != nil {
-		body, _ = ioutil.ReadAll(res.Body)
+		body, _ = io.ReadAll(res.Body)
 	}
 	return false, errors.Err("upstream error. Status code: %d (%s)", res.StatusCode, string(body))
 }
@@ -76,7 +76,7 @@ func (n *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), n.Name()), errors.Err(err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	tmp := getBuffer()
 	defer putBuffer(tmp)
 	serialized := res.Header.Get("Via")
@@ -105,7 +105,7 @@ func (n *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	}
 	var body []byte
 	if res.Body != nil {
-		body, _ = ioutil.ReadAll(res.Body)
+		body, _ = io.ReadAll(res.Body)
 	}
 
 	return nil, trace.Stack(time.Since(start), n.Name()), errors.Err("upstream error. Status code: %d (%s)", res.StatusCode, string(body))
@@ -143,14 +143,19 @@ func putBuffer(buf *bytes.Buffer) {
 	buffers.Put(buf)
 }
 
+func dialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	return dialer.DialContext(ctx, network, address)
+}
+
 // getClient gets an http client that's customized to be more performant when dealing with blobs of 2MB in size (most of our blobs)
 func getClient() *http.Client {
 	// Customize the Transport to have larger connection pool
 	defaultTransport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
+		DialContext:           dialContext,
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
