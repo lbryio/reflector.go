@@ -1,25 +1,33 @@
+version := $(shell git describe --dirty --always --long --abbrev=7)
+commit := $(shell git rev-parse --short HEAD)
+commit_long := $(shell git rev-parse HEAD)
+branch := $(shell git rev-parse --abbrev-ref HEAD)
+curTime := $(shell date +%s)
+
 BINARY=prism-bin
-
-DIR = $(shell cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
-BIN_DIR = ${DIR}/bin
 IMPORT_PATH = github.com/lbryio/reflector.go
+LDFLAGS="-X ${IMPORT_PATH}/meta.version=$(version) -X ${IMPORT_PATH}/meta.commit=$(commit) -X ${IMPORT_PATH}/meta.commitLong=$(commit_long) -X ${IMPORT_PATH}/meta.branch=$(branch) -X '${IMPORT_PATH}/meta.Time=$(curTime)'"
+DIR = $(shell cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
+BIN_DIR = $(DIR)/dist
 
-VERSION = $(shell git --git-dir=${DIR}/.git describe --dirty --always --long --abbrev=7)
-LDFLAGS = -ldflags "-X ${IMPORT_PATH}/meta.Version=${VERSION} -X ${IMPORT_PATH}/meta.Time=$(shell date +%s)"
+.DEFAULT_GOAL := linux
 
-
-.PHONY: build clean test lint
-.DEFAULT_GOAL: build
-
-
-build:
-	mkdir -p ${BIN_DIR} && CGO_ENABLED=0 go build ${LDFLAGS} -asmflags -trimpath=${DIR} -o ${BIN_DIR}/${BINARY} main.go
-
-clean:
-	if [ -f ${BIN_DIR}/${BINARY} ]; then rm ${BIN_DIR}/${BINARY}; fi
-
+.PHONY: test
 test:
-	go test ./... -v -cover
+	go test -cover -v ./...
 
+.PHONY: lint
 lint:
-	go get github.com/alecthomas/gometalinter && gometalinter --install && gometalinter ./...
+	./scripts/lint.sh
+
+.PHONY: linux
+linux:
+	GOARCH=amd64 GOOS=linux go build -ldflags ${LDFLAGS} -asmflags -trimpath=${DIR} -o ${BIN_DIR}/linux_amd64/${BINARY}
+
+.PHONY: macos
+macos:
+	GOARCH=amd64 GOOS=darwin go build -ldflags ${LDFLAGS} -asmflags -trimpath=${DIR} -o ${BIN_DIR}/darwin_amd64/${BINARY}
+
+.PHONY: image
+image:
+	docker buildx build -t lbry/reflector:$(version) -t lbry/reflector:latest --platform linux/amd64 .

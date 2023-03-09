@@ -92,7 +92,7 @@ func TestRequestFromConnection(t *testing.T) {
 		if err != nil {
 			t.Error("error opening connection", err)
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		response := make([]byte, 8192)
 		_, err = conn.Write(p.request)
@@ -120,14 +120,17 @@ func TestInvalidData(t *testing.T) {
 	if err != nil {
 		t.Error("error opening connection", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	response := make([]byte, 8192)
 	_, err = conn.Write([]byte("hello dear server, I would like blobs. Please"))
 	if err != nil {
 		t.Error("error writing", err)
 	}
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	err = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err != nil {
+		t.Error("error setting read deadline", err)
+	}
 	_, err = conn.Read(response)
 	if err != io.EOF {
 		t.Error("error reading", err)

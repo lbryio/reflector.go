@@ -42,7 +42,7 @@ func (p *Store) Has(hash string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	return c.HasBlob(hash)
 }
 
@@ -53,7 +53,7 @@ func (p *Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), p.Name()), err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	blob, trace, err := c.GetBlob(hash)
 	if err != nil && strings.Contains(err.Error(), "blob not found") {
 		return nil, trace, store.ErrBlobNotFound

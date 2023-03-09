@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	"io/ioutil"
+	"io"
 	baselog "log"
 	"sort"
 	"time"
@@ -52,7 +52,7 @@ func (c *Cluster) Connect() error {
 	conf.MemberlistConfig.AdvertisePort = c.port
 	conf.NodeName = c.name
 
-	nullLogger := baselog.New(ioutil.Discard, "", 0)
+	nullLogger := baselog.New(io.Discard, "", 0)
 	conf.Logger = nullLogger
 
 	c.eventCh = make(chan serf.Event)

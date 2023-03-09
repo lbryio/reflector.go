@@ -1,7 +1,8 @@
 package speedwalk
 
 import (
-	"io/ioutil"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -17,7 +18,19 @@ import (
 // AllFiles recursively lists every file in every subdirectory of a given directory
 // If basename is true, return the basename of each file. Otherwise return the full path starting at startDir.
 func AllFiles(startDir string, basename bool) ([]string, error) {
-	items, err := ioutil.ReadDir(startDir)
+	entries, err := os.ReadDir(startDir)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, info)
+	}
+
 	if err != nil {
 		return nil, err
 	}

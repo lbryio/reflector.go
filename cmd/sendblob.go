@@ -51,7 +51,7 @@ func sendBlobCmd(cmd *cobra.Command, args []string) {
 
 	file, err := os.Open(path)
 	checkErr(err)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	s, err := stream.New(file)
 	checkErr(err)
 

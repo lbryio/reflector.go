@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net"
 	"time"
 
@@ -62,7 +61,7 @@ func (s *Server) Shutdown() {
 	log.Println("reflector server stopped")
 }
 
-//Start starts the server to handle connections.
+// Start starts the server to handle connections.
 func (s *Server) Start(address string) error {
 	l, err := net.Listen(network, address)
 	if err != nil {
@@ -367,7 +366,7 @@ func (s *Server) read(conn net.Conn, v interface{}) error {
 	dec := json.NewDecoder(conn)
 	err = dec.Decode(v)
 	if err != nil {
-		data, _ := ioutil.ReadAll(dec.Buffered())
+		data, _ := io.ReadAll(dec.Buffered())
 		if len(data) > 0 {
 			return errors.Err("%s. Data: %s", err.Error(), hex.EncodeToString(data))
 		}

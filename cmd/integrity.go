@@ -3,7 +3,6 @@ package cmd
 import (
 	"crypto/sha512"
 	"encoding/hex"
-	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -72,7 +71,7 @@ func consume(worker int, tasks <-chan string, done chan<- bool, totalTasks int, 
 			log.Infof("[T%d] %d/%d blobs processed so far. ETA: %s", worker, processedSoFar, totalTasks, remainingTime.String())
 		}
 		blobPath := path.Join(diskStorePath, b[:2], b)
-		blob, err := ioutil.ReadFile(blobPath)
+		blob, err := os.ReadFile(blobPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue

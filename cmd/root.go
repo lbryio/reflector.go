@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -142,7 +141,7 @@ func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
 func loadConfig(path string) (Config, error) {
 	var c Config
 
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return c, errors.Err("config file not found")

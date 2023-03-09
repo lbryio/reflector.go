@@ -1,7 +1,6 @@
 package reflector
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -165,7 +164,7 @@ func (u *Uploader) uploadBlob(filepath string) (err error) {
 		}
 	}()
 
-	blob, err := ioutil.ReadFile(filepath)
+	blob, err := os.ReadFile(filepath)
 	if err != nil {
 		return errors.Err(err)
 	}
