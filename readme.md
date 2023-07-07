@@ -96,7 +96,7 @@ Flags:
 ```
 ## Running from Source
 
-This project requires [Go v1.19](https://golang.org/doc/install).
+This project requires [Go v1.20](https://golang.org/doc/install).
 
 On Ubuntu you can install it with `sudo snap install go --classic`
 
