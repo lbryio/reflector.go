@@ -17,10 +17,10 @@ type ProtectedContent struct {
 	ClaimID string `json:"claim_id"`
 }
 
-var blockedCache = gcache.New(10).Expiration(2 * time.Minute).Build()
+var protectedCache = gcache.New(10).Expiration(2 * time.Minute).Build()
 
-func GetBlockedContent() (map[string]bool, error) {
-	cachedVal, err := blockedCache.Get("protected")
+func GetProtectedContent() (map[string]bool, error) {
+	cachedVal, err := protectedCache.Get("protected")
 	if err == nil && cachedVal != nil {
 		return cachedVal.(map[string]bool), nil
 	}
@@ -58,7 +58,7 @@ func GetBlockedContent() (map[string]bool, error) {
 	for _, pc := range r.Data {
 		protectedMap[pc.SDHash] = true
 	}
-	err = blockedCache.Set("protected", protectedMap)
+	err = protectedCache.Set("protected", protectedMap)
 	if err != nil {
 		return protectedMap, errors.Err(err)
 	}
@@ -68,8 +68,8 @@ func GetBlockedContent() (map[string]bool, error) {
 var sf = singleflight.Group{}
 
 func IsProtected(sdHash string) bool {
-	val, err, _ := sf.Do(sdHash, func() (interface{}, error) {
-		protectedMap, err := GetBlockedContent()
+	val, err, _ := sf.Do("protected", func() (interface{}, error) {
+		protectedMap, err := GetProtectedContent()
 		if err != nil {
 			return nil, err
 		}
