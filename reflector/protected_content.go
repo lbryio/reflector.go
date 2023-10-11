@@ -19,7 +19,7 @@ type ProtectedContent struct {
 
 var protectedCache = gcache.New(10).Expiration(2 * time.Minute).Build()
 
-func GetProtectedContent() (map[string]bool, error) {
+func GetProtectedContent() (interface{}, error) {
 	cachedVal, err := protectedCache.Get("protected")
 	if err == nil && cachedVal != nil {
 		return cachedVal.(map[string]bool), nil
@@ -68,15 +68,14 @@ func GetProtectedContent() (map[string]bool, error) {
 var sf = singleflight.Group{}
 
 func IsProtected(sdHash string) bool {
-	val, err, _ := sf.Do("protected", func() (interface{}, error) {
-		protectedMap, err := GetProtectedContent()
-		if err != nil {
-			return nil, err
-		}
-		return protectedMap[sdHash], nil
-	})
+	val, err, _ := sf.Do("protected", GetProtectedContent)
 	if err != nil {
 		return false
 	}
-	return val.(bool)
+	cachedMap, ok := val.(map[string]bool)
+	if !ok {
+		return false
+	}
+
+	return cachedMap[sdHash]
 }
