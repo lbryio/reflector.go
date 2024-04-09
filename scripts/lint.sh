@@ -10,11 +10,10 @@ GO_FILES=$(find . -iname '*.go' -type f)
 	go install github.com/jgautheron/gocyclo@latest                      # Check against high complexity
 	go install github.com/mdempsky/unconvert@latest                      # Identifies unnecessary type conversions
 	go install github.com/kisielk/errcheck@latest                        # Checks for unhandled errors
-	go install github.com/opennota/check/cmd/varcheck@latest             # Checks for unused vars
-	go install github.com/opennota/check/cmd/structcheck@latest          # Checks for unused fields in structs
+	go install honnef.co/go/tools/cmd/staticcheck@latest                 # all sorts of static analysis
 )
-echo "Running varcheck..." && varcheck $(go list ./...)
-echo "Running structcheck..." && structcheck $(go list ./...)
+
+# echo "Running unused..." && staticcheck $(go list ./...)
 # go vet is the official Go static analyzer
 echo "Running go vet..." && go vet $(go list ./...)
 # checks for unhandled errors

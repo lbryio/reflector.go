@@ -28,8 +28,8 @@ before_script:
   - go install github.com/fzipp/gocyclo/cmd/gocyclo@latest                 # Check against high complexity
   - go install github.com/mdempsky/unconvert@latest                        # Identifies unnecessary type conversions
   - go install github.com/kisielk/errcheck@latest                          # Checks for unhandled errors
-  - go install github.com/opennota/check/cmd/varcheck@latest               # Checks for unused vars
-  - go install github.com/opennota/check/cmd/structcheck@latest            # Checks for unused fields in structs
+  - go install gitlab.com/opennota/check/cmd/varcheck@latest               # Checks for unused vars
+  - go install gitlab.com/opennota/check/cmd/structcheck@latest            # Checks for unused fields in structs
 
 
 

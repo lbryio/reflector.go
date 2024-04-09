@@ -9,6 +9,7 @@ import (
 	"github.com/lbryio/reflector.go/shared"
 
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/sirupsen/logrus"
 )
 
 func TestCachingStore_Put(t *testing.T) {
@@ -99,7 +100,7 @@ func TestCachingStore_ThunderingHerd(t *testing.T) {
 	getNoErr := func() {
 		res, _, err := s.Get(hash)
 		if err != nil {
-			t.Fatal(err)
+			logrus.Fatal(err)
 		}
 		if !bytes.Equal(b, res) {
 			t.Errorf("expected Get() to return %s, got %s", string(b), string(res))

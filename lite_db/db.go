@@ -8,7 +8,6 @@ import (
 	qt "github.com/lbryio/lbry.go/v2/extras/query"
 
 	"github.com/go-sql-driver/mysql"
-	_ "github.com/go-sql-driver/mysql" // blank import for db driver ensures its imported even if its not used
 	log "github.com/sirupsen/logrus"
 	"github.com/volatiletech/null/v8"
 )

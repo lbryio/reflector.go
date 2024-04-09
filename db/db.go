@@ -15,7 +15,6 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	"github.com/go-sql-driver/mysql"
-	_ "github.com/go-sql-driver/mysql" // blank import for db driver ensures its imported even if its not used
 	log "github.com/sirupsen/logrus"
 	"github.com/volatiletech/null/v8"
 	"go.uber.org/atomic"
@@ -98,7 +97,7 @@ func (s *SQL) AddBlob(hash string, length int, isStored bool) error {
 	return err
 }
 
-//AddBlobs adds blobs to the database.
+// AddBlobs adds blobs to the database.
 func (s *SQL) AddBlobs(hash []string) error {
 	if s.conn == nil {
 		return errors.Err("not connected")
@@ -419,7 +418,7 @@ func (s *SQL) Delete(hash string) error {
 	return errors.Err(err)
 }
 
-//LeastRecentlyAccessedHashes gets the least recently accessed blobs
+// LeastRecentlyAccessedHashes gets the least recently accessed blobs
 func (s *SQL) LeastRecentlyAccessedHashes(maxBlobs int) ([]string, error) {
 	if s.conn == nil {
 		return nil, errors.Err("not connected")
