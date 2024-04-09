@@ -22,7 +22,7 @@ lint:
 
 .PHONY: linux
 linux:
-	GOARCH=amd64 GOOS=linux go build -ldflags ${LDFLAGS} -asmflags -trimpath=${DIR} -o ${BIN_DIR}/linux_amd64/${BINARY}
+	GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -asmflags -trimpath=${DIR} -o ${BIN_DIR}/linux_amd64/${BINARY}
 
 .PHONY: macos
 macos:
