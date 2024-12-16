@@ -180,7 +180,7 @@ func initEdgeStore() store.BlobStore {
 	var s store.BlobStore
 
 	if conf != "none" {
-		s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+		s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName, globalConfig.S3Endpoint)
 	}
 	if originEndpointFallback != "" && originEndpoint != "" {
 		ittt := store.NewITTTStore(store.NewCloudFrontROStore(originEndpoint), store.NewCloudFrontROStore(originEndpointFallback))

@@ -22,6 +22,7 @@ type Config struct {
 	AwsSecret    string `json:"aws_secret"`
 	BucketRegion string `json:"bucket_region"`
 	BucketName   string `json:"bucket_name"`
+	S3Endpoint   string `json:"s3_endpoint"`
 	DBConn       string `json:"db_conn"`
 	SlackHookURL string `json:"slack_hook_url"`
 	SlackChannel string `json:"slack_channel"`

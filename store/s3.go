@@ -26,17 +26,19 @@ type S3Store struct {
 	awsSecret string
 	region    string
 	bucket    string
+	endpoint  string
 
 	session *session.Session
 }
 
 // NewS3Store returns an initialized S3 store pointer.
-func NewS3Store(awsID, awsSecret, region, bucket string) *S3Store {
+func NewS3Store(awsID, awsSecret, region, bucket, endpoint string) *S3Store {
 	return &S3Store{
 		awsID:     awsID,
 		awsSecret: awsSecret,
 		region:    region,
 		bucket:    bucket,
+		endpoint:  endpoint,
 	}
 }
 
@@ -154,7 +156,7 @@ func (s *S3Store) initOnce() error {
 	sess, err := session.NewSession(&aws.Config{
 		Credentials: credentials.NewStaticCredentials(s.awsID, s.awsSecret, ""),
 		Region:      aws.String(s.region),
-		Endpoint:    aws.String("https://s3.wasabisys.com"),
+		Endpoint:    aws.String(s.endpoint),
 	})
 	if err != nil {
 		return err

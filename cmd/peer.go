@@ -29,7 +29,7 @@ func init() {
 func peerCmd(cmd *cobra.Command, args []string) {
 	var err error
 
-	s3 := store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName)
+	s3 := store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName, globalConfig.S3Endpoint)
 	peerServer := peer.NewServer(s3)
 
 	if !peerNoDB {

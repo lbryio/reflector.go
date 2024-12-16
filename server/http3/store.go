@@ -53,7 +53,7 @@ func (p *Store) getClient() (*Client, error) {
 			RootCAs:            pool,
 			InsecureSkipVerify: true,
 		},
-		QuicConfig: &qconf,
+		QUICConfig: &qconf,
 	}
 	connection := &http.Client{
 		Transport: roundTripper,

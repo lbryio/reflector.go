@@ -116,7 +116,7 @@ func (s *Server) Start(address string) error {
 		Addr:       address,
 		Handler:    r,
 		TLSConfig:  generateTLSConfig(),
-		QuicConfig: quicConf,
+		QUICConfig: quicConf,
 	}
 	go InitWorkers(s, s.concurrentRequests)
 	go s.listenForShutdown(&server)
