@@ -70,4 +70,7 @@ func (c *ITTTStore) Delete(hash string) error {
 }
 
 // Shutdown shuts down the store gracefully
-func (c *ITTTStore) Shutdown() {}
+func (c *ITTTStore) Shutdown() {
+	c.this.Shutdown()
+	c.that.Shutdown()
+}

@@ -18,8 +18,6 @@ import (
 	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
 
-	"github.com/lbryio/lbry.go/v2/extras/errors"
-	"github.com/lbryio/lbry.go/v2/extras/stop"
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	"github.com/c2h5oh/datasize"
@@ -104,7 +102,7 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 
 	// the blocklist logic requires the db backed store to be the outer-most store
 	underlyingStore := initStores()
-	underlyingStoreWithCaches, cleanerStopper := initCaches(underlyingStore)
+	underlyingStoreWithCaches := initCaches(underlyingStore)
 
 	if !disableUploads {
 		reflectorServer := reflector.NewServer(underlyingStore, underlyingStoreWithCaches)
@@ -148,8 +146,6 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)
 	<-interruptChan
-	// deferred shutdowns happen now
-	cleanerStopper.StopAndWait()
 }
 
 func initUpstreamStore() store.BlobStore {
@@ -169,7 +165,7 @@ func initUpstreamStore() store.BlobStore {
 			Timeout: 30 * time.Second,
 		})
 	case "http":
-		s = store.NewHttpStore(upstreamReflector, upstreamEdgeToken)
+		s = store.NewUpstreamStore(upstreamReflector, upstreamEdgeToken)
 	default:
 		log.Fatalf("protocol is not recognized: %s", upstreamProtocol)
 	}
@@ -183,9 +179,9 @@ func initEdgeStore() store.BlobStore {
 		s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName, globalConfig.S3Endpoint)
 	}
 	if originEndpointFallback != "" && originEndpoint != "" {
-		ittt := store.NewITTTStore(store.NewCloudFrontROStore(originEndpoint), store.NewCloudFrontROStore(originEndpointFallback))
+		ittt := store.NewITTTStore(store.NewHttpStore(originEndpoint), store.NewHttpStore(originEndpointFallback))
 		if s3Store != nil {
-			s = store.NewCloudFrontRWStore(ittt, s3Store)
+			s = store.NewProxiedS3Store(ittt, s3Store)
 		} else {
 			s = ittt
 		}
@@ -207,7 +203,7 @@ func initDBStore(s store.BlobStore) store.BlobStore {
 		if err != nil {
 			log.Fatal(err)
 		}
-		s = store.NewDBBackedStore(s, dbInst, false)
+		s = store.NewDBBackedStore(s, dbInst, false, nil)
 	}
 	return s
 }
@@ -222,11 +218,9 @@ func initStores() store.BlobStore {
 }
 
 // initCaches returns a store wrapped with caches and a stop group to execute a clean shutdown
-func initCaches(s store.BlobStore) (store.BlobStore, *stop.Group) {
-	stopper := stop.New()
-	diskStore := initDiskStore(s, diskCache, stopper)
-	finalStore := initDiskStore(diskStore, secondaryDiskCache, stopper)
-	stop.New()
+func initCaches(s store.BlobStore) store.BlobStore {
+	diskStore := initDiskStore(s, diskCache)
+	finalStore := initDiskStore(diskStore, secondaryDiskCache)
 	if memCache > 0 {
 		finalStore = store.NewCachingStore(
 			"reflector",
@@ -234,14 +228,14 @@ func initCaches(s store.BlobStore) (store.BlobStore, *stop.Group) {
 			store.NewGcacheStore("mem", store.NewMemStore(), memCache, store.LRU),
 		)
 	}
-	return finalStore, stopper
+	return finalStore
 }
 
-func initDiskStore(upstreamStore store.BlobStore, diskParams string, stopper *stop.Group) store.BlobStore {
+func initDiskStore(upstreamStore store.BlobStore, diskParams string) store.BlobStore {
 	diskCacheMaxSize, diskCachePath, cacheManager := diskCacheParams(diskParams)
 	//we are tracking blobs in memory with a 1 byte long boolean, which means that for each 2MB (a blob) we need 1Byte
 	// so if the underlying cache holds 10MB, 10MB/2MB=5Bytes which is also the exact count of objects to restore on startup
-	realCacheSize := float64(diskCacheMaxSize) / float64(stream.MaxBlobSize)
+	realCacheSize := int(float64(diskCacheMaxSize) / float64(stream.MaxBlobSize))
 	if diskCacheMaxSize == 0 {
 		return upstreamStore
 	}
@@ -252,7 +246,6 @@ func initDiskStore(upstreamStore store.BlobStore, diskParams string, stopper *st
 
 	diskStore := store.NewDiskStore(diskCachePath, 2)
 	var unwrappedStore store.BlobStore
-	cleanerStopper := stop.New(stopper)
 
 	if cacheManager == "localdb" {
 		localDb := &db.SQL{
@@ -264,10 +257,9 @@ func initDiskStore(upstreamStore store.BlobStore, diskParams string, stopper *st
 		if err != nil {
 			log.Fatal(err)
 		}
-		unwrappedStore = store.NewDBBackedStore(diskStore, localDb, true)
-		go cleanOldestBlobs(int(realCacheSize), localDb, unwrappedStore, cleanerStopper)
+		unwrappedStore = store.NewDBBackedStore(diskStore, localDb, true, &realCacheSize)
 	} else {
-		unwrappedStore = store.NewGcacheStore("nvme", store.NewDiskStore(diskCachePath, 2), int(realCacheSize), cacheMangerToGcache[cacheManager])
+		unwrappedStore = store.NewGcacheStore("nvme", store.NewDiskStore(diskCachePath, 2), realCacheSize, cacheMangerToGcache[cacheManager])
 	}
 
 	wrapped := store.NewCachingStore(
@@ -309,73 +301,4 @@ func diskCacheParams(diskParams string) (int, string, string) {
 		log.Fatal("disk cache size must be more than 0")
 	}
 	return int(maxSize), path, cacheManager
-}
-
-func cleanOldestBlobs(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Group) {
-	// this is so that it runs on startup without having to wait for 10 minutes
-	err := doClean(maxItems, db, store, stopper)
-	if err != nil {
-		log.Error(errors.FullTrace(err))
-	}
-	const cleanupInterval = 10 * time.Minute
-	for {
-		select {
-		case <-stopper.Ch():
-			log.Infoln("stopping self cleanup")
-			return
-		case <-time.After(cleanupInterval):
-			err := doClean(maxItems, db, store, stopper)
-			if err != nil {
-				log.Error(errors.FullTrace(err))
-			}
-		}
-	}
-}
-
-func doClean(maxItems int, db *db.SQL, store store.BlobStore, stopper *stop.Group) error {
-	blobsCount, err := db.Count()
-	if err != nil {
-		return err
-	}
-
-	if blobsCount >= maxItems {
-		itemsToDelete := blobsCount / 10
-		blobs, err := db.LeastRecentlyAccessedHashes(itemsToDelete)
-		if err != nil {
-			return err
-		}
-		blobsChan := make(chan string, len(blobs))
-		wg := &stop.Group{}
-		go func() {
-			for _, hash := range blobs {
-				select {
-				case <-stopper.Ch():
-					return
-				default:
-				}
-				blobsChan <- hash
-			}
-			close(blobsChan)
-		}()
-		for i := 0; i < 3; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for h := range blobsChan {
-					select {
-					case <-stopper.Ch():
-						return
-					default:
-					}
-					err = store.Delete(h)
-					if err != nil {
-						log.Errorf("error pruning %s: %s", h, errors.FullTrace(err))
-						continue
-					}
-				}
-			}()
-		}
-		wg.Wait()
-	}
-	return nil
 }

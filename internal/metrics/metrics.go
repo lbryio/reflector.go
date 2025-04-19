@@ -229,6 +229,11 @@ var (
 		Name:      "s3_out_bytes",
 		Help:      "Total number of outgoing bytes (to S3)",
 	})
+	MtrInBytesUpstream = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: ns,
+		Name:      "upstream_in_bytes",
+		Help:      "Total number of incoming bytes (from Upstream)",
+	})
 	MtrInBytesS3 = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: ns,
 		Name:      "s3_in_bytes",

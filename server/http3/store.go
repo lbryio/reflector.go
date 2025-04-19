@@ -48,7 +48,7 @@ func (p *Store) getClient() (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	roundTripper := &http3.RoundTripper{
+	roundTripper := &http3.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs:            pool,
 			InsecureSkipVerify: true,

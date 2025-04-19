@@ -57,7 +57,7 @@ type SQL struct {
 	LogQueries bool
 }
 
-func (s SQL) logQuery(query string, args ...interface{}) {
+func (s *SQL) logQuery(query string, args ...interface{}) {
 	if !s.LogQueries {
 		return
 	}

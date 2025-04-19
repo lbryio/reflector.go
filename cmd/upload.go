@@ -39,7 +39,7 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 
 	st := store.NewDBBackedStore(
 		store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName, globalConfig.S3Endpoint),
-		db, false)
+		db, false, nil)
 
 	uploader := reflector.NewUploader(db, st, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
 

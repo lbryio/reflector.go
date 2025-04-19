@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"net/http"
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -59,10 +58,10 @@ func (s *S3Store) Has(hash string) (bool, error) {
 		Key:    aws.String(hash),
 	})
 	if err != nil {
-		if reqFail, ok := err.(s3.RequestFailure); ok && reqFail.StatusCode() == http.StatusNotFound {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == s3.ErrCodeNoSuchKey {
 			return false, nil
 		}
-		return false, err
+		return false, errors.Err(err)
 	}
 
 	return true, nil
@@ -96,7 +95,7 @@ func (s *S3Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 				return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err(ErrBlobNotFound)
 			}
 		}
-		return buf.Bytes(), shared.NewBlobTrace(time.Since(start), s.Name()), err
+		return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err(err)
 	}
 
 	return buf.Bytes(), shared.NewBlobTrace(time.Since(start), s.Name()), nil
@@ -121,9 +120,11 @@ func (s *S3Store) Put(hash string, blob stream.Blob) error {
 		ACL:    aws.String("public-read"),
 		//StorageClass: aws.String(s3.StorageClassIntelligentTiering),
 	})
+	if err != nil {
+		return errors.Err(err)
+	}
 	metrics.MtrOutBytesReflector.Add(float64(blob.Size()))
-
-	return err
+	return nil
 }
 
 // PutSD stores the sd blob on S3 or errors if S3 connection errors.
@@ -145,7 +146,7 @@ func (s *S3Store) Delete(hash string) error {
 		Key:    aws.String(hash),
 	})
 
-	return err
+	return errors.Err(err)
 }
 
 func (s *S3Store) initOnce() error {
@@ -159,7 +160,7 @@ func (s *S3Store) initOnce() error {
 		Endpoint:    aws.String(s.endpoint),
 	})
 	if err != nil {
-		return err
+		return errors.Err(err)
 	}
 
 	s.session = sess

@@ -9,6 +9,7 @@ import (
 	"github.com/lbryio/reflector.go/shared"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
+	"github.com/lbryio/lbry.go/v2/extras/stop"
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
@@ -21,11 +22,23 @@ type DBBackedStore struct {
 	blockedMu    sync.RWMutex
 	blocked      map[string]bool
 	deleteOnMiss bool
+	maxSize      int
+	cleanerStop  *stop.Group
 }
 
 // NewDBBackedStore returns an initialized store pointer.
-func NewDBBackedStore(blobs BlobStore, db *db.SQL, deleteOnMiss bool) *DBBackedStore {
-	return &DBBackedStore{blobs: blobs, db: db, deleteOnMiss: deleteOnMiss}
+func NewDBBackedStore(blobs BlobStore, db *db.SQL, deleteOnMiss bool, maxSize *int) *DBBackedStore {
+	store := &DBBackedStore{
+		blobs:        blobs,
+		db:           db,
+		deleteOnMiss: deleteOnMiss,
+		cleanerStop:  stop.New(),
+	}
+	if maxSize != nil {
+		store.maxSize = *maxSize
+		go store.cleanOldestBlobs()
+	}
+	return store
 }
 
 const nameDBBacked = "db-backed"
@@ -112,23 +125,6 @@ func (d *DBBackedStore) Block(hash string) error {
 		return err
 	}
 
-	//has, err := d.db.HasBlob(hash, false)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if has {
-	//	err = d.blobs.Delete(hash)
-	//	if err != nil {
-	//		return err
-	//	}
-	//
-	//	err = d.db.Delete(hash)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-
 	return d.markBlocked(hash)
 }
 
@@ -195,7 +191,79 @@ func (d *DBBackedStore) initBlocked() error {
 	return err
 }
 
+// cleanOldestBlobs periodically cleans up the oldest blobs if maxSize is set
+func (d *DBBackedStore) cleanOldestBlobs() {
+	// Run on startup without waiting for 10 minutes
+	err := d.doClean()
+	if err != nil {
+		log.Error(errors.FullTrace(err))
+	}
+	const cleanupInterval = 10 * time.Minute
+	for {
+		select {
+		case <-d.cleanerStop.Ch():
+			log.Infoln("stopping self cleanup")
+			return
+		case <-time.After(cleanupInterval):
+			err := d.doClean()
+			if err != nil {
+				log.Error(errors.FullTrace(err))
+			}
+		}
+	}
+}
+
+// doClean removes the least recently accessed blobs if the store exceeds maxItems
+func (d *DBBackedStore) doClean() error {
+	blobsCount, err := d.db.Count()
+	if err != nil {
+		return err
+	}
+
+	if blobsCount >= d.maxSize {
+		itemsToDelete := blobsCount / 10
+		blobs, err := d.db.LeastRecentlyAccessedHashes(itemsToDelete)
+		if err != nil {
+			return err
+		}
+		blobsChan := make(chan string, len(blobs))
+		wg := stop.New()
+		go func() {
+			for _, hash := range blobs {
+				select {
+				case <-d.cleanerStop.Ch():
+					return
+				default:
+				}
+				blobsChan <- hash
+			}
+			close(blobsChan)
+		}()
+		for i := 0; i < 3; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for h := range blobsChan {
+					select {
+					case <-d.cleanerStop.Ch():
+						return
+					default:
+					}
+					err = d.Delete(h)
+					if err != nil {
+						log.Errorf("error pruning %s: %s", h, errors.FullTrace(err))
+						continue
+					}
+				}
+			}()
+		}
+		wg.Wait()
+	}
+	return nil
+}
+
 // Shutdown shuts down the store gracefully
 func (d *DBBackedStore) Shutdown() {
+	d.cleanerStop.Stop()
 	d.blobs.Shutdown()
 }
