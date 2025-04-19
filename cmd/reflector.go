@@ -179,7 +179,7 @@ func initEdgeStore() store.BlobStore {
 		s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName, globalConfig.S3Endpoint)
 	}
 	if originEndpointFallback != "" && originEndpoint != "" {
-		ittt := store.NewITTTStore(store.NewHttpStore(originEndpoint), store.NewHttpStore(originEndpointFallback))
+		ittt := store.NewITTTStore(store.NewHttpStore(originEndpoint, 0), store.NewHttpStore(originEndpointFallback, 0))
 		if s3Store != nil {
 			s = store.NewProxiedS3Store(ittt, s3Store)
 		} else {
