@@ -15,6 +15,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 // HttpStore reads from an HTTP endpoint that simply expects the hash to be appended to the endpoint
@@ -22,21 +23,38 @@ type HttpStore struct {
 	endpoint     string
 	httpClient   *http.Client
 	prefixLength int
+	name         string
+}
+
+type HttpParams struct {
+	Name         string `mapstructure:"name"`
+	Endpoint     string `mapstructure:"endpoint"`
+	PrefixLength int    `mapstructure:"prefix_length"`
 }
 
 // NewHttpStore returns an initialized HttpStore store pointer.
-func NewHttpStore(endpoint string, prefixLength int) *HttpStore {
+func NewHttpStore(params HttpParams) *HttpStore {
 	return &HttpStore{
-		endpoint:     endpoint,
+		endpoint:     params.Endpoint,
 		httpClient:   getClient(),
-		prefixLength: prefixLength,
+		prefixLength: params.PrefixLength,
+		name:         params.Name,
 	}
 }
 
 const nameHttp = "http"
 
+func HttpStoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg HttpParams
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return NewHttpStore(cfg), nil
+}
+
 // Name is the cache type name
-func (c *HttpStore) Name() string { return nameHttp }
+func (c *HttpStore) Name() string { return nameHttp + "-" + c.name }
 
 // Has checks if the hash is in the store.
 func (c *HttpStore) Has(hash string) (bool, error) {
@@ -60,7 +78,7 @@ func (c *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	log.Debugf("Getting %s from HTTP(s) source", hash[:8])
 	start := time.Now()
 	defer func(t time.Time) {
-		log.Warnf("Getting %s from HTTP(s) source took %s", hash[:8], time.Since(t).String())
+		log.Debugf("Getting %s from HTTP(s) source took %s", hash[:8], time.Since(t).String())
 	}(start)
 
 	url := c.endpoint + c.shardedPath(hash)
@@ -165,4 +183,8 @@ func (c *HttpStore) shardedPath(hash string) string {
 		return hash
 	}
 	return path.Join(hash[:c.prefixLength], hash)
+}
+
+func init() {
+	RegisterStore(nameHttp, HttpStoreFactory)
 }

@@ -13,9 +13,9 @@ import (
 )
 
 func TestCachingStore_Put(t *testing.T) {
-	origin := NewMemStore()
-	cache := NewMemStore()
-	s := NewCachingStore("test", origin, cache)
+	origin := NewMemStore(MemParams{Name: "test"})
+	cache := NewMemStore(MemParams{Name: "test"})
+	s := NewCachingStore(CachingParams{Name: "test", Origin: origin, Cache: cache})
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"
@@ -43,9 +43,9 @@ func TestCachingStore_Put(t *testing.T) {
 }
 
 func TestCachingStore_CacheMiss(t *testing.T) {
-	origin := NewMemStore()
-	cache := NewMemStore()
-	s := NewCachingStore("test", origin, cache)
+	origin := NewMemStore(MemParams{Name: "test"})
+	cache := NewMemStore(MemParams{Name: "test"})
+	s := NewCachingStore(CachingParams{Name: "test", Origin: origin, Cache: cache})
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"
@@ -85,8 +85,8 @@ func TestCachingStore_CacheMiss(t *testing.T) {
 func TestCachingStore_ThunderingHerd(t *testing.T) {
 	storeDelay := 100 * time.Millisecond
 	origin := NewSlowBlobStore(storeDelay)
-	cache := NewMemStore()
-	s := NewCachingStore("test", origin, cache)
+	cache := NewMemStore(MemParams{Name: "test"})
+	s := NewCachingStore(CachingParams{Name: "test", Origin: origin, Cache: cache})
 
 	b := []byte("this is a blob of stuff")
 	hash := "hash"
@@ -141,7 +141,7 @@ type SlowBlobStore struct {
 
 func NewSlowBlobStore(delay time.Duration) *SlowBlobStore {
 	return &SlowBlobStore{
-		mem:   NewMemStore(),
+		mem:   NewMemStore(MemParams{Name: "test"}),
 		delay: delay,
 	}
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/lbryio/reflector.go/shared"
 	"github.com/lbryio/reflector.go/store/speedwalk"
+	"github.com/spf13/viper"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
@@ -14,27 +15,47 @@ import (
 
 // DiskStore stores blobs on a local disk
 type DiskStore struct {
-	// the location of blobs on disk
 	blobDir string
 	// store files in subdirectories based on the first N chars in the filename. 0 = don't create subdirectories.
 	prefixLength int
+	name         string
 
 	// true if initOnce ran, false otherwise
 	initialized bool
 }
 
+type DiskParams struct {
+	Name         string `mapstructure:"name"`
+	MountPoint   string `mapstructure:"mount_point"`
+	ShardingSize int    `mapstructure:"sharding_size"`
+}
+
 // NewDiskStore returns an initialized file disk store pointer.
-func NewDiskStore(dir string, prefixLength int) *DiskStore {
+func NewDiskStore(params DiskParams) *DiskStore {
 	return &DiskStore{
-		blobDir:      dir,
-		prefixLength: prefixLength,
+		blobDir:      params.MountPoint,
+		prefixLength: params.ShardingSize,
+		name:         params.Name,
 	}
 }
 
 const nameDisk = "disk"
 
+func DiskStoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg DiskParams
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return NewDiskStore(cfg), nil
+}
+
+func init() {
+	RegisterStore(nameDisk, DiskStoreFactory)
+}
+
 // Name is the cache type name
-func (d *DiskStore) Name() string { return nameDisk }
+func (d *DiskStore) Name() string { return nameDisk + "-" + d.name }
 
 // Has returns T/F or Error if it the blob stored already. It will error with any IO disk error.
 func (d *DiskStore) Has(hash string) (bool, error) {

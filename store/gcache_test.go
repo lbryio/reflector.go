@@ -16,8 +16,8 @@ import (
 const cacheMaxSize = 3
 
 func getTestGcacheStore() (*GcacheStore, *MemStore) {
-	m := NewMemStore()
-	return NewGcacheStore("test", m, cacheMaxSize, LFU), m
+	m := NewMemStore(MemParams{Name: "test"})
+	return NewGcacheStore(GcacheParams{Name: "test", Store: m, MaxSize: cacheMaxSize, Strategy: LFU}), m
 }
 
 func TestGcacheStore_Eviction(t *testing.T) {
@@ -90,7 +90,11 @@ func TestGcacheStore_loadExisting(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "reflector_test_*")
 	require.NoError(t, err)
 	defer func() { _ = os.RemoveAll(tmpDir) }()
-	d := NewDiskStore(tmpDir, 2)
+	d := NewDiskStore(DiskParams{
+		Name:         "test",
+		Dir:          tmpDir,
+		PrefixLength: 2,
+	})
 
 	hash := "hash"
 	b := []byte("this is a blob of stuff")
@@ -102,8 +106,8 @@ func TestGcacheStore_loadExisting(t *testing.T) {
 	require.Equal(t, 1, len(existing), "blob should exist in cache")
 	assert.Equal(t, hash, existing[0])
 
-	lfu := NewGcacheStore("test", d, 3, LFU) // lru should load existing blobs when it's created
-	time.Sleep(100 * time.Millisecond)       // async load so let's wait...
+	lfu := NewGcacheStore(GcacheParams{Name: "test", Store: d, MaxSize: 3, Strategy: LFU}) // lru should load existing blobs when it's created
+	time.Sleep(100 * time.Millisecond)                                                     // async load so let's wait...
 	has, err := lfu.Has(hash)
 	require.NoError(t, err)
 	assert.True(t, has, "hash should be loaded from disk store but it's not")

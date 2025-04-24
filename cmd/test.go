@@ -29,7 +29,7 @@ func init() {
 func testCmd(cmd *cobra.Command, args []string) {
 	log.Printf("reflector %s", meta.VersionString())
 
-	memStore := store.NewMemStore()
+	memStore := store.NewMemStore(store.MemParams{Name: "test"})
 
 	reflectorServer := reflector.NewServer(memStore, memStore)
 	reflectorServer.Timeout = 3 * time.Minute

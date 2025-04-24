@@ -15,6 +15,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 // UpstreamStore is a store that works on top of the HTTP protocol
@@ -22,19 +23,40 @@ type UpstreamStore struct {
 	upstream   string
 	httpClient *http.Client
 	edgeToken  string
+	name       string
 }
 
-func NewUpstreamStore(upstream, edgeToken string) *UpstreamStore {
+type UpstreamParams struct {
+	Name      string `mapstructure:"name"`
+	Upstream  string `mapstructure:"upstream"`
+	EdgeToken string `mapstructure:"edge_token"`
+}
+
+func NewUpstreamStore(params UpstreamParams) *UpstreamStore {
 	return &UpstreamStore{
-		upstream:   upstream,
+		upstream:   params.Upstream,
 		httpClient: getClient(),
-		edgeToken:  edgeToken,
+		edgeToken:  params.EdgeToken,
+		name:       params.Name,
 	}
 }
 
 const nameUpstream = "upstream"
 
-func (n *UpstreamStore) Name() string { return nameUpstream }
+func UpstreamStoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg UpstreamParams
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return NewUpstreamStore(cfg), nil
+}
+
+func init() {
+	RegisterStore(nameUpstream, UpstreamStoreFactory)
+}
+
+func (n *UpstreamStore) Name() string { return nameUpstream + "-" + n.name }
 func (n *UpstreamStore) Has(hash string) (bool, error) {
 	url := n.upstream + "/blob?hash=" + hash
 

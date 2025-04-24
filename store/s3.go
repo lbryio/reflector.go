@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 // S3Store is an S3 store
@@ -26,25 +27,49 @@ type S3Store struct {
 	region    string
 	bucket    string
 	endpoint  string
+	name      string
 
 	session *session.Session
 }
 
+type S3Params struct {
+	Name      string `mapstructure:"name"`
+	AwsID     string `mapstructure:"aws_id"`
+	AwsSecret string `mapstructure:"aws_secret"`
+	Region    string `mapstructure:"region"`
+	Bucket    string `mapstructure:"bucket"`
+	Endpoint  string `mapstructure:"endpoint"`
+}
+
 // NewS3Store returns an initialized S3 store pointer.
-func NewS3Store(awsID, awsSecret, region, bucket, endpoint string) *S3Store {
+func NewS3Store(params S3Params) *S3Store {
 	return &S3Store{
-		awsID:     awsID,
-		awsSecret: awsSecret,
-		region:    region,
-		bucket:    bucket,
-		endpoint:  endpoint,
+		awsID:     params.AwsID,
+		awsSecret: params.AwsSecret,
+		region:    params.Region,
+		bucket:    params.Bucket,
+		endpoint:  params.Endpoint,
+		name:      params.Name,
 	}
 }
 
 const nameS3 = "s3"
 
+func S3StoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg S3Params
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return NewS3Store(cfg), nil
+}
+
+func init() {
+	RegisterStore(nameS3, S3StoreFactory)
+}
+
 // Name is the cache type name
-func (s *S3Store) Name() string { return nameS3 }
+func (s *S3Store) Name() string { return nameS3 + "-" + s.name }
 
 // Has returns T/F or Error ( from S3 ) if the store contains the blob.
 func (s *S3Store) Has(hash string) (bool, error) {
@@ -169,5 +194,4 @@ func (s *S3Store) initOnce() error {
 
 // Shutdown shuts down the store gracefully
 func (s *S3Store) Shutdown() {
-	return
 }

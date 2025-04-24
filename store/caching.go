@@ -1,6 +1,7 @@
 package store
 
 import (
+	"strings"
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -10,6 +11,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 // CachingStore combines two stores, typically a local and a remote store, to improve performance.
@@ -17,19 +19,76 @@ import (
 // are retrieved from the origin and cached. Puts are cached and also forwarded to the origin.
 type CachingStore struct {
 	origin, cache BlobStore
-	component     string
+	name          string
+}
+
+type CachingParams struct {
+	Name   string    `mapstructure:"name"`
+	Origin BlobStore `mapstructure:"origin"`
+	Cache  BlobStore `mapstructure:"cache"`
+}
+
+type CachingConfig struct {
+	Name   string `mapstructure:"name"`
+	Origin *viper.Viper
+	Cache  *viper.Viper
 }
 
 // NewCachingStore makes a new caching disk store and returns a pointer to it.
-func NewCachingStore(component string, origin, cache BlobStore) *CachingStore {
+func NewCachingStore(params CachingParams) *CachingStore {
 	return &CachingStore{
-		component: component,
-		origin:    WithSingleFlight(component, origin),
-		cache:     WithSingleFlight(component, cache),
+		name:   params.Name,
+		origin: WithSingleFlight(params.Name, params.Origin),
+		cache:  WithSingleFlight(params.Name, params.Cache),
 	}
 }
 
 const nameCaching = "caching"
+
+func CachingStoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg CachingConfig
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	cfg.Cache = config.Sub("cache")
+	cfg.Origin = config.Sub("origin")
+	if cfg.Cache == nil || cfg.Origin == nil {
+		return nil, errors.Err("cache and origin missing")
+	}
+
+	originStoreType := strings.Split(cfg.Origin.AllKeys()[0], ".")[0]
+	originStoreConfig := cfg.Origin.Sub(originStoreType)
+	factory, ok := Factories[originStoreType]
+	if !ok {
+		return nil, errors.Err("unknown store type %s", originStoreType)
+	}
+	originStore, err := factory(originStoreConfig)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	cacheStoreType := strings.Split(cfg.Cache.AllKeys()[0], ".")[0]
+	cacheStoreConfig := cfg.Cache.Sub(cacheStoreType)
+	factory, ok = Factories[cacheStoreType]
+	if !ok {
+		return nil, errors.Err("unknown store type %s", cacheStoreType)
+	}
+	cacheStore, err := factory(cacheStoreConfig)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return NewCachingStore(CachingParams{
+		Name:   cfg.Name,
+		Origin: originStore,
+		Cache:  cacheStore,
+	}), nil
+}
+
+func init() {
+	RegisterStore(nameCaching, CachingStoreFactory)
+}
 
 // Name is the cache type name
 func (c *CachingStore) Name() string { return nameCaching }
@@ -49,17 +108,17 @@ func (c *CachingStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
 	blob, trace, err := c.cache.Get(hash)
 	if err == nil || !errors.Is(err, ErrBlobNotFound) {
-		metrics.CacheHitCount.With(metrics.CacheLabels(c.cache.Name(), c.component)).Inc()
+		metrics.CacheHitCount.With(metrics.CacheLabels(c.cache.Name(), c.name)).Inc()
 		rate := float64(len(blob)) / 1024 / 1024 / time.Since(start).Seconds()
 		metrics.CacheRetrievalSpeed.With(map[string]string{
 			metrics.LabelCacheType: c.cache.Name(),
-			metrics.LabelComponent: c.component,
+			metrics.LabelComponent: c.name,
 			metrics.LabelSource:    "cache",
 		}).Set(rate)
 		return blob, trace.Stack(time.Since(start), c.Name()), err
 	}
 
-	metrics.CacheMissCount.With(metrics.CacheLabels(c.cache.Name(), c.component)).Inc()
+	metrics.CacheMissCount.With(metrics.CacheLabels(c.cache.Name(), c.name)).Inc()
 
 	blob, trace, err = c.origin.Get(hash)
 	if err != nil {

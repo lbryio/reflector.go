@@ -37,9 +37,17 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 	err := db.Connect(globalConfig.DBConn)
 	checkErr(err)
 
-	st := store.NewDBBackedStore(
-		store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName, globalConfig.S3Endpoint),
-		db, false, nil)
+	st := store.NewDBBackedStore(store.DBBackedParams{
+		Name: "global",
+		Store: store.NewS3Store(store.S3Params{
+			Name:      "owns3",
+			AwsID:     globalConfig.AwsID,
+			AwsSecret: globalConfig.AwsSecret,
+			Region:    globalConfig.BucketRegion,
+			Bucket:    globalConfig.BucketName,
+			Endpoint:  globalConfig.S3Endpoint,
+		}),
+	})
 
 	uploader := reflector.NewUploader(db, st, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
 

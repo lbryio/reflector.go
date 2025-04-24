@@ -2,9 +2,12 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/c2h5oh/datasize"
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/shared"
 
@@ -13,6 +16,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/stream"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 // DBBackedStore is a store that's backed by a DB. The DB contains data about what's in the store.
@@ -24,27 +28,53 @@ type DBBackedStore struct {
 	deleteOnMiss bool
 	maxSize      int
 	cleanerStop  *stop.Group
+	name         string
+}
+
+type DBBackedParams struct {
+	Name         string    `mapstructure:"name"`
+	Store        BlobStore `mapstructure:"store"`
+	DB           *db.SQL   `mapstructure:"db"`
+	DeleteOnMiss bool      `mapstructure:"delete_on_miss"`
+	MaxSize      *int      `mapstructure:"max_size"`
+}
+
+type DBBackedConfig struct {
+	Name           string `mapstructure:"name"`
+	Store          *viper.Viper
+	User           string `mapstructure:"user"`
+	Password       string `mapstructure:"password"`
+	Host           string `mapstructure:"host"`
+	Port           int    `mapstructure:"port"`
+	Database       string `mapstructure:"database"`
+	DeleteOnMiss   bool   `mapstructure:"delete_on_miss"`
+	AccessTracking int    `mapstructure:"access_tracking"`
+	SoftDeletes    bool   `mapstructure:"soft_deletes"`
+	LogQueries     bool   `mapstructure:"log_queries"`
+	HasCap         bool   `mapstructure:"has_cap"`
+	MaxSize        string `mapstructure:"max_size"`
 }
 
 // NewDBBackedStore returns an initialized store pointer.
-func NewDBBackedStore(blobs BlobStore, db *db.SQL, deleteOnMiss bool, maxSize *int) *DBBackedStore {
+func NewDBBackedStore(params DBBackedParams) *DBBackedStore {
 	store := &DBBackedStore{
-		blobs:        blobs,
-		db:           db,
-		deleteOnMiss: deleteOnMiss,
+		blobs:        params.Store,
+		db:           params.DB,
+		deleteOnMiss: params.DeleteOnMiss,
 		cleanerStop:  stop.New(),
+		name:         params.Name,
 	}
-	if maxSize != nil {
-		store.maxSize = *maxSize
+	if params.MaxSize != nil {
+		store.maxSize = *params.MaxSize
 		go store.cleanOldestBlobs()
 	}
 	return store
 }
 
-const nameDBBacked = "db-backed"
+const nameDBBacked = "db_backed"
 
 // Name is the cache type name
-func (d *DBBackedStore) Name() string { return nameDBBacked }
+func (d *DBBackedStore) Name() string { return nameDBBacked + "-" + d.name }
 
 // Has returns true if the blob is in the store
 func (d *DBBackedStore) Has(hash string) (bool, error) {
@@ -266,4 +296,57 @@ func (d *DBBackedStore) doClean() error {
 func (d *DBBackedStore) Shutdown() {
 	d.cleanerStop.Stop()
 	d.blobs.Shutdown()
+}
+
+func DBBackedStoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg DBBackedConfig
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	cfg.Store = config.Sub("store")
+
+	storeType := strings.Split(cfg.Store.AllKeys()[0], ".")[0]
+	storeConfig := cfg.Store.Sub(storeType)
+	factory, ok := Factories[storeType]
+	if !ok {
+		return nil, errors.Err("unknown store type %s", storeType)
+	}
+	underlyingStore, err := factory(storeConfig)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	parsedDb := &db.SQL{
+		TrackingLevel: db.AccessTrackingLevel(cfg.AccessTracking),
+		SoftDelete:    cfg.SoftDeletes,
+		LogQueries:    cfg.LogQueries || log.GetLevel() == log.DebugLevel,
+	}
+
+	err = parsedDb.Connect(fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database))
+	if err != nil {
+		return nil, err
+	}
+	params := DBBackedParams{
+		Name:         cfg.Name,
+		Store:        underlyingStore,
+		DB:           parsedDb,
+		DeleteOnMiss: cfg.DeleteOnMiss,
+	}
+	if cfg.HasCap {
+		var parsedSize datasize.ByteSize
+		err = parsedSize.UnmarshalText([]byte(cfg.MaxSize))
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+		maxSize := int(parsedSize)
+		params.MaxSize = &maxSize
+	}
+
+	return NewDBBackedStore(params), nil
+}
+
+func init() {
+	RegisterStore(nameDBBacked, DBBackedStoreFactory)
 }

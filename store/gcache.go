@@ -1,6 +1,7 @@
 package store
 
 import (
+	"strings"
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -11,15 +12,16 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 // GcacheStore adds a max cache size and Greedy-Dual-Size-Frequency cache eviction strategy to a BlobStore
 type GcacheStore struct {
-	// underlying store
-	store BlobStore
-	// cache implementation
-	cache gcache.Cache
+	underlyingStore BlobStore
+	cache           gcache.Cache
+	name            string
 }
+
 type EvictionStrategy int
 
 const (
@@ -33,16 +35,30 @@ const (
 	SIMPLE
 )
 
+type GcacheParams struct {
+	Name     string           `mapstructure:"name"`
+	Store    BlobStore        `mapstructure:"store"`
+	MaxSize  int              `mapstructure:"max_size"`
+	Strategy EvictionStrategy `mapstructure:"strategy"`
+}
+
+type GcacheConfig struct {
+	Name     string `mapstructure:"name"`
+	Store    *viper.Viper
+	MaxSize  int              `mapstructure:"max_size"`
+	Strategy EvictionStrategy `mapstructure:"strategy"`
+}
+
 // NewGcacheStore initialize a new LRUStore
-func NewGcacheStore(component string, store BlobStore, maxSize int, strategy EvictionStrategy) *GcacheStore {
-	cacheBuilder := gcache.New(maxSize)
+func NewGcacheStore(params GcacheParams) *GcacheStore {
+	cacheBuilder := gcache.New(params.MaxSize)
 	var cache gcache.Cache
 	evictFunc := func(key interface{}, value interface{}) {
 		logrus.Infof("evicting %s", key)
-		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(store.Name(), component)).Inc()
-		_ = store.Delete(key.(string)) // TODO: log this error. may happen if underlying entry is gone but cache entry still there
+		metrics.CacheLRUEvictCount.With(metrics.CacheLabels(params.Store.Name(), params.Name)).Inc()
+		_ = params.Store.Delete(key.(string)) // TODO: log this error. may happen if underlying entry is gone but cache entry still there
 	}
-	switch strategy {
+	switch params.Strategy {
 	case LFU:
 		cache = cacheBuilder.LFU().EvictedFunc(evictFunc).Build()
 	case ARC:
@@ -51,15 +67,15 @@ func NewGcacheStore(component string, store BlobStore, maxSize int, strategy Evi
 		cache = cacheBuilder.LRU().EvictedFunc(evictFunc).Build()
 	case SIMPLE:
 		cache = cacheBuilder.Simple().EvictedFunc(evictFunc).Build()
-
 	}
 	l := &GcacheStore{
-		store: store,
-		cache: cache,
+		underlyingStore: params.Store,
+		cache:           cache,
+		name:            params.Name,
 	}
 	go func() {
-		if lstr, ok := store.(lister); ok {
-			err := l.loadExisting(lstr, maxSize)
+		if lstr, ok := params.Store.(lister); ok {
+			err := l.loadExisting(lstr, params.MaxSize)
 			if err != nil {
 				panic(err) // TODO: what should happen here? panic? return nil? just keep going?
 			}
@@ -71,8 +87,40 @@ func NewGcacheStore(component string, store BlobStore, maxSize int, strategy Evi
 
 const nameGcache = "gcache"
 
+func GcacheStoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg GcacheConfig
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	cfg.Store = config.Sub("store")
+
+	storeType := strings.Split(cfg.Store.AllKeys()[0], ".")[0]
+	storeConfig := cfg.Store.Sub(storeType)
+	factory, ok := Factories[storeType]
+	if !ok {
+		return nil, errors.Err("unknown store type %s", storeType)
+	}
+	underlyingStore, err := factory(storeConfig)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return NewGcacheStore(GcacheParams{
+		Name:     cfg.Name,
+		Store:    underlyingStore,
+		MaxSize:  cfg.MaxSize,
+		Strategy: cfg.Strategy,
+	}), nil
+}
+
+func init() {
+	RegisterStore(nameGcache, GcacheStoreFactory)
+}
+
 // Name is the cache type name
-func (l *GcacheStore) Name() string { return nameGcache }
+func (l *GcacheStore) Name() string { return nameGcache + "-" + l.name }
 
 // Has returns whether the blob is in the store, without updating the recent-ness.
 func (l *GcacheStore) Has(hash string) (bool, error) {
@@ -86,7 +134,7 @@ func (l *GcacheStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), l.Name()), errors.Err(ErrBlobNotFound)
 	}
-	blob, stack, err := l.store.Get(hash)
+	blob, stack, err := l.underlyingStore.Get(hash)
 	if errors.Is(err, ErrBlobNotFound) {
 		// Blob disappeared from underlying store
 		l.cache.Remove(hash)
@@ -99,7 +147,7 @@ func (l *GcacheStore) Put(hash string, blob stream.Blob) error {
 	_ = l.cache.Set(hash, true)
 	has, _ := l.Has(hash)
 	if has {
-		err := l.store.Put(hash, blob)
+		err := l.underlyingStore.Put(hash, blob)
 		if err != nil {
 			return err
 		}
@@ -112,7 +160,7 @@ func (l *GcacheStore) PutSD(hash string, blob stream.Blob) error {
 	_ = l.cache.Set(hash, true)
 	has, _ := l.Has(hash)
 	if has {
-		err := l.store.PutSD(hash, blob)
+		err := l.underlyingStore.PutSD(hash, blob)
 		if err != nil {
 			return err
 		}
@@ -122,7 +170,7 @@ func (l *GcacheStore) PutSD(hash string, blob stream.Blob) error {
 
 // Delete deletes the blob from the store
 func (l *GcacheStore) Delete(hash string) error {
-	err := l.store.Delete(hash)
+	err := l.underlyingStore.Delete(hash)
 	if err != nil {
 		return err
 	}

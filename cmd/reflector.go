@@ -155,33 +155,63 @@ func initUpstreamStore() store.BlobStore {
 	}
 	switch upstreamProtocol {
 	case "tcp":
-		s = peer.NewStore(peer.StoreOpts{
+		s = store.NewPeerStore(store.PeerParams{
+			Name:    "reflector",
 			Address: upstreamReflector,
 			Timeout: 30 * time.Second,
 		})
 	case "http3":
-		s = http3.NewStore(http3.StoreOpts{
+		s = store.NewHttp3Store(store.Http3Params{
+			Name:    "reflector",
 			Address: upstreamReflector,
 			Timeout: 30 * time.Second,
 		})
 	case "http":
-		s = store.NewUpstreamStore(upstreamReflector, upstreamEdgeToken)
+		s = store.NewUpstreamStore(store.UpstreamParams{
+			Name:      "reflector",
+			Upstream:  upstreamReflector,
+			EdgeToken: upstreamEdgeToken,
+		})
 	default:
 		log.Fatalf("protocol is not recognized: %s", upstreamProtocol)
 	}
 	return s
 }
+
 func initEdgeStore() store.BlobStore {
 	var s3Store *store.S3Store
 	var s store.BlobStore
 
 	if conf != "none" {
-		s3Store = store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName, globalConfig.S3Endpoint)
+		s3Store = store.NewS3Store(store.S3Params{
+			Name:      "reflector",
+			AwsID:     globalConfig.AwsID,
+			AwsSecret: globalConfig.AwsSecret,
+			Region:    globalConfig.BucketRegion,
+			Bucket:    globalConfig.BucketName,
+			Endpoint:  globalConfig.S3Endpoint,
+		})
 	}
 	if originEndpointFallback != "" && originEndpoint != "" {
-		ittt := store.NewITTTStore(store.NewHttpStore(originEndpoint, 0), store.NewHttpStore(originEndpointFallback, 0))
+		ittt := store.NewITTTStore(store.ITTTParams{
+			Name: "reflector",
+			This: store.NewHttpStore(store.HttpParams{
+				Name:         "owns3",
+				Endpoint:     originEndpoint,
+				PrefixLength: 0,
+			}),
+			That: store.NewHttpStore(store.HttpParams{
+				Name:         "wasabi",
+				Endpoint:     originEndpointFallback,
+				PrefixLength: 0,
+			}),
+		})
 		if s3Store != nil {
-			s = store.NewProxiedS3Store(ittt, s3Store)
+			s = store.NewProxiedS3Store(store.ProxiedS3Params{
+				Name:    "reflector",
+				Proxied: ittt,
+				S3:      s3Store,
+			})
 		} else {
 			s = ittt
 		}
@@ -196,14 +226,20 @@ func initEdgeStore() store.BlobStore {
 func initDBStore(s store.BlobStore) store.BlobStore {
 	if useDB {
 		dbInst := &db.SQL{
-			TrackAccess: db.TrackAccessStreams,
-			LogQueries:  log.GetLevel() == log.DebugLevel,
+			TrackingLevel: db.TrackAccessStreams,
+			LogQueries:    log.GetLevel() == log.DebugLevel,
 		}
 		err := dbInst.Connect(globalConfig.DBConn)
 		if err != nil {
 			log.Fatal(err)
 		}
-		s = store.NewDBBackedStore(s, dbInst, false, nil)
+		s = store.NewDBBackedStore(store.DBBackedParams{
+			Name:         "global",
+			Store:        s,
+			DB:           dbInst,
+			DeleteOnMiss: false,
+			MaxSize:      nil,
+		})
 	}
 	return s
 }
@@ -222,11 +258,16 @@ func initCaches(s store.BlobStore) store.BlobStore {
 	diskStore := initDiskStore(s, diskCache)
 	finalStore := initDiskStore(diskStore, secondaryDiskCache)
 	if memCache > 0 {
-		finalStore = store.NewCachingStore(
-			"reflector",
-			finalStore,
-			store.NewGcacheStore("mem", store.NewMemStore(), memCache, store.LRU),
-		)
+		finalStore = store.NewCachingStore(store.CachingParams{
+			Name:   "reflector",
+			Origin: finalStore,
+			Cache: store.NewGcacheStore(store.GcacheParams{
+				Name:     "volatile-cache",
+				Store:    store.NewMemStore(store.MemParams{Name: "volatile-cache"}),
+				MaxSize:  memCache,
+				Strategy: store.LRU,
+			}),
+		})
 	}
 	return finalStore
 }
@@ -244,29 +285,44 @@ func initDiskStore(upstreamStore store.BlobStore, diskParams string) store.BlobS
 		log.Fatal(err)
 	}
 
-	diskStore := store.NewDiskStore(diskCachePath, 2)
+	diskStore := store.NewDiskStore(store.DiskParams{
+		Name:         "big-drive",
+		MountPoint:   diskCachePath,
+		ShardingSize: 2,
+	})
 	var unwrappedStore store.BlobStore
 
 	if cacheManager == "localdb" {
 		localDb := &db.SQL{
-			SoftDelete:  true,
-			TrackAccess: db.TrackAccessBlobs,
-			LogQueries:  log.GetLevel() == log.DebugLevel,
+			SoftDelete:    true,
+			TrackingLevel: db.TrackAccessBlobs,
+			LogQueries:    log.GetLevel() == log.DebugLevel,
 		}
 		err = localDb.Connect("reflector:reflector@tcp(localhost:3306)/reflector")
 		if err != nil {
 			log.Fatal(err)
 		}
-		unwrappedStore = store.NewDBBackedStore(diskStore, localDb, true, &realCacheSize)
+		unwrappedStore = store.NewDBBackedStore(store.DBBackedParams{
+			Name:         "local",
+			Store:        diskStore,
+			DB:           localDb,
+			DeleteOnMiss: true,
+			MaxSize:      &realCacheSize,
+		})
 	} else {
-		unwrappedStore = store.NewGcacheStore("nvme", store.NewDiskStore(diskCachePath, 2), realCacheSize, cacheMangerToGcache[cacheManager])
+		unwrappedStore = store.NewGcacheStore(store.GcacheParams{
+			Name:     "flash",
+			Store:    store.NewDiskStore(store.DiskParams{Name: "flash", MountPoint: diskCachePath, ShardingSize: 2}),
+			MaxSize:  realCacheSize,
+			Strategy: cacheMangerToGcache[cacheManager],
+		})
 	}
 
-	wrapped := store.NewCachingStore(
-		"reflector",
-		upstreamStore,
-		unwrappedStore,
-	)
+	wrapped := store.NewCachingStore(store.CachingParams{
+		Name:   "reflector",
+		Origin: upstreamStore,
+		Cache:  unwrappedStore,
+	})
 	return wrapped
 }
 

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"strings"
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -9,6 +10,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 
+	"github.com/spf13/viper"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -25,6 +27,38 @@ type singleflightStore struct {
 
 	component string
 	sf        *singleflight.Group
+}
+
+type SingleFlightConfig struct {
+	Component string `mapstructure:"component"`
+	Store     *viper.Viper
+}
+
+func SingleFlightStoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg SingleFlightConfig
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	cfg.Store = config.Sub("store")
+
+	storeType := strings.Split(cfg.Store.AllKeys()[0], ".")[0]
+	storeConfig := cfg.Store.Sub(storeType)
+	factory, ok := Factories[storeType]
+	if !ok {
+		return nil, errors.Err("unknown store type %s", storeType)
+	}
+	underlyingStore, err := factory(storeConfig)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return WithSingleFlight(cfg.Component, underlyingStore), nil
+}
+
+func init() {
+	RegisterStore("singleflight", SingleFlightStoreFactory)
 }
 
 func (s *singleflightStore) Name() string {
@@ -124,5 +158,4 @@ func (s *singleflightStore) putter(hash string, blob stream.Blob) func() (interf
 // Shutdown shuts down the store gracefully
 func (s *singleflightStore) Shutdown() {
 	s.BlobStore.Shutdown()
-	return
 }

@@ -8,25 +8,45 @@ import (
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
+	"github.com/spf13/viper"
 )
 
 // MemStore is an in memory only blob store with no persistence.
 type MemStore struct {
 	blobs map[string]stream.Blob
 	mu    *sync.RWMutex
+	name  string
 }
 
-func NewMemStore() *MemStore {
+type MemParams struct {
+	Name string `mapstructure:"name"`
+}
+
+func NewMemStore(params MemParams) *MemStore {
 	return &MemStore{
 		blobs: make(map[string]stream.Blob),
 		mu:    &sync.RWMutex{},
+		name:  params.Name,
 	}
 }
 
 const nameMem = "mem"
 
+func MemStoreFactory(config *viper.Viper) (BlobStore, error) {
+	var cfg MemParams
+	err := config.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return NewMemStore(cfg), nil
+}
+
+func init() {
+	RegisterStore(nameMem, MemStoreFactory)
+}
+
 // Name is the cache type name
-func (m *MemStore) Name() string { return nameMem }
+func (m *MemStore) Name() string { return nameMem + "-" + m.name }
 
 // Has returns T/F if the blob is currently stored. It will never error.
 func (m *MemStore) Has(hash string) (bool, error) {

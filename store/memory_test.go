@@ -8,7 +8,7 @@ import (
 )
 
 func TestMemStore_Put(t *testing.T) {
-	s := NewMemStore()
+	s := NewMemStore(MemParams{Name: "test"})
 	blob := []byte("abcdefg")
 	err := s.Put("abc", blob)
 	if err != nil {
@@ -17,7 +17,7 @@ func TestMemStore_Put(t *testing.T) {
 }
 
 func TestMemStore_Get(t *testing.T) {
-	s := NewMemStore()
+	s := NewMemStore(MemParams{Name: "test"})
 	hash := "abc"
 	blob := []byte("abcdefg")
 	err := s.Put(hash, blob)
