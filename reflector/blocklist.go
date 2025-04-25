@@ -22,10 +22,10 @@ const blocklistURL = "https://api.lbry.com/file/list_blocked"
 
 func (s *Server) enableBlocklist(b store.Blocklister) {
 	walletServers := []string{
-		"spv25.lbry.com:50001",
-		"spv26.lbry.com:50001",
-		"spv19.lbry.com:50001",
-		"spv14.lbry.com:50001",
+		"a-hub1.odysee.com:50001",
+		"b-hub1.odysee.com:50001",
+		"c-hub1.odysee.com:50001",
+		"s-hub1.odysee.com:50001",
 	}
 
 	updateBlocklist(b, walletServers, s.grp.Ch())

@@ -74,23 +74,25 @@ func (c *HttpStore) Has(hash string) (bool, error) {
 }
 
 // Get downloads the blob using the http client
-func (c *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
+func (c *HttpStore) Get(hash string) (b stream.Blob, trace shared.BlobTrace, err error) {
 	log.Debugf("Getting %s from HTTP(s) source", hash[:8])
 	start := time.Now()
+
 	defer func(t time.Time) {
 		log.Debugf("Getting %s from HTTP(s) source took %s", hash[:8], time.Since(t).String())
+		trace = trace.Stack(time.Since(start), c.Name())
 	}(start)
 
 	url := c.endpoint + c.shardedPath(hash)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, shared.NewBlobTrace(time.Since(start), c.Name()), errors.Err(err)
+		return nil, trace, errors.Err(err)
 	}
 	req.Header.Add("User-Agent", "reflector.go/"+meta.Version())
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, shared.NewBlobTrace(time.Since(start), c.Name()), errors.Err(err)
+		return nil, trace, errors.Err(err)
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -99,21 +101,18 @@ func (c *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 		}
 	}(res.Body)
 
+	// Parse Via header if present
 	viaHeader := res.Header.Get("Via")
-	var trace shared.BlobTrace
 	if viaHeader != "" {
 		parsedTrace, err := shared.Deserialize(viaHeader)
-		if err != nil {
-			return nil, shared.NewBlobTrace(time.Since(start), c.Name()), err
+		if err == nil {
+			trace = *parsedTrace
 		}
-		trace = *parsedTrace
-	} else {
-		trace = shared.NewBlobTrace(0, c.Name())
 	}
 
 	switch res.StatusCode {
 	case http.StatusNotFound:
-		return nil, trace.Stack(time.Since(start), c.Name()), ErrBlobNotFound
+		return nil, trace, ErrBlobNotFound
 	case http.StatusOK:
 		contentLength := res.Header.Get("Content-Length")
 		if contentLength != "" {
@@ -123,7 +122,7 @@ func (c *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 				_, err = io.ReadFull(res.Body, blob)
 				if err == nil {
 					metrics.MtrInBytesHttp.Add(float64(size))
-					return blob, trace.Stack(time.Since(start), c.Name()), nil
+					return blob, trace, nil
 				}
 				log.Warnf("Error reading body with known size: %s", err.Error())
 			}
@@ -132,17 +131,16 @@ func (c *HttpStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 		buffer := getBuffer()
 		defer putBuffer(buffer)
 		if _, err := io.Copy(buffer, res.Body); err != nil {
-			return nil, trace.Stack(time.Since(start), c.Name()), errors.Err(err)
+			return nil, trace, errors.Err(err)
 		}
 		blob := make([]byte, buffer.Len())
 		copy(blob, buffer.Bytes())
 		metrics.MtrInBytesHttp.Add(float64(len(blob)))
-		return blob, trace.Stack(time.Since(start), c.Name()), nil
+		return blob, trace, nil
 	default:
 		body, _ := io.ReadAll(res.Body)
 		log.Warnf("Got status code %d (%s)", res.StatusCode, string(body))
-		return nil, trace.Stack(time.Since(start), c.Name()),
-			errors.Err("upstream error. Status code: %d (%s)", res.StatusCode, string(body))
+		return nil, trace, errors.Err("upstream error. Status code: %d (%s)", res.StatusCode, string(body))
 	}
 }
 

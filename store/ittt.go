@@ -101,7 +101,7 @@ func (c *ITTTStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
 	blob, trace, err := c.this.Get(hash)
 	if err == nil {
-		metrics.ThisHitCount.Inc()
+		metrics.ItttHitCount.With(metrics.ItttLabels(c.this.Name())).Inc()
 		return blob, trace.Stack(time.Since(start), c.Name()), err
 	}
 
@@ -109,7 +109,7 @@ func (c *ITTTStore) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	if err != nil {
 		return nil, trace.Stack(time.Since(start), c.Name()), err
 	}
-	metrics.ThatHitCount.Inc()
+	metrics.ItttHitCount.With(metrics.ItttLabels(c.that.Name())).Inc()
 	return blob, trace.Stack(time.Since(start), c.Name()), nil
 }
 

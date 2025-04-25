@@ -69,6 +69,7 @@ const (
 	DirectionDownload = "download" // from reflector
 
 	LabelCacheType = "cache_type"
+	LabelOrigin    = "origin"
 	LabelComponent = "component"
 	LabelSource    = "source"
 
@@ -135,18 +136,12 @@ var (
 		Name:      "hit_total",
 		Help:      "Total number of blobs retrieved from the cache storage",
 	}, []string{LabelCacheType, LabelComponent})
-	ThisHitCount = promauto.NewCounter(prometheus.CounterOpts{
+	ItttHitCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
 		Subsystem: subsystemITTT,
-		Name:      "this_hit_total",
-		Help:      "Total number of blobs retrieved from the this storage",
-	})
-	ThatHitCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: ns,
-		Subsystem: subsystemITTT,
-		Name:      "that_hit_total",
-		Help:      "Total number of blobs retrieved from the that storage",
-	})
+		Name:      "hits_total",
+		Help:      "Total number of blobs retrieved from the this/that storage",
+	}, []string{LabelOrigin})
 	CacheMissCount = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: ns,
 		Subsystem: subsystemCache,
@@ -260,6 +255,11 @@ func CacheLabels(name, component string) prometheus.Labels {
 	return prometheus.Labels{
 		LabelCacheType: name,
 		LabelComponent: component,
+	}
+}
+func ItttLabels(orig string) prometheus.Labels {
+	return prometheus.Labels{
+		LabelOrigin: orig,
 	}
 }
 

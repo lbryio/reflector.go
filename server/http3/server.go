@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -157,7 +158,7 @@ func generateTLSConfig() *tls.Config {
 
 func (s *Server) listenAndServe(server *http3.Server) {
 	err := server.ListenAndServe()
-	if err != nil && err != quic.ErrServerClosed {
+	if err != nil && !strings.Contains(err.Error(), "Server closed") {
 		log.Errorln(errors.FullTrace(err))
 	}
 }
