@@ -29,7 +29,7 @@ type HttpStore struct {
 type HttpParams struct {
 	Name         string `mapstructure:"name"`
 	Endpoint     string `mapstructure:"endpoint"`
-	PrefixLength int    `mapstructure:"prefix_length"`
+	ShardingSize int    `mapstructure:"sharding_size"`
 }
 
 // NewHttpStore returns an initialized HttpStore store pointer.
@@ -37,7 +37,7 @@ func NewHttpStore(params HttpParams) *HttpStore {
 	return &HttpStore{
 		endpoint:     params.Endpoint,
 		httpClient:   getClient(),
-		prefixLength: params.PrefixLength,
+		prefixLength: params.ShardingSize,
 		name:         params.Name,
 	}
 }

@@ -32,14 +32,16 @@ type Server struct {
 	store              store.BlobStore
 	grp                *stop.Group
 	concurrentRequests int
+	address            string
 }
 
 // NewServer returns an initialized Server pointer.
-func NewServer(store store.BlobStore, requestQueueSize int) *Server {
+func NewServer(store store.BlobStore, requestQueueSize int, address string) *Server {
 	return &Server{
 		store:              store,
 		grp:                stop.New(),
 		concurrentRequests: requestQueueSize,
+		address:            address,
 	}
 }
 
@@ -66,8 +68,8 @@ type availabilityResponse struct {
 }
 
 // Start starts the server listener to handle connections.
-func (s *Server) Start(address string) error {
-	log.Println("HTTP3 peer listening on " + address)
+func (s *Server) Start() error {
+	log.Println("HTTP3 peer listening on " + s.address)
 	window500M := 500 * 1 << 20
 
 	quicConf := &quic.Config{
@@ -113,7 +115,7 @@ func (s *Server) Start(address string) error {
 		}
 	})
 	server := http3.Server{
-		Addr:       address,
+		Addr:       s.address,
 		Handler:    r,
 		TLSConfig:  generateTLSConfig(),
 		QUICConfig: quicConf,

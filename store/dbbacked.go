@@ -144,13 +144,14 @@ func (d *DBBackedStore) Delete(hash string) error {
 
 // Block deletes the blob and prevents it from being uploaded in the future
 func (d *DBBackedStore) Block(hash string) error {
-	if blocked, err := d.isBlocked(hash); blocked || err != nil {
+	blocked, err := d.isBlocked(hash)
+	if blocked || err != nil {
 		return err
 	}
 
 	log.Debugf("blocking %s", hash)
 
-	err := d.db.Block(hash)
+	err = d.db.Block(hash)
 	if err != nil {
 		return err
 	}

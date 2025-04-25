@@ -2,6 +2,7 @@ package prism
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -78,7 +79,7 @@ func New(conf *Config) *Prism {
 		db:        conf.DB,
 		dht:       d,
 		cluster:   c,
-		peer:      peer.NewServer(conf.Blobs),
+		peer:      peer.NewServer(conf.Blobs, fmt.Sprintf(":%d", conf.PeerPort)),
 		reflector: reflector.NewServer(conf.Blobs, conf.Blobs),
 
 		grp: stop.New(),
@@ -107,7 +108,7 @@ func (p *Prism) Start() error {
 		return errors.Err("blobs required in conf")
 	}
 
-	err = p.peer.Start(":" + strconv.Itoa(p.conf.PeerPort))
+	err = p.peer.Start()
 	if err != nil {
 		return err
 	}

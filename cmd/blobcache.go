@@ -8,7 +8,6 @@ import (
 
 	"github.com/lbryio/reflector.go/config"
 	"github.com/lbryio/reflector.go/internal/metrics"
-	"github.com/lbryio/reflector.go/server/http"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -36,18 +35,23 @@ func init() {
 }
 
 func blobcacheCmd(cmd *cobra.Command, args []string) {
-	stores, err := config.LoadStores("blobcache.yaml")
+	store, err := config.LoadStores("blobcache.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
-	store := stores["caching"]
 	defer store.Shutdown()
-	httpServer := http.NewServer(store, requestQueueSize, upstreamEdgeToken)
-	err = httpServer.Start(":" + strconv.Itoa(httpPeerPort))
+
+	servers, err := config.LoadServers(store, "blobcache.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer httpServer.Shutdown()
+	for _, s := range servers {
+		err = s.Start()
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer s.Shutdown()
+	}
 
 	metricsServer := metrics.NewServer(":"+strconv.Itoa(metricsPort), "/metrics")
 	metricsServer.Start()

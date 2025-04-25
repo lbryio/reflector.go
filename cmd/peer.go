@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 
 	"github.com/lbryio/reflector.go/db"
@@ -37,7 +37,7 @@ func peerCmd(cmd *cobra.Command, args []string) {
 		Bucket:    globalConfig.BucketName,
 		Endpoint:  globalConfig.S3Endpoint,
 	})
-	peerServer := peer.NewServer(s3)
+	peerServer := peer.NewServer(s3, fmt.Sprintf(":%d", peer.DefaultPort))
 
 	if !peerNoDB {
 		db := &db.SQL{
@@ -53,10 +53,10 @@ func peerCmd(cmd *cobra.Command, args []string) {
 			DeleteOnMiss: false,
 			MaxSize:      nil,
 		})
-		peerServer = peer.NewServer(combo)
+		peerServer = peer.NewServer(combo, fmt.Sprintf(":%d", peer.DefaultPort))
 	}
 
-	err = peerServer.Start(":" + strconv.Itoa(peer.DefaultPort))
+	err = peerServer.Start()
 	if err != nil {
 		log.Fatal(err)
 	}

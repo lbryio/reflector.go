@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"strconv"
@@ -116,22 +117,22 @@ func reflectorCmd(cmd *cobra.Command, args []string) {
 		defer reflectorServer.Shutdown()
 	}
 
-	peerServer := peer.NewServer(underlyingStoreWithCaches)
-	err := peerServer.Start(":" + strconv.Itoa(tcpPeerPort))
+	peerServer := peer.NewServer(underlyingStoreWithCaches, fmt.Sprintf(":%d", tcpPeerPort))
+	err := peerServer.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer peerServer.Shutdown()
 
-	http3PeerServer := http3.NewServer(underlyingStoreWithCaches, requestQueueSize)
-	err = http3PeerServer.Start(":" + strconv.Itoa(http3PeerPort))
+	http3PeerServer := http3.NewServer(underlyingStoreWithCaches, requestQueueSize, fmt.Sprintf(":%d", http3PeerPort))
+	err = http3PeerServer.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer http3PeerServer.Shutdown()
 
-	httpServer := http.NewServer(store.WithSingleFlight("sf-http", underlyingStoreWithCaches), requestQueueSize, upstreamEdgeToken)
-	err = httpServer.Start(":" + strconv.Itoa(httpPeerPort))
+	httpServer := http.NewServer(store.WithSingleFlight("sf-http", underlyingStoreWithCaches), requestQueueSize, upstreamEdgeToken, fmt.Sprintf(":%d", httpPeerPort))
+	err = httpServer.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -198,12 +199,12 @@ func initEdgeStore() store.BlobStore {
 			This: store.NewHttpStore(store.HttpParams{
 				Name:         "owns3",
 				Endpoint:     originEndpoint,
-				PrefixLength: 0,
+				ShardingSize: 0,
 			}),
 			That: store.NewHttpStore(store.HttpParams{
 				Name:         "wasabi",
 				Endpoint:     originEndpointFallback,
-				PrefixLength: 0,
+				ShardingSize: 0,
 			}),
 		})
 		if s3Store != nil {

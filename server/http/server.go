@@ -22,16 +22,18 @@ type Server struct {
 	concurrentRequests int
 	missesCache        gcache.Cache
 	edgeToken          string
+	address            string
 }
 
 // NewServer returns an initialized Server pointer.
-func NewServer(store store.BlobStore, requestQueueSize int, edgeToken string) *Server {
+func NewServer(store store.BlobStore, requestQueueSize int, edgeToken string, address string) *Server {
 	return &Server{
 		store:              store,
 		grp:                stop.New(),
 		concurrentRequests: requestQueueSize,
 		missesCache:        gcache.New(2000).Expiration(5 * time.Minute).ARC().Build(),
 		edgeToken:          edgeToken,
+		address:            address,
 	}
 }
 
@@ -43,7 +45,7 @@ func (s *Server) Shutdown() {
 }
 
 // Start starts the server listener to handle connections.
-func (s *Server) Start(address string) error {
+func (s *Server) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Logger())
@@ -52,7 +54,7 @@ func (s *Server) Start(address string) error {
 	router.GET("/blob", s.getBlob)
 	router.HEAD("/blob", s.hasBlob)
 	srv := &http.Server{
-		Addr:    address,
+		Addr:    s.address,
 		Handler: router,
 	}
 	go s.listenForShutdown(srv)
@@ -62,7 +64,7 @@ func (s *Server) Start(address string) error {
 	s.grp.Add(1)
 	go func() {
 		defer s.grp.Done()
-		log.Println("HTTP server listening on " + address)
+		log.Println("HTTP server listening on " + s.address)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
