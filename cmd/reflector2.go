@@ -39,13 +39,13 @@ func init() {
 }
 
 func reflector2Cmd(cmd *cobra.Command, args []string) {
-	store, err := config.LoadStores(conf, "reflector.yaml")
+	store, err := config.LoadStores(conf, "reflector")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer store.Shutdown()
 
-	servers, err := config.LoadServers(store, conf, "reflector.yaml")
+	servers, err := config.LoadServers(store, conf, "reflector")
 	if err != nil {
 		log.Fatal(err)
 	}

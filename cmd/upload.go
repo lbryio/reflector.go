@@ -31,13 +31,13 @@ func init() {
 }
 
 func uploadCmd(cmd *cobra.Command, args []string) {
-	store, err := config.LoadStores(conf, "upload.yaml")
+	store, err := config.LoadStores(conf, "upload")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer store.Shutdown()
 
-	databaseConn, err := config.LoadDatabase(conf, "upload.yaml")
+	databaseConn, err := config.LoadDatabase(conf, "upload")
 	if err != nil {
 		log.Fatal(err)
 	}
