@@ -183,9 +183,10 @@ func (s *S3Store) initOnce() error {
 	}
 
 	sess, err := session.NewSession(&aws.Config{
-		Credentials: credentials.NewStaticCredentials(s.awsID, s.awsSecret, ""),
-		Region:      aws.String(s.region),
-		Endpoint:    aws.String(s.endpoint),
+		Credentials:      credentials.NewStaticCredentials(s.awsID, s.awsSecret, ""),
+		Region:           aws.String(s.region),
+		Endpoint:         aws.String(s.endpoint),
+		S3ForcePathStyle: aws.Bool(true),
 	})
 	if err != nil {
 		return errors.Err(err)

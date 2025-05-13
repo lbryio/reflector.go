@@ -22,8 +22,10 @@ type MultiWriterParams struct {
 }
 
 type MultiWriterConfig struct {
-	Name         string   `mapstructure:"name"`
-	Destinations []string `mapstructure:"destinations"`
+	Name  string `mapstructure:"name"`
+	One   viper.Viper
+	Two   viper.Viper
+	Three viper.Viper
 }
 
 // NewMultiWriterStore returns a new instance of the MultiWriter store
@@ -44,23 +46,45 @@ func MultiWriterStoreFactory(config *viper.Viper) (BlobStore, error) {
 	}
 
 	var destinations []BlobStore
-	for _, destType := range cfg.Destinations {
-		destConfig := config.Sub(destType)
-		if destConfig == nil {
-			return nil, errors.Err("missing configuration for destination %s", destType)
-		}
 
-		factory, ok := Factories[destType]
-		if !ok {
-			return nil, errors.Err("unknown store type %s", destType)
-		}
+	one := config.Sub("one")
+	two := config.Sub("two")
+	//three := config.Sub("three")
 
-		destStore, err := factory(destConfig)
-		if err != nil {
-			return nil, errors.Err(err)
-		}
-		destinations = append(destinations, destStore)
+	storeTypeOne := strings.Split(one.AllKeys()[0], ".")[0]
+	storeTypeTwo := strings.Split(two.AllKeys()[0], ".")[0]
+	//storeTypeThree := strings.Split(three.AllKeys()[0], ".")[0]
+
+	storeCfgOne := one.Sub(storeTypeOne)
+	storeCfgTwo := two.Sub(storeTypeTwo)
+	//storeCfgThree := config.Sub(storeTypeThree)
+
+	factoryOne, ok := Factories[storeTypeOne]
+	if !ok {
+		return nil, errors.Err("unknown store type %s", storeTypeOne)
 	}
+	factoryTwo, ok := Factories[storeTypeTwo]
+	if !ok {
+		return nil, errors.Err("unknown store type %s", storeTypeTwo)
+	}
+	//factoryThree, ok := Factories[storeTypeThree]
+	//if !ok {
+	//	return nil, errors.Err("unknown store type %s", storeTypeThree)
+	//}
+
+	store1, err := factoryOne(storeCfgOne)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	store2, err := factoryTwo(storeCfgTwo)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	//store3, err := factoryThree(storeCfgThree)
+	//if err != nil {
+	//	return nil, errors.Err(err)
+	//}
+	destinations = append(destinations, store1, store2)
 
 	return NewMultiWriterStore(MultiWriterParams{
 		Name:         cfg.Name,

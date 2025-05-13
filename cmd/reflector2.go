@@ -50,8 +50,6 @@ func reflector2Cmd(cmd *cobra.Command, args []string) {
 		defer s.Shutdown()
 	}
 
-	//todo: implement block interface, implement neededBlobChecker interface, implement Blocklister interface for proxied-s3 as it then cascades down to the db
-	//also adjust the upload cmd
 	reflectorServer := reflector.NewIngestionServer(store)
 	reflectorServer.Timeout = 3 * time.Minute
 	reflectorServer.EnableBlocklist = !disableBlocklist
