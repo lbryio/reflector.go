@@ -18,6 +18,27 @@ type ProxiedS3Store struct {
 	name        string
 }
 
+func (c *ProxiedS3Store) MissingBlobsForKnownStream(s string) ([]string, error) {
+	if bc, ok := c.writerStore.(NeededBlobChecker); ok {
+		return bc.MissingBlobsForKnownStream(s)
+	}
+	return nil, errors.Err("writer does not implement neededBlobChecker")
+}
+
+func (c *ProxiedS3Store) Block(hash string) error {
+	if bl, ok := c.writerStore.(Blocklister); ok {
+		return bl.Block(hash)
+	}
+	return errors.Err("writer does not implement Blocklister")
+}
+
+func (c *ProxiedS3Store) Wants(hash string) (bool, error) {
+	if bl, ok := c.writerStore.(Blocklister); ok {
+		return bl.Wants(hash)
+	}
+	return true, errors.Err("writer does not implement Blocklister")
+}
+
 type ProxiedS3Params struct {
 	Name   string    `mapstructure:"name"`
 	Reader BlobStore `mapstructure:"reader"`

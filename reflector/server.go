@@ -224,7 +224,7 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	var neededBlobs []string
 
 	if isSdBlob && !wantsBlob {
-		if nbc, ok := s.store.(neededBlobChecker); ok {
+		if nbc, ok := s.store.(store.NeededBlobChecker); ok {
 			neededBlobs, err = nbc.MissingBlobsForKnownStream(blobHash)
 			if err != nil {
 				return err
@@ -457,9 +457,4 @@ type blobTransferResponse struct {
 
 type sdBlobTransferResponse struct {
 	ReceivedSdBlob bool `json:"received_sd_blob"`
-}
-
-// neededBlobChecker can check which blobs from a known stream are not uploaded yet
-type neededBlobChecker interface {
-	MissingBlobsForKnownStream(string) ([]string, error)
 }

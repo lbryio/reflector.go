@@ -34,6 +34,11 @@ type Blocklister interface {
 	Wants(hash string) (bool, error)
 }
 
+// NeededBlobChecker can check which blobs from a known stream are not uploaded yet
+type NeededBlobChecker interface {
+	MissingBlobsForKnownStream(string) ([]string, error)
+}
+
 // lister is a store that can list cached blobs. This is helpful when an overlay
 // cache needs to track blob existence.
 type lister interface {

@@ -183,7 +183,7 @@ func TestServer_PartialUpload(t *testing.T) {
 	}
 
 	st := store.BlobStore(&mockPartialStore{MemStore: store.NewMemStore(store.MemParams{Name: "test"}), missing: missing})
-	if _, ok := st.(neededBlobChecker); !ok {
+	if _, ok := st.(store.NeededBlobChecker); !ok {
 		t.Fatal("mock does not implement the relevant interface")
 	}
 	err = st.Put(sdHash, randBlob(10))
