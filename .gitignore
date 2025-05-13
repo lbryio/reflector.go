@@ -2,3 +2,7 @@
 /config.json*
 /dist
 /bin
+
+blobcache.yaml
+
+reflector.yaml

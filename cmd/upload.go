@@ -31,10 +31,10 @@ func init() {
 }
 
 func uploadCmd(cmd *cobra.Command, args []string) {
-	db := &db.SQL{
+	mainDb := &db.SQL{
 		LogQueries: log.GetLevel() == log.DebugLevel,
 	}
-	err := db.Connect(globalConfig.DBConn)
+	err := mainDb.Connect(globalConfig.DBConn)
 	checkErr(err)
 
 	st := store.NewDBBackedStore(store.DBBackedParams{
@@ -49,7 +49,7 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 		}),
 	})
 
-	uploader := reflector.NewUploader(db, st, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
+	uploader := reflector.NewUploader(mainDb, st, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
 
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)

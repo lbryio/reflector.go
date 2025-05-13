@@ -209,9 +209,9 @@ func initEdgeStore() store.BlobStore {
 		})
 		if s3Store != nil {
 			s = store.NewProxiedS3Store(store.ProxiedS3Params{
-				Name:    "reflector",
-				Proxied: ittt,
-				S3:      s3Store,
+				Name:   "reflector",
+				Reader: ittt,
+				Writer: s3Store,
 			})
 		} else {
 			s = ittt

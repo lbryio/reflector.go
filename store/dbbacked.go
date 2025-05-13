@@ -341,7 +341,7 @@ func DBBackedStoreFactory(config *viper.Viper) (BlobStore, error) {
 		if err != nil {
 			return nil, errors.Err(err)
 		}
-		maxSize := int(parsedSize)
+		maxSize := int(float64(parsedSize) / float64(stream.MaxBlobSize))
 		params.MaxSize = &maxSize
 	}
 

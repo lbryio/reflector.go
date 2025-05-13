@@ -13,33 +13,33 @@ import (
 
 // ProxiedS3Store writes to an S3 store and reads from any BlobStore (usually an ITTTStore of HttpStore endpoints).
 type ProxiedS3Store struct {
-	proxied BlobStore
-	s3      *S3Store
-	name    string
+	readerStore BlobStore
+	writerStore BlobStore
+	name        string
 }
 
 type ProxiedS3Params struct {
-	Name    string    `mapstructure:"name"`
-	Proxied BlobStore `mapstructure:"proxied"`
-	S3      *S3Store  `mapstructure:"s3"`
+	Name   string    `mapstructure:"name"`
+	Reader BlobStore `mapstructure:"reader"`
+	Writer BlobStore `mapstructure:"writer"`
 }
 
 type ProxiedS3Config struct {
-	Name    string `mapstructure:"name"`
-	Proxied *viper.Viper
-	S3      *viper.Viper
+	Name   string `mapstructure:"name"`
+	Reader *viper.Viper
+	Writer *viper.Viper
 }
 
 // NewProxiedS3Store returns an initialized ProxiedS3Store store pointer.
 // NOTE: It panics if either argument is nil.
 func NewProxiedS3Store(params ProxiedS3Params) *ProxiedS3Store {
-	if params.Proxied == nil || params.S3 == nil {
+	if params.Reader == nil || params.Writer == nil {
 		panic("both stores must be set")
 	}
 	return &ProxiedS3Store{
-		proxied: params.Proxied,
-		s3:      params.S3,
-		name:    params.Name,
+		readerStore: params.Reader,
+		writerStore: params.Writer,
+		name:        params.Name,
 	}
 }
 
@@ -50,35 +50,35 @@ func (c *ProxiedS3Store) Name() string { return nameProxiedS3 + "-" + c.name }
 
 // Has checks if the hash is in the store.
 func (c *ProxiedS3Store) Has(hash string) (bool, error) {
-	return c.proxied.Has(hash)
+	return c.writerStore.Has(hash)
 }
 
 // Get gets the blob from Cloudfront.
 func (c *ProxiedS3Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
-	blob, trace, err := c.proxied.Get(hash)
+	blob, trace, err := c.readerStore.Get(hash)
 	return blob, trace.Stack(time.Since(start), c.Name()), err
 }
 
 // Put stores the blob on S3
 func (c *ProxiedS3Store) Put(hash string, blob stream.Blob) error {
-	return c.s3.Put(hash, blob)
+	return c.writerStore.Put(hash, blob)
 }
 
 // PutSD stores the sd blob on S3
 func (c *ProxiedS3Store) PutSD(hash string, blob stream.Blob) error {
-	return c.s3.PutSD(hash, blob)
+	return c.writerStore.PutSD(hash, blob)
 }
 
 // Delete deletes the blob from S3
 func (c *ProxiedS3Store) Delete(hash string) error {
-	return c.s3.Delete(hash)
+	return c.writerStore.Delete(hash)
 }
 
 // Shutdown shuts down the store gracefully
 func (c *ProxiedS3Store) Shutdown() {
-	c.s3.Shutdown()
-	c.proxied.Shutdown()
+	c.writerStore.Shutdown()
+	c.readerStore.Shutdown()
 }
 
 func ProxiedS3StoreFactory(config *viper.Viper) (BlobStore, error) {
@@ -88,40 +88,35 @@ func ProxiedS3StoreFactory(config *viper.Viper) (BlobStore, error) {
 		return nil, errors.Err(err)
 	}
 
-	cfg.Proxied = config.Sub("proxied")
-	cfg.S3 = config.Sub("s3")
+	cfg.Reader = config.Sub("reader")
+	cfg.Writer = config.Sub("writer")
 
-	proxiedStoreType := strings.Split(cfg.Proxied.AllKeys()[0], ".")[0]
-	proxiedStoreConfig := cfg.Proxied.Sub(proxiedStoreType)
-	factory, ok := Factories[proxiedStoreType]
+	readerStoreType := strings.Split(cfg.Reader.AllKeys()[0], ".")[0]
+	readerStoreConfig := cfg.Reader.Sub(readerStoreType)
+	factory, ok := Factories[readerStoreType]
 	if !ok {
-		return nil, errors.Err("unknown store type %s", proxiedStoreType)
+		return nil, errors.Err("unknown store type %s", readerStoreType)
 	}
-	proxiedStore, err := factory(proxiedStoreConfig)
+	readerStore, err := factory(readerStoreConfig)
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	s3StoreType := strings.Split(cfg.S3.AllKeys()[0], ".")[0]
-	s3StoreConfig := cfg.S3.Sub(s3StoreType)
-	factory, ok = Factories[s3StoreType]
+	writerStoreType := strings.Split(cfg.Writer.AllKeys()[0], ".")[0]
+	writerStoreConfig := cfg.Writer.Sub(writerStoreType)
+	factory, ok = Factories[writerStoreType]
 	if !ok {
-		return nil, errors.Err("unknown store type %s", s3StoreType)
+		return nil, errors.Err("unknown store type %s", writerStoreType)
 	}
-	s3Store, err := factory(s3StoreConfig)
+	writerStore, err := factory(writerStoreConfig)
 	if err != nil {
 		return nil, errors.Err(err)
-	}
-
-	s3StoreTyped, ok := s3Store.(*S3Store)
-	if !ok {
-		return nil, errors.Err("s3 store must be of type S3Store")
 	}
 
 	return NewProxiedS3Store(ProxiedS3Params{
-		Name:    cfg.Name,
-		Proxied: proxiedStore,
-		S3:      s3StoreTyped,
+		Name:   cfg.Name,
+		Reader: readerStore,
+		Writer: writerStore,
 	}), nil
 }
 
