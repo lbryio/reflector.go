@@ -132,14 +132,14 @@ func (d *DiskStore) dir(hash string) string {
 	}
 	return path.Join(d.blobDir, hash[:d.prefixLength])
 }
-func (d *DiskStore) tmpDir(hash string) string {
+func (d *DiskStore) tmpDir() string {
 	return path.Join(d.blobDir, "tmp")
 }
 func (d *DiskStore) path(hash string) string {
 	return path.Join(d.dir(hash), hash)
 }
 func (d *DiskStore) tmpPath(hash string) string {
-	return path.Join(d.tmpDir(hash), hash)
+	return path.Join(d.tmpDir(), hash)
 }
 func (d *DiskStore) ensureDirExists(dir string) error {
 	return errors.Err(os.MkdirAll(dir, 0755))
@@ -154,7 +154,7 @@ func (d *DiskStore) initOnce() error {
 	if err != nil {
 		return err
 	}
-	err = d.ensureDirExists(path.Join(d.blobDir, "tmp"))
+	err = d.ensureDirExists(d.tmpDir())
 	if err != nil {
 		return err
 	}

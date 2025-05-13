@@ -18,8 +18,8 @@ func TestDiskStore_Get(t *testing.T) {
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 	d := NewDiskStore(DiskParams{
 		Name:         "test",
-		Dir:          tmpDir,
-		PrefixLength: 2,
+		MountPoint:   tmpDir,
+		ShardingSize: 2,
 	})
 
 	hash := "f428b8265d65dad7f8ffa52922bba836404cbd62f3ecfe10adba6b444f8f658938e54f5981ac4de39644d5b93d89a94b"
@@ -42,8 +42,8 @@ func TestDiskStore_GetNonexistentBlob(t *testing.T) {
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 	d := NewDiskStore(DiskParams{
 		Name:         "test",
-		Dir:          tmpDir,
-		PrefixLength: 2,
+		MountPoint:   tmpDir,
+		ShardingSize: 2,
 	})
 
 	blob, _, err := d.Get("nonexistent")

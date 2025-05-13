@@ -174,6 +174,4 @@ func (s *SlowBlobStore) Delete(hash string) error {
 	return s.mem.Delete(hash)
 }
 
-func (s *SlowBlobStore) Shutdown() {
-	return
-}
+func (s *SlowBlobStore) Shutdown() {}

@@ -92,8 +92,8 @@ func TestGcacheStore_loadExisting(t *testing.T) {
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 	d := NewDiskStore(DiskParams{
 		Name:         "test",
-		Dir:          tmpDir,
-		PrefixLength: 2,
+		MountPoint:   tmpDir,
+		ShardingSize: 2,
 	})
 
 	hash := "hash"
