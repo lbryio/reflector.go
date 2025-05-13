@@ -19,6 +19,7 @@ import (
 
 func LoadStores(path, file string) (store.BlobStore, error) {
 	v := viper.New()
+	v.SetConfigType("yaml")
 	v.AddConfigPath(path)
 	v.SetConfigName(file)
 	err := v.ReadInConfig()
@@ -45,8 +46,10 @@ func LoadStores(path, file string) (store.BlobStore, error) {
 
 func LoadServers(store store.BlobStore, path, file string) ([]server.BlobServer, error) {
 	v := viper.New()
+	v.SetConfigType("yaml")
 	v.AddConfigPath(path)
-	v.SetConfigFile(file)
+	v.SetConfigName(file)
+
 	err := v.ReadInConfig()
 	if err != nil {
 		return nil, errors.Err(err)
@@ -76,8 +79,10 @@ func LoadServers(store store.BlobStore, path, file string) ([]server.BlobServer,
 
 func LoadDatabase(path, file string) (*db.SQL, error) {
 	v := viper.New()
+	v.SetConfigType("yaml")
 	v.AddConfigPath(path)
-	v.SetConfigFile(file)
+	v.SetConfigName(file)
+
 	err := v.ReadInConfig()
 	if err != nil {
 		return nil, errors.Err(err)
