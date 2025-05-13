@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"path"
 	"time"
 
 	"github.com/lbryio/reflector.go/internal/metrics"
@@ -22,34 +23,36 @@ import (
 
 // S3Store is an S3 store
 type S3Store struct {
-	awsID     string
-	awsSecret string
-	region    string
-	bucket    string
-	endpoint  string
-	name      string
-
-	session *session.Session
+	awsID        string
+	awsSecret    string
+	region       string
+	bucket       string
+	endpoint     string
+	name         string
+	prefixLength int
+	session      *session.Session
 }
 
 type S3Params struct {
-	Name      string `mapstructure:"name"`
-	AwsID     string `mapstructure:"aws_id"`
-	AwsSecret string `mapstructure:"aws_secret"`
-	Region    string `mapstructure:"region"`
-	Bucket    string `mapstructure:"bucket"`
-	Endpoint  string `mapstructure:"endpoint"`
+	Name         string `mapstructure:"name"`
+	AwsID        string `mapstructure:"aws_id"`
+	AwsSecret    string `mapstructure:"aws_secret"`
+	Region       string `mapstructure:"region"`
+	Bucket       string `mapstructure:"bucket"`
+	Endpoint     string `mapstructure:"endpoint"`
+	ShardingSize int    `mapstructure:"sharding_size"`
 }
 
 // NewS3Store returns an initialized S3 store pointer.
 func NewS3Store(params S3Params) *S3Store {
 	return &S3Store{
-		awsID:     params.AwsID,
-		awsSecret: params.AwsSecret,
-		region:    params.Region,
-		bucket:    params.Bucket,
-		endpoint:  params.Endpoint,
-		name:      params.Name,
+		awsID:        params.AwsID,
+		awsSecret:    params.AwsSecret,
+		region:       params.Region,
+		bucket:       params.Bucket,
+		endpoint:     params.Endpoint,
+		name:         params.Name,
+		prefixLength: params.ShardingSize,
 	}
 }
 
@@ -71,7 +74,7 @@ func init() {
 // Name is the cache type name
 func (s *S3Store) Name() string { return nameS3 + "-" + s.name }
 
-// Has returns T/F or Error ( from S3 ) if the store contains the blob.
+// Has returns T/F or Error (from S3) if the store contains the blob.
 func (s *S3Store) Has(hash string) (bool, error) {
 	err := s.initOnce()
 	if err != nil {
@@ -80,7 +83,7 @@ func (s *S3Store) Has(hash string) (bool, error) {
 
 	_, err = s3.New(s.session).HeadObject(&s3.HeadObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(hash),
+		Key:    aws.String(s.shardedPath(hash)),
 	})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == s3.ErrCodeNoSuchKey {
@@ -103,13 +106,13 @@ func (s *S3Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 
 	log.Debugf("Getting %s from S3", hash[:8])
 	defer func(t time.Time) {
-		log.Debugf("Getting %s from S3 took %s", hash[:8], time.Since(t).String())
+		log.Debugf("Getting %s from %s took %s", hash[:8], s.Name(), time.Since(t).String())
 	}(start)
 
 	buf := &aws.WriteAtBuffer{}
 	_, err = s3manager.NewDownloader(s.session).Download(buf, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(hash),
+		Key:    aws.String(s.shardedPath(hash)),
 	})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
@@ -140,7 +143,7 @@ func (s *S3Store) Put(hash string, blob stream.Blob) error {
 
 	_, err = s3manager.NewUploader(s.session).Upload(&s3manager.UploadInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(hash),
+		Key:    aws.String(s.shardedPath(hash)),
 		Body:   bytes.NewBuffer(blob),
 		ACL:    aws.String("public-read"),
 		//StorageClass: aws.String(s3.StorageClassIntelligentTiering),
@@ -168,7 +171,7 @@ func (s *S3Store) Delete(hash string) error {
 
 	_, err = s3.New(s.session).DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(hash),
+		Key:    aws.String(s.shardedPath(hash)),
 	})
 
 	return errors.Err(err)
@@ -190,6 +193,13 @@ func (s *S3Store) initOnce() error {
 
 	s.session = sess
 	return nil
+}
+
+func (s *S3Store) shardedPath(hash string) string {
+	if s.prefixLength <= 0 || len(hash) < s.prefixLength {
+		return hash
+	}
+	return path.Join(hash[:s.prefixLength], hash)
 }
 
 // Shutdown shuts down the store gracefully
