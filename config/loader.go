@@ -3,6 +3,10 @@ package config
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+
+	"github.com/lbryio/reflector.go/db"
+
 	"github.com/lbryio/reflector.go/server"
 	"github.com/lbryio/reflector.go/server/http"
 	"github.com/lbryio/reflector.go/server/http3"
@@ -13,11 +17,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-func LoadStores(configFile string) (store.BlobStore, error) {
+func LoadStores(path, file string) (store.BlobStore, error) {
 	v := viper.New()
-	v.SetConfigFile(configFile)
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
+	v.AddConfigPath(path)
+	v.SetConfigFile(file)
+	err := v.ReadInConfig()
+	if err != nil {
+		return nil, errors.Err(err)
 	}
 
 	storeViper := v.Sub("store")
@@ -37,11 +43,13 @@ func LoadStores(configFile string) (store.BlobStore, error) {
 	return nil, nil
 }
 
-func LoadServers(store store.BlobStore, configFile string) ([]server.BlobServer, error) {
+func LoadServers(store store.BlobStore, path, file string) ([]server.BlobServer, error) {
 	v := viper.New()
-	v.SetConfigFile(configFile)
-	if err := v.ReadInConfig(); err != nil {
-		return nil, err
+	v.AddConfigPath(path)
+	v.SetConfigFile(file)
+	err := v.ReadInConfig()
+	if err != nil {
+		return nil, errors.Err(err)
 	}
 
 	servers := make([]server.BlobServer, 0)
@@ -64,4 +72,38 @@ func LoadServers(store store.BlobStore, configFile string) ([]server.BlobServer,
 		}
 	}
 	return servers, nil
+}
+
+func LoadDatabase(path, file string) (*db.SQL, error) {
+	v := viper.New()
+	v.AddConfigPath(path)
+	v.SetConfigFile(file)
+	err := v.ReadInConfig()
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	dbConfig := v.Sub("db")
+	if dbConfig == nil {
+		return nil, errors.Err("db config not found")
+	}
+	user := dbConfig.GetString("user")
+	password := dbConfig.GetString("password")
+	host := dbConfig.GetString("host")
+	port := dbConfig.GetInt("port")
+	database := dbConfig.GetString("database")
+	logQueries := dbConfig.GetBool("log_queries")
+	accessTracking := dbConfig.GetInt("access_tracking")
+
+	if user == "" || password == "" || host == "" || port == 0 || database == "" {
+		return nil, errors.Err("db config is missing required fields")
+	}
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", user, password, host, port, database)
+	dbInstance := &db.SQL{
+		TrackingLevel: db.AccessTrackingLevel(accessTracking),
+		SoftDelete:    true,
+		LogQueries:    logQueries || log.GetLevel() == log.DebugLevel,
+	}
+	err = dbInstance.Connect(dsn)
+	return dbInstance, err
 }

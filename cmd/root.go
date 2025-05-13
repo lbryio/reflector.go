@@ -1,17 +1,14 @@
 package cmd
 
 import (
-	"encoding/json"
 	"os"
 	"strings"
 
-	"github.com/lbryio/reflector.go/updater"
+	"github.com/spf13/viper"
 
 	"github.com/lbryio/lbry.go/v2/dht"
-	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/extras/util"
 
-	"github.com/johntdyer/slackrus"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -39,7 +36,8 @@ const (
 )
 
 var conf string
-var globalConfig Config
+
+//var globalConfig Config
 
 var rootCmd = &cobra.Command{
 	Use:              "prism",
@@ -52,7 +50,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().StringSliceVarP(&verbose, "verbose", "v", []string{}, "Verbose logging for specific components")
-	rootCmd.PersistentFlags().StringVar(&conf, "conf", "config.json", "Path to config. Use 'none' to disable")
+	rootCmd.PersistentFlags().StringVar(&conf, "conf-dir", "./", "Path to config directory")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -87,38 +85,40 @@ func preRun(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	var err error
+	//var err error
 	if conf == "" {
 		logrus.Errorln("--conf flag required")
 		os.Exit(1)
-	} else if conf != "none" {
-		globalConfig, err = loadConfig(conf)
-		if err != nil {
-			logrus.Error(err)
-			os.Exit(1)
-		}
 	}
+	//else if conf != "none" {
+	//	globalConfig, err = loadConfig(conf)
+	//	if err != nil {
+	//		logrus.Error(err)
+	//		os.Exit(1)
+	//	}
+	//}
+	viper.AddConfigPath(conf)
 
-	if globalConfig.SlackHookURL != "" {
-		hook := &slackrus.SlackrusHook{
-			HookURL:        globalConfig.SlackHookURL,
-			AcceptedLevels: slackrus.LevelThreshold(logrus.InfoLevel),
-			Channel:        globalConfig.SlackChannel,
-			//IconEmoji:      ":ghost:",
-			//Username:       "reflector.go",
-		}
-		//logrus.SetFormatter(&logrus.JSONFormatter{})
-		logrus.AddHook(hook)
-		debugLogger.AddHook(hook)
-	}
+	//if globalConfig.SlackHookURL != "" {
+	//	hook := &slackrus.SlackrusHook{
+	//		HookURL:        globalConfig.SlackHookURL,
+	//		AcceptedLevels: slackrus.LevelThreshold(logrus.InfoLevel),
+	//		Channel:        globalConfig.SlackChannel,
+	//		//IconEmoji:      ":ghost:",
+	//		//Username:       "reflector.go",
+	//	}
+	//	//logrus.SetFormatter(&logrus.JSONFormatter{})
+	//	logrus.AddHook(hook)
+	//	debugLogger.AddHook(hook)
+	//}
 
-	if globalConfig.UpdateBinURL != "" {
-		if globalConfig.UpdateCmd == "" {
-			logrus.Warnln("update_cmd is empty in conf file")
-		}
-		logrus.Println("starting update checker")
-		go updater.Run(globalConfig.UpdateBinURL, globalConfig.UpdateCmd)
-	}
+	//if globalConfig.UpdateBinURL != "" {
+	//	if globalConfig.UpdateCmd == "" {
+	//		logrus.Warnln("update_cmd is empty in conf file")
+	//	}
+	//	logrus.Println("starting update checker")
+	//	go updater.Run(globalConfig.UpdateBinURL, globalConfig.UpdateCmd)
+	//}
 }
 
 func checkErr(err error) {
@@ -139,20 +139,20 @@ func argFuncs(funcs ...cobra.PositionalArgs) cobra.PositionalArgs {
 	}
 }
 
-func loadConfig(path string) (Config, error) {
-	var c Config
-
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return c, errors.Err("config file not found")
-		}
-		return c, errors.Err(err)
-	}
-
-	err = json.Unmarshal(raw, &c)
-	return c, errors.Err(err)
-}
+//func loadConfig(path string) (Config, error) {
+//	var c Config
+//
+//	raw, err := os.ReadFile(path)
+//	if err != nil {
+//		if os.IsNotExist(err) {
+//			return c, errors.Err("config file not found")
+//		}
+//		return c, errors.Err(err)
+//	}
+//
+//	err = json.Unmarshal(raw, &c)
+//	return c, errors.Err(err)
+//}
 
 func mustGetFlagString(cmd *cobra.Command, name string) string {
 	v, err := cmd.Flags().GetString(name)

@@ -15,7 +15,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ()
+var (
+	//port configuration
+	receiverPort int
+	metricsPort  int
+
+	//flags configuration
+	disableBlocklist bool
+)
 
 func init() {
 	var cmd = &cobra.Command{
@@ -25,20 +32,20 @@ func init() {
 	}
 
 	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for prometheus metrics")
-	cmd.Flags().BoolVar(&disableBlocklist, "disable-blocklist", false, "Disable blocklist watching/updating")
 	cmd.Flags().IntVar(&receiverPort, "receiver-port", 5566, "The port reflector will receive content from")
+	cmd.Flags().BoolVar(&disableBlocklist, "disable-blocklist", false, "Disable blocklist watching/updating")
 
 	rootCmd.AddCommand(cmd)
 }
 
 func reflector2Cmd(cmd *cobra.Command, args []string) {
-	store, err := config.LoadStores("reflector.yaml")
+	store, err := config.LoadStores(conf, "reflector.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer store.Shutdown()
 
-	servers, err := config.LoadServers(store, "reflector.yaml")
+	servers, err := config.LoadServers(store, conf, "reflector.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}

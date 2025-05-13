@@ -30,7 +30,7 @@ type Summary struct {
 
 type Uploader struct {
 	db                     *db.SQL
-	store                  *store.DBBackedStore // could just be store.BlobStore interface
+	store                  store.BlobStore
 	workers                int
 	skipExistsCheck        bool
 	deleteBlobsAfterUpload bool
@@ -40,7 +40,7 @@ type Uploader struct {
 	count Summary
 }
 
-func NewUploader(db *db.SQL, store *store.DBBackedStore, workers int, skipExistsCheck, deleteBlobsAfterUpload bool) *Uploader {
+func NewUploader(db *db.SQL, store store.BlobStore, workers int, skipExistsCheck, deleteBlobsAfterUpload bool) *Uploader {
 	return &Uploader{
 		db:                     db,
 		store:                  store,
@@ -132,7 +132,7 @@ Upload:
 	return nil
 }
 
-// worker reads paths from a channel,  uploads them, and optionally deletes them
+// worker reads paths from a channel, uploads them, and optionally deletes them
 func (u *Uploader) worker(pathChan chan string) {
 	for {
 		select {

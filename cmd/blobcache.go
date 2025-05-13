@@ -28,13 +28,13 @@ func init() {
 }
 
 func blobcacheCmd(cmd *cobra.Command, args []string) {
-	store, err := config.LoadStores("blobcache.yaml")
+	store, err := config.LoadStores(conf, "blobcache.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer store.Shutdown()
 
-	servers, err := config.LoadServers(store, "blobcache.yaml")
+	servers, err := config.LoadServers(store, conf, "blobcache.yaml")
 	if err != nil {
 		log.Fatal(err)
 	}
