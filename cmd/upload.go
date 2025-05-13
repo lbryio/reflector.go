@@ -38,6 +38,9 @@ func uploadCmd(cmd *cobra.Command, args []string) {
 	defer store.Shutdown()
 
 	databaseConn, err := config.LoadDatabase(conf, "upload.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	uploader := reflector.NewUploader(databaseConn, store, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
 

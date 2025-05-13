@@ -83,7 +83,7 @@ func LoadDatabase(path, file string) (*db.SQL, error) {
 		return nil, errors.Err(err)
 	}
 
-	dbConfig := v.Sub("db")
+	dbConfig := v.Sub("database")
 	if dbConfig == nil {
 		return nil, errors.Err("db config not found")
 	}
