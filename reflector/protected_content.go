@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-const protectedListURL = "https://api.odysee.com/file/list_protected"
+const protectedListURL = "https://direct.api.odysee.com/file/list_protected"
 
 type ProtectedContent struct {
 	SDHash  string `json:"sd_hash"`
@@ -32,7 +32,10 @@ func GetProtectedContent() (interface{}, error) {
 		Data    []ProtectedContent `json:"data"`
 	}
 
-	client := &http.Client{}
+	// Bound the request to avoid hanging the entire request path.
+	// Without a timeout, a slow or unreachable endpoint can block
+	// singleflight callers indefinitely and stall HTTP handlers.
+	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest(method, protectedListURL, nil)
 
 	if err != nil {

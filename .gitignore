@@ -6,3 +6,7 @@
 blobcache.yaml
 
 reflector.yaml
+
+upload.yaml
+
+remotereflector.yaml
