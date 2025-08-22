@@ -2,6 +2,7 @@ package store
 
 import (
 	"github.com/lbryio/reflector.go/shared"
+	"github.com/spf13/viper"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
@@ -33,11 +34,23 @@ type Blocklister interface {
 	Wants(hash string) (bool, error)
 }
 
+// NeededBlobChecker can check which blobs from a known stream are not uploaded yet
+type NeededBlobChecker interface {
+	MissingBlobsForKnownStream(string) ([]string, error)
+}
+
 // lister is a store that can list cached blobs. This is helpful when an overlay
 // cache needs to track blob existence.
 type lister interface {
 	list() ([]string, error)
 }
 
-//ErrBlobNotFound is a standard error when a blob is not found in the store.
+// ErrBlobNotFound is a standard error when a blob is not found in the store.
 var ErrBlobNotFound = errors.Base("blob not found")
+var Factories = make(map[string]Factory)
+
+func RegisterStore(name string, factory Factory) {
+	Factories[name] = factory
+}
+
+type Factory func(config *viper.Viper) (BlobStore, error)

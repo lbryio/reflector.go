@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/lbryio/reflector.go/server/peer"
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/stream"
@@ -28,11 +27,19 @@ func getStreamCmd(cmd *cobra.Command, args []string) {
 	addr := args[0]
 	sdHash := args[1]
 
-	s := store.NewCachingStore(
-		"getstream",
-		peer.NewStore(peer.StoreOpts{Address: addr}),
-		store.NewDiskStore("/tmp/lbry_downloaded_blobs", 2),
-	)
+	s := store.NewCachingStore(store.CachingParams{
+		Name: "getstream",
+		Cache: store.NewPeerStore(store.PeerParams{
+			Name:    "getstream",
+			Address: addr,
+			Timeout: 30 * time.Second,
+		}),
+		Origin: store.NewDiskStore(store.DiskParams{
+			Name:         "getstream",
+			MountPoint:   "/tmp/lbry_downloaded_blobs",
+			ShardingSize: 2,
+		}),
+	})
 
 	wd, err := os.Getwd()
 	if err != nil {

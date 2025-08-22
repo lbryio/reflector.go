@@ -23,7 +23,7 @@ func startServerOnRandomPort(t *testing.T) (*Server, int) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(store.NewMemStore(), store.NewMemStore())
+	srv := NewIngestionServer(store.NewMemStore(store.MemParams{Name: "test"}))
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +120,7 @@ func TestServer_Timeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(store.NewMemStore(), store.NewMemStore())
+	srv := NewIngestionServer(store.NewMemStore(store.MemParams{Name: "test"}))
 	srv.Timeout = testTimeout
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
@@ -182,8 +182,8 @@ func TestServer_PartialUpload(t *testing.T) {
 		missing[i] = bits.Rand().String()
 	}
 
-	st := store.BlobStore(&mockPartialStore{MemStore: store.NewMemStore(), missing: missing})
-	if _, ok := st.(neededBlobChecker); !ok {
+	st := store.BlobStore(&mockPartialStore{MemStore: store.NewMemStore(store.MemParams{Name: "test"}), missing: missing})
+	if _, ok := st.(store.NeededBlobChecker); !ok {
 		t.Fatal("mock does not implement the relevant interface")
 	}
 	err = st.Put(sdHash, randBlob(10))
@@ -191,7 +191,7 @@ func TestServer_PartialUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(st, st)
+	srv := NewIngestionServer(st)
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)

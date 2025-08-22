@@ -35,12 +35,12 @@ type SdBlob struct {
 	StreamHash        string `json:"stream_hash"`
 }
 
-type trackAccess int
+type AccessTrackingLevel int
 
 const (
-	TrackAccessNone    trackAccess = iota // Don't track accesses
-	TrackAccessStreams                    // Track accesses at the stream level
-	TrackAccessBlobs                      // Track accesses at the blob level
+	TrackAccessNone    AccessTrackingLevel = iota // Don't track accesses
+	TrackAccessStreams                            // Track accesses at the stream level
+	TrackAccessBlobs                              // Track accesses at the blob level
 )
 
 // SQL implements the DB interface
@@ -48,7 +48,7 @@ type SQL struct {
 	conn *sql.DB
 
 	// Track the approx last time a blob or stream was accessed
-	TrackAccess trackAccess
+	TrackingLevel AccessTrackingLevel
 
 	// Instead of deleting a blob, marked it as not stored in the db
 	SoftDelete bool
@@ -57,7 +57,7 @@ type SQL struct {
 	LogQueries bool
 }
 
-func (s SQL) logQuery(query string, args ...interface{}) {
+func (s *SQL) logQuery(query string, args ...interface{}) {
 	if !s.LogQueries {
 		return
 	}
@@ -179,7 +179,7 @@ func (s *SQL) insertBlob(hash string, length int, isStored bool) (int64, error) 
 		q    string
 		args []interface{}
 	)
-	if s.TrackAccess == TrackAccessBlobs {
+	if s.TrackingLevel == TrackAccessBlobs {
 		args = []interface{}{hash, isStored, length, time.Now()}
 		q = "INSERT INTO blob_ (hash, is_stored, length, last_accessed_at) VALUES (" + qt.Qs(len(args)) + ") ON DUPLICATE KEY UPDATE is_stored = (is_stored or VALUES(is_stored)), last_accessed_at = VALUES(last_accessed_at)"
 	} else {
@@ -201,7 +201,7 @@ func (s *SQL) insertBlob(hash string, length int, isStored bool) (int64, error) 
 			return 0, errors.Err("blob ID is 0 even after INSERTing and SELECTing")
 		}
 
-		if s.TrackAccess == TrackAccessBlobs {
+		if s.TrackingLevel == TrackAccessBlobs {
 			err := s.touchBlobs([]uint64{uint64(blobID)})
 			if err != nil {
 				return 0, errors.Err(err)
@@ -218,7 +218,7 @@ func (s *SQL) insertStream(hash string, sdBlobID int64) (int64, error) {
 		args []interface{}
 	)
 
-	if s.TrackAccess == TrackAccessStreams {
+	if s.TrackingLevel == TrackAccessStreams {
 		args = []interface{}{hash, sdBlobID, time.Now()}
 		q = "INSERT IGNORE INTO stream (hash, sd_blob_id, last_accessed_at) VALUES (" + qt.Qs(len(args)) + ")"
 	} else {
@@ -240,7 +240,7 @@ func (s *SQL) insertStream(hash string, sdBlobID int64) (int64, error) {
 			return 0, errors.Err("stream ID is 0 even after INSERTing and SELECTing")
 		}
 
-		if s.TrackAccess == TrackAccessStreams {
+		if s.TrackingLevel == TrackAccessStreams {
 			err := s.touchStreams([]uint64{uint64(streamID)})
 			if err != nil {
 				return 0, errors.Err(err)
@@ -264,9 +264,9 @@ func (s *SQL) HasBlobs(hashes []string, touch bool) (map[string]bool, error) {
 	exists, idsNeedingTouch, err := s.hasBlobs(hashes)
 
 	if touch {
-		if s.TrackAccess == TrackAccessBlobs {
+		if s.TrackingLevel == TrackAccessBlobs {
 			_ = s.touchBlobs(idsNeedingTouch)
-		} else if s.TrackAccess == TrackAccessStreams {
+		} else if s.TrackingLevel == TrackAccessStreams {
 			_ = s.touchStreams(idsNeedingTouch)
 		}
 	}
@@ -338,11 +338,11 @@ func (s *SQL) hasBlobs(hashes []string) (map[string]bool, []uint64, error) {
 		batch := hashes[doneIndex:sliceEnd]
 
 		var query string
-		if s.TrackAccess == TrackAccessBlobs {
+		if s.TrackingLevel == TrackAccessBlobs {
 			query = `SELECT b.hash, b.id, NULL, b.last_accessed_at
 FROM blob_ b
 WHERE b.is_stored = 1 and b.hash IN (` + qt.Qs(len(batch)) + `)`
-		} else if s.TrackAccess == TrackAccessStreams {
+		} else if s.TrackingLevel == TrackAccessStreams {
 			query = `SELECT b.hash, b.id, s.id, s.last_accessed_at
 FROM blob_ b
 LEFT JOIN stream_blob sb ON b.id = sb.blob_id
@@ -377,9 +377,9 @@ WHERE b.is_stored = 1 and b.hash IN (` + qt.Qs(len(batch)) + `)`
 				}
 				exists[hash] = true
 				if !lastAccessedAt.Valid || lastAccessedAt.Time.Before(touchDeadline) {
-					if s.TrackAccess == TrackAccessBlobs {
+					if s.TrackingLevel == TrackAccessBlobs {
 						needsTouch = append(needsTouch, blobID)
-					} else if s.TrackAccess == TrackAccessStreams && !streamID.IsZero() {
+					} else if s.TrackingLevel == TrackAccessStreams && !streamID.IsZero() {
 						needsTouch = append(needsTouch, streamID.Uint64)
 					}
 				}
@@ -424,7 +424,7 @@ func (s *SQL) LeastRecentlyAccessedHashes(maxBlobs int) ([]string, error) {
 		return nil, errors.Err("not connected")
 	}
 
-	if s.TrackAccess != TrackAccessBlobs {
+	if s.TrackingLevel != TrackAccessBlobs {
 		return nil, errors.Err("blob access tracking is disabled")
 	}
 

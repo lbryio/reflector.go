@@ -5,9 +5,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/lbryio/reflector.go/db"
+	"github.com/lbryio/reflector.go/config"
+
 	"github.com/lbryio/reflector.go/reflector"
-	"github.com/lbryio/reflector.go/store"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -31,17 +31,18 @@ func init() {
 }
 
 func uploadCmd(cmd *cobra.Command, args []string) {
-	db := &db.SQL{
-		LogQueries: log.GetLevel() == log.DebugLevel,
+	store, err := config.LoadStores(conf, "upload")
+	if err != nil {
+		log.Fatal(err)
 	}
-	err := db.Connect(globalConfig.DBConn)
-	checkErr(err)
+	defer store.Shutdown()
 
-	st := store.NewDBBackedStore(
-		store.NewS3Store(globalConfig.AwsID, globalConfig.AwsSecret, globalConfig.BucketRegion, globalConfig.BucketName, globalConfig.S3Endpoint),
-		db, false)
+	databaseConn, err := config.LoadDatabase(conf, "upload")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	uploader := reflector.NewUploader(db, st, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
+	uploader := reflector.NewUploader(databaseConn, store, uploadWorkers, uploadSkipExistsCheck, uploadDeleteBlobsAfterUpload)
 
 	interruptChan := make(chan os.Signal, 1)
 	signal.Notify(interruptChan, os.Interrupt, syscall.SIGTERM)

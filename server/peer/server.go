@@ -31,17 +31,18 @@ const (
 
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
-	store  store.BlobStore
-	closed bool
-
-	grp *stop.Group
+	store   store.BlobStore
+	closed  bool
+	grp     *stop.Group
+	address string
 }
 
 // NewServer returns an initialized Server pointer.
-func NewServer(store store.BlobStore) *Server {
+func NewServer(store store.BlobStore, address string) *Server {
 	return &Server{
-		store: store,
-		grp:   stop.New(),
+		store:   store,
+		grp:     stop.New(),
+		address: address,
 	}
 }
 
@@ -53,9 +54,9 @@ func (s *Server) Shutdown() {
 }
 
 // Start starts the server listener to handle connections.
-func (s *Server) Start(address string) error {
-	log.Println("peer listening on " + address)
-	l, err := net.Listen("tcp4", address)
+func (s *Server) Start() error {
+	log.Println("peer listening on " + s.address)
+	l, err := net.Listen("tcp4", s.address)
 	if err != nil {
 		return err
 	}
@@ -306,11 +307,11 @@ func (s *Server) logError(e error) {
 }
 
 func readNextMessage(buf *bufio.Reader) ([]byte, error) {
-	first_byte, err := buf.ReadByte()
+	firstByte, err := buf.ReadByte()
 	if err != nil {
 		return nil, err
 	}
-	if first_byte != '{' {
+	if firstByte != '{' {
 		// every request starts with '{'. Checking here disconnects earlier, so we don't wait until timeout
 		return nil, errInvalidData
 	}

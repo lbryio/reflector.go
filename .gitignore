@@ -2,3 +2,11 @@
 /config.json*
 /dist
 /bin
+
+blobcache.yaml
+
+reflector.yaml
+
+upload.yaml
+
+remotereflector.yaml

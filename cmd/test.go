@@ -29,9 +29,9 @@ func init() {
 func testCmd(cmd *cobra.Command, args []string) {
 	log.Printf("reflector %s", meta.VersionString())
 
-	memStore := store.NewMemStore()
+	memStore := store.NewMemStore(store.MemParams{Name: "test"})
 
-	reflectorServer := reflector.NewServer(memStore, memStore)
+	reflectorServer := reflector.NewIngestionServer(memStore)
 	reflectorServer.Timeout = 3 * time.Minute
 
 	err := reflectorServer.Start(":" + strconv.Itoa(reflector.DefaultPort))
@@ -39,8 +39,8 @@ func testCmd(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	peerServer := peer.NewServer(memStore)
-	err = peerServer.Start(":" + strconv.Itoa(reflector.DefaultPort+1))
+	peerServer := peer.NewServer(memStore, fmt.Sprintf(":%d", reflector.DefaultPort+1))
+	err = peerServer.Start()
 	if err != nil {
 		log.Fatal(err)
 	}

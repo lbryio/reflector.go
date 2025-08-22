@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -79,6 +80,7 @@ func (s *Server) HandleGetBlob(c *gin.Context) {
 	metrics.HttpDownloadCount.Inc()
 	c.Header("Via", serialized)
 	c.Header("Content-Disposition", "filename="+hash)
+	c.Header("Content-Length", strconv.Itoa(len(blob)))
 	c.Data(http.StatusOK, "application/octet-stream", blob)
 }
 

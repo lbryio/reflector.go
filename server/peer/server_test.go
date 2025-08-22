@@ -37,7 +37,9 @@ var availabilityRequests = []pair{
 }
 
 func getServer(t *testing.T, withBlobs bool) *Server {
-	st := store.NewMemStore()
+	st := store.NewMemStore(store.MemParams{
+		Name: "test",
+	})
 	if withBlobs {
 		for k, v := range blobs {
 			err := st.Put(k, v)
@@ -46,7 +48,7 @@ func getServer(t *testing.T, withBlobs bool) *Server {
 			}
 		}
 	}
-	return NewServer(st)
+	return NewServer(st, "127.0.0.1:50505")
 }
 
 func TestAvailabilityRequest_NoBlobs(t *testing.T) {
@@ -81,7 +83,7 @@ func TestAvailabilityRequest_WithBlobs(t *testing.T) {
 
 func TestRequestFromConnection(t *testing.T) {
 	s := getServer(t, true)
-	err := s.Start("127.0.0.1:50505")
+	err := s.Start()
 	defer s.Shutdown()
 	if err != nil {
 		t.Error("error starting server", err)
@@ -111,12 +113,12 @@ func TestRequestFromConnection(t *testing.T) {
 
 func TestInvalidData(t *testing.T) {
 	s := getServer(t, true)
-	err := s.Start("127.0.0.1:50503")
+	err := s.Start()
 	defer s.Shutdown()
 	if err != nil {
 		t.Error("error starting server", err)
 	}
-	conn, err := net.Dial("tcp", "127.0.0.1:50503")
+	conn, err := net.Dial("tcp", "127.0.0.1:50505")
 	if err != nil {
 		t.Error("error opening connection", err)
 	}

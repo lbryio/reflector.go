@@ -1,124 +1,189 @@
 # Reflector
 
-Reflector is a central piece of software that providers LBRY with the following features:
-- Blobs reflection: when something is published, we capture the data and store it on our servers for quicker retrieval
-- Blobs distribution: when a piece of content is requested and the LBRY network doesn't have it, reflector will retrieve it from its storage and distribute it
-- Blobs caching: reflectors can be chained together in multiple regions or servers to form a chain of cached content. We call those "blobcaches". They are layered so that content distribution is favorable in all the regions we deploy it to
+Production-ready blob reflection, distribution, and caching for Odysee.
 
-There are a few other features embedded in reflector.go including publishing streams from Go, downloading or upload blobs, resolving content and more unfinished tools.
+This repository provides the components used in production:
+- Reflector ingestion server (command name: `reflector`)
+- Blob cache/edge server (`blobcache`)
+- Uploader to object storage (`upload`)
 
-This code includes a Go implementations of the LBRY peer protocol, reflector protocol, and DHT.
+Other commands exist in the tree for historical/legacy reasons and are not supported.
 
-## Installation
+## How it works (at a glance)
+- Ingestion (reflector): accepts uploaded blobs, persists them to object storage (e.g., S3/Wasabi) and tracks state in MySQL.
+- Distribution: serves blobs over HTTP/HTTP3/Peer. Blobcaches can be deployed in front of the origin to reduce latency and egress.
+- Caching (blobcache): layered disk caches backed by HTTP(S) origins (e.g., S3 endpoints), with optional local DB metadata for capacity/eviction.
 
-- Install mysql 8 (5.7 might work too)
-- add a reflector user and database with password `reflector` with localhost access only
-- Create the tables as described [here](https://github.com/lbryio/reflector.go/blob/master/db/db.go#L735) (the link might not update as the code does so just look for the schema in that file)
+All services are started by the `prism` binary and are configured via YAML files loaded from a configuration directory.
 
-#### We do not support running reflector.go as a blob receiver, however if you want to run it as a private blobcache you may compile it yourself and run it as following:
+## Supported commands
+The following are the only supported commands for production use:
+
+- Reflector ingestion: `prism reflector`
+  - Flags: `--receiver-port` (default 5566), `--metrics-port` (default 2112), `--disable-blocklist`
+  - Loads `reflector.yaml` from the config directory.
+
+- Blob cache: `prism blobcache`
+  - Flags: `--metrics-port` (default 2112), `--disable-blocklist`
+  - Loads `blobcache.yaml` from the config directory.
+
+- Uploader: `prism upload PATH`
+  - Flags: `--workers`, `--skipExistsCheck`, `--deleteBlobsAfterUpload`
+  - Loads `upload.yaml` from the config directory.
+
+Global flag for all commands:
+- `--conf-dir` (default `./`): directory containing YAML config files.
+
+## Configuration
+Configuration is per-command. The loader reads `<command>.yaml` from `--conf-dir`.
+
+Common sections:
+- `servers`: enables HTTP/HTTP3/Peer servers. Keys: `http`, `http3`, `peer`. Each accepts:
+  - `port` (int)
+  - `max_concurrent_requests` (int, http/http3)
+  - `edge_token` (string, http)
+  - `address` (string, optional; bind address, omit for all interfaces)
+- `store`: defines the storage topology using composable stores. Frequently used:
+  - `proxied-s3`: production pattern with a `writer` (DB-backed -> S3/multiwriter) and a `reader` (caching -> disk + HTTP origins).
+  - `caching`: layered cache with a `cache` (often `db_backed` -> `disk`) and an `origin` chain (`http`, `http3`, or `ittt` fan-in).
+  - `s3`, `disk`, `multiwriter`, `db_backed`, `http`, `http3`, `peer`, `upstream` are also available building blocks.
+
+### Minimal examples
+Reflector – conf-dir contains `reflector.yaml`:
+```yaml
+servers:
+  http:
+    port: 5569
+    max_concurrent_requests: 200
+  http3:
+    port: 5568
+    max_concurrent_requests: 200
+  peer:
+    port: 5567
+store:
+  proxied-s3:
+    name: s3_read_proxy
+    writer:
+      db_backed:
+        user: reflector
+        password: reflector
+        database: reflector
+        host: localhost
+        port: 3306
+        access_tracking: 1
+        soft_deletes: true
+        store:
+          s3:
+            name: primary
+            aws_id: YOUR_KEY
+            aws_secret: YOUR_SECRET
+            region: us-east-1
+            bucket: blobs-bucket
+            endpoint: https://s3.yourendpoint.tv
+    reader:
+      caching:
+        cache:
+          disk:
+            name: local_cache
+            mount_point: /mnt/reflector/cache
+            sharding_size: 2
+        origin:
+          http:
+            endpoint: https://s3.yourendpoint.tv/blobs-bucket/
+            sharding_size: 4
+```
+
+Blobcache – conf-dir contains `blobcache.yaml`:
+```yaml
+servers:
+  http:
+    port: 5569
+    max_concurrent_requests: 200
+  http3:
+    port: 5568
+    max_concurrent_requests: 200
+  peer:
+    port: 5567
+store:
+  caching:
+    cache:
+      db_backed:
+        user: reflector
+        password: reflector
+        database: reflector
+        host: localhost
+        port: 3306
+        has_cap: true
+        max_size: 500GB
+        store:
+          disk:
+            name: blobcache
+            mount_point: /mnt/blobcache/cache
+            sharding_size: 2
+    origin:
+      http:
+        endpoint: https://s3.yourendpoint.tv/blobs-bucket/
+        sharding_size: 4
+```
+
+Uploader – conf-dir contains `upload.yaml` (points to the same writer/backend as reflector):
+```yaml
+database:
+  user: reflector
+  password: reflector
+  database: reflector
+  host: localhost
+  port: 3306
+store:
+  proxied-s3:
+    writer:
+      db_backed:
+        user: reflector
+        password: reflector
+        database: reflector
+        host: localhost
+        port: 3306
+        store:
+          s3:
+            aws_id: YOUR_KEY
+            aws_secret: YOUR_SECRET
+            region: us-east-1
+            bucket: blobs-bucket
+            endpoint: https://s3.yourendpoint.tv
+```
+
+## Quick start
+1) Build
+- Requires Go 1.23+
+- `make` (binaries in `dist/<platform>/prism-bin`)
+
+2) Run a local blobcache
 ```bash
-./prism-bin reflector \
---conf="none" \
---disable-uploads=true \
---use-db=false \
---upstream-reflector="reflector.lbry.com" \
---upstream-protocol="http" \
---request-queue-size=200 \
---disk-cache="2GB:/path/to/your/storage/:localdb" \
+./dist/linux_amd64/prism-bin --conf-dir=./ blobcache
 ```
+Place your `blobcache.yaml` in the `--conf-dir` directory.
 
-Create a systemd script if you want to run it automatically on startup or as a service.
-
-## Usage
-
-Usage as reflector/blobcache:
+3) Run reflector ingestion
 ```bash
-Run reflector server
-
-Usage:
-  prism reflector [flags]
-
-Flags:
-      --disable-blocklist                 Disable blocklist watching/updating
-      --disable-uploads                   Disable uploads to this reflector server
-      --disk-cache string                 Where to cache blobs on the file system. format is 'sizeGB:CACHE_PATH:cachemanager' (cachemanagers: localdb/lfuda/lru) (default "100GB:/tmp/downloaded_blobs:localdb")
-  -h, --help                              help for reflector
-      --http-peer-port int                The port reflector will distribute content from over HTTP protocol (default 5569)
-      --http3-peer-port int               The port reflector will distribute content from over HTTP3 protocol (default 5568)
-      --mem-cache int                     enable in-memory cache with a max size of this many blobs
-      --metrics-port int                  The port reflector will use for prometheus metrics (default 2112)
-      --optional-disk-cache string        Optional secondary file system cache for blobs. format is 'sizeGB:CACHE_PATH:cachemanager' (cachemanagers: localdb/lfuda/lru) (this would get hit before the one specified in disk-cache)
-      --origin-endpoint string            HTTP edge endpoint for standard HTTP retrieval
-      --origin-endpoint-fallback string   HTTP edge endpoint for standard HTTP retrieval if first origin fails
-      --receiver-port int                 The port reflector will receive content from (default 5566)
-      --request-queue-size int            How many concurrent requests from downstream should be handled at once (the rest will wait) (default 200)
-      --tcp-peer-port int                 The port reflector will distribute content from for the TCP (LBRY) protocol (default 5567)
-      --upstream-protocol string          protocol used to fetch blobs from another upstream reflector server (tcp/http3/http) (default "http")
-      --upstream-reflector string         host:port of a reflector server where blobs are fetched from
-      --use-db                            Whether to connect to the reflector db or not (default true)
-
-Global Flags:
-      --conf string       Path to config. Use 'none' to disable (default "config.json")
-  -v, --verbose strings   Verbose logging for specific components
+./dist/linux_amd64/prism-bin --conf-dir=./ reflector --receiver-port=5566 --metrics-port=2112
 ```
 
-Other uses:
-
+4) Upload blobs
 ```bash
-Prism is a single entry point application with multiple sub modules which can be leveraged individually or together
-
-Usage:
-  prism [command]
-
-Available Commands:
-  check-integrity check blobs integrity for a given path
-  cluster         Start(join) to or Start a new cluster
-  decode          Decode a claim value
-  dht             Run dht node
-  getstream       Get a stream from a reflector server
-  help            Help about any command
-  peer            Run peer server
-  populate-db     populate local database with blobs from a disk storage
-  publish         Publish a file
-  reflector       Run reflector server
-  resolve         Resolve a URL
-  send            Send a file to a reflector
-  sendblob        Send a random blob to a reflector server
-  start           Runs full prism application with cluster, dht, peer server, and reflector server.
-  test            Test things
-  upload          Upload blobs to S3
-  version         Print the version
-
-Flags:
-      --conf string       Path to config. Use 'none' to disable (default "config.json")
-  -h, --help              help for prism
-  -v, --verbose strings   Verbose logging for specific components
-```
-## Running from Source
-
-This project requires [Go v1.20](https://golang.org/doc/install).
-
-On Ubuntu you can install it with `sudo snap install go --classic`
-
-```
-git clone git@github.com:lbryio/reflector.go.git
-cd reflector.go
-make
-./dist/linux_amd64/prism-bin
+./dist/linux_amd64/prism-bin --conf-dir=./ upload /path/to/blobs \
+  --workers=4 --skipExistsCheck
 ```
 
-## Contributing
-
-coming soon
-
-## License
-
-This project is MIT licensed.
+## Notes
+- Only reflector, blobcache, and upload are supported. All other commands are legacy and may be removed in the future.
+- Metrics are exposed on the configured `--metrics-port` at `/metrics` (Prometheus format).
+- MySQL is required when using DB-backed stores (e.g., ingestion writer, capacity-aware caches).
 
 ## Security
+If you discover a security issue, please email security@lbry.com. Our PGP key is available at https://lbry.com/faq/pgp-key.
 
-We take security seriously. Please contact security@lbry.com regarding any security issues.
-Our PGP key is [here](https://lbry.com/faq/pgp-key) if you need it.
+## License
+MIT License. See LICENSE.
 
 ## Contact
-The primary contact for this project is [@Nikooo777](https://github.com/Nikooo777) (niko-at-lbry.com)
+The primary contact for this project is [@Nikooo777](https://github.com/Nikooo777)

@@ -39,18 +39,17 @@ type Server struct {
 
 	EnableBlocklist bool // if true, blocklist checking and blob deletion will be enabled
 
-	underlyingStore store.BlobStore
-	outerStore      store.BlobStore
-	grp             *stop.Group
+	//underlyingStore store.BlobStore
+	//outerStore      store.BlobStore
+	store store.BlobStore
+	grp   *stop.Group
 }
 
-// NewServer returns an initialized reflector server pointer.
-func NewServer(underlying store.BlobStore, outer store.BlobStore) *Server {
+func NewIngestionServer(store store.BlobStore) *Server {
 	return &Server{
-		Timeout:         DefaultTimeout,
-		underlyingStore: underlying,
-		outerStore:      outer,
-		grp:             stop.New(),
+		Timeout: DefaultTimeout,
+		store:   store,
+		grp:     stop.New(),
 	}
 }
 
@@ -89,7 +88,7 @@ func (s *Server) Start(address string) error {
 	}()
 
 	if s.EnableBlocklist {
-		if b, ok := s.underlyingStore.(store.Blocklister); ok {
+		if b, ok := s.store.(store.Blocklister); ok {
 			s.grp.Add(1)
 			metrics.RoutinesQueue.WithLabelValues("reflector", "enableblocklist").Inc()
 			go func() {
@@ -200,13 +199,13 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	}
 
 	var wantsBlob bool
-	if bl, ok := s.underlyingStore.(store.Blocklister); ok {
+	if bl, ok := s.store.(store.Blocklister); ok {
 		wantsBlob, err = bl.Wants(blobHash)
 		if err != nil {
 			return err
 		}
 	} else {
-		blobExists, err := s.underlyingStore.Has(blobHash)
+		blobExists, err := s.store.Has(blobHash)
 		if err != nil {
 			return err
 		}
@@ -216,14 +215,14 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	var neededBlobs []string
 
 	if isSdBlob && !wantsBlob {
-		if nbc, ok := s.underlyingStore.(neededBlobChecker); ok {
+		if nbc, ok := s.store.(store.NeededBlobChecker); ok {
 			neededBlobs, err = nbc.MissingBlobsForKnownStream(blobHash)
 			if err != nil {
 				return err
 			}
 		} else {
 			// if we can't check for blobs in a stream, we have to say that the sd blob is
-			// missing. if we say we have the sd blob, they wont try to send any content blobs
+			// missing. if we say we have the sd blob, they won't try to send any content blobs
 			wantsBlob = true
 		}
 	}
@@ -259,9 +258,9 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 	log.Debugln("Got blob " + blobHash[:8])
 
 	if isSdBlob {
-		err = s.outerStore.PutSD(blobHash, blob)
+		err = s.store.PutSD(blobHash, blob)
 	} else {
-		err = s.outerStore.Put(blobHash, blob)
+		err = s.store.Put(blobHash, blob)
 	}
 	if err != nil {
 		return err
@@ -449,9 +448,4 @@ type blobTransferResponse struct {
 
 type sdBlobTransferResponse struct {
 	ReceivedSdBlob bool `json:"received_sd_blob"`
-}
-
-// neededBlobChecker can check which blobs from a known stream are not uploaded yet
-type neededBlobChecker interface {
-	MissingBlobsForKnownStream(string) ([]string, error)
 }

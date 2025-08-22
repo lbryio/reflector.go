@@ -24,7 +24,7 @@ import (
 type Client struct {
 	Timeout      time.Duration
 	conn         *http.Client
-	roundTripper *http3.RoundTripper
+	roundTripper *http3.Transport
 	ServerAddr   string
 }
 
