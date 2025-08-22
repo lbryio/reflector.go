@@ -45,15 +45,6 @@ type Server struct {
 	grp   *stop.Group
 }
 
-// NewServer returns an initialized reflector server pointer.
-func NewServer(underlying store.BlobStore, outer store.BlobStore) *Server {
-	return &Server{
-		Timeout: DefaultTimeout,
-		//underlyingStore: underlying,
-		//outerStore:      outer,
-		grp: stop.New(),
-	}
-}
 func NewIngestionServer(store store.BlobStore) *Server {
 	return &Server{
 		Timeout: DefaultTimeout,

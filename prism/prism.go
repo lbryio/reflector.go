@@ -80,7 +80,7 @@ func New(conf *Config) *Prism {
 		dht:       d,
 		cluster:   c,
 		peer:      peer.NewServer(conf.Blobs, fmt.Sprintf(":%d", conf.PeerPort)),
-		reflector: reflector.NewServer(conf.Blobs, conf.Blobs),
+		reflector: reflector.NewIngestionServer(conf.Blobs),
 
 		grp: stop.New(),
 	}

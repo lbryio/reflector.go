@@ -23,7 +23,7 @@ func startServerOnRandomPort(t *testing.T) (*Server, int) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(store.NewMemStore(store.MemParams{Name: "test"}), store.NewMemStore(store.MemParams{Name: "test"}))
+	srv := NewIngestionServer(store.NewMemStore(store.MemParams{Name: "test"}))
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +120,7 @@ func TestServer_Timeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(store.NewMemStore(store.MemParams{Name: "test"}), store.NewMemStore(store.MemParams{Name: "test"}))
+	srv := NewIngestionServer(store.NewMemStore(store.MemParams{Name: "test"}))
 	srv.Timeout = testTimeout
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
@@ -191,7 +191,7 @@ func TestServer_PartialUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := NewServer(st, st)
+	srv := NewIngestionServer(st)
 	err = srv.Start("127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		t.Fatal(err)
