@@ -3,10 +3,7 @@ package config
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/lbryio/reflector.go/db"
-
 	"github.com/lbryio/reflector.go/server"
 	"github.com/lbryio/reflector.go/server/http"
 	"github.com/lbryio/reflector.go/server/http3"
@@ -14,6 +11,8 @@ import (
 	"github.com/lbryio/reflector.go/store"
 
 	"github.com/lbryio/lbry.go/v2/extras/errors"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 

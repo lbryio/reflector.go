@@ -9,6 +9,7 @@ import (
 	"github.com/lbryio/reflector.go/shared"
 
 	"github.com/lbryio/lbry.go/v2/stream"
+
 	"github.com/sirupsen/logrus"
 )
 

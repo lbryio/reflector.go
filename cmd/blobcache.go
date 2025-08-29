@@ -8,6 +8,7 @@ import (
 
 	"github.com/lbryio/reflector.go/config"
 	"github.com/lbryio/reflector.go/internal/metrics"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

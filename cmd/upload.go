@@ -6,7 +6,6 @@ import (
 	"syscall"
 
 	"github.com/lbryio/reflector.go/config"
-
 	"github.com/lbryio/reflector.go/reflector"
 
 	log "github.com/sirupsen/logrus"

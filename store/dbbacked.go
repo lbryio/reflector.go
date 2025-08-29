@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/c2h5oh/datasize"
 	"github.com/lbryio/reflector.go/db"
 	"github.com/lbryio/reflector.go/shared"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/stop"
 	"github.com/lbryio/lbry.go/v2/stream"
 
+	"github.com/c2h5oh/datasize"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )

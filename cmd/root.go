@@ -4,13 +4,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/viper"
-
 	"github.com/lbryio/lbry.go/v2/dht"
 	"github.com/lbryio/lbry.go/v2/extras/util"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // Config is the base configuration for Prism when no sub commands are used.

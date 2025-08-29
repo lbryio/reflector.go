@@ -7,10 +7,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lbryio/reflector.go/reflector"
-
 	"github.com/lbryio/reflector.go/config"
 	"github.com/lbryio/reflector.go/internal/metrics"
+	"github.com/lbryio/reflector.go/reflector"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

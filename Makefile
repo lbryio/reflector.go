@@ -20,6 +20,10 @@ test:
 lint:
 	./scripts/lint.sh
 
+.PHONY: imports
+imports:
+	gci write --skip-generated --custom-order -s standard -s "prefix(github.com/lbryio/reflector.go)" -s "prefix(github.com/OdyseeTeam,github.com/lbryio)" -s default .
+
 .PHONY: linux
 linux:
 	GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -asmflags -trimpath=${DIR} -o ${BIN_DIR}/linux_amd64/${BINARY}

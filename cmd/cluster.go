@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/lbryio/lbry.go/v2/extras/crypto"
-
 	"github.com/lbryio/reflector.go/cluster"
+
+	"github.com/lbryio/lbry.go/v2/extras/crypto"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
