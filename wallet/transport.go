@@ -124,7 +124,7 @@ func (t *TCPTransport) test() error {
 		return errors.Err(err)
 	}
 	if response.Error.Message != "" {
-		return fmt.Errorf(response.Error.Message)
+		return fmt.Errorf("%s", response.Error.Message)
 	}
 	return nil
 }

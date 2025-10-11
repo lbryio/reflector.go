@@ -17,10 +17,10 @@ import (
 // It satisfies the BlobStore interface but cannot put or delete blobs.
 type Http3Store struct {
 	NotFoundCache *sync.Map
+	client        *Http3Client
 	name          string
 	address       string
 	timeout       time.Duration
-	client        *Http3Client
 	clientMu      sync.RWMutex
 }
 

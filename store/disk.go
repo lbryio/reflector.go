@@ -16,13 +16,10 @@ import (
 
 // DiskStore stores blobs on a local disk
 type DiskStore struct {
-	blobDir string
-	// store files in subdirectories based on the first N chars in the filename. 0 = don't create subdirectories.
-	prefixLength int
+	blobDir      string
 	name         string
-
-	// true if initOnce ran, false otherwise
-	initialized bool
+	prefixLength int
+	initialized  bool
 }
 
 type DiskParams struct {

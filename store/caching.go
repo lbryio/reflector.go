@@ -23,15 +23,15 @@ type CachingStore struct {
 }
 
 type CachingParams struct {
-	Name   string    `mapstructure:"name"`
 	Origin BlobStore `mapstructure:"origin"`
 	Cache  BlobStore `mapstructure:"cache"`
+	Name   string    `mapstructure:"name"`
 }
 
 type CachingConfig struct {
-	Name   string `mapstructure:"name"`
 	Origin *viper.Viper
 	Cache  *viper.Viper
+	Name   string `mapstructure:"name"`
 }
 
 // NewCachingStore makes a new caching disk store and returns a pointer to it.

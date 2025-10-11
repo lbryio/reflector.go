@@ -14,17 +14,17 @@ import (
 
 // SdBlob is a special blob that contains information on the rest of the blobs in the stream
 type SdBlob struct {
-	StreamName string `json:"stream_name"`
-	Blobs      []struct {
-		Length   int    `json:"length"`
-		BlobNum  int    `json:"blob_num"`
-		BlobHash string `json:"blob_hash,omitempty"`
-		IV       string `json:"iv"`
-	} `json:"blobs"`
+	StreamName        string `json:"stream_name"`
 	StreamType        string `json:"stream_type"`
 	Key               string `json:"key"`
 	SuggestedFileName string `json:"suggested_file_name"`
 	StreamHash        string `json:"stream_hash"`
+	Blobs             []struct {
+		BlobHash string `json:"blob_hash,omitempty"`
+		IV       string `json:"iv"`
+		Length   int    `json:"length"`
+		BlobNum  int    `json:"blob_num"`
+	} `json:"blobs"`
 }
 
 // SQL implements the DB interface
@@ -181,7 +181,7 @@ WHERE is_stored = ? and hash IN (` + qt.Qs(len(batch)) + `)`
 			defer closeRows(rows)
 
 			for rows.Next() {
-				err := rows.Scan(&hash, &blobID, &lastAccessedAt)
+				err = rows.Scan(&hash, &blobID, &lastAccessedAt)
 				if err != nil {
 					return errors.Err(err)
 				}

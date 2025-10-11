@@ -22,17 +22,17 @@ import (
 
 // SdBlob is a special blob that contains information on the rest of the blobs in the stream
 type SdBlob struct {
-	StreamName string `json:"stream_name"`
-	Blobs      []struct {
-		Length   int    `json:"length"`
-		BlobNum  int    `json:"blob_num"`
-		BlobHash string `json:"blob_hash,omitempty"`
-		IV       string `json:"iv"`
-	} `json:"blobs"`
+	StreamName        string `json:"stream_name"`
 	StreamType        string `json:"stream_type"`
 	Key               string `json:"key"`
 	SuggestedFileName string `json:"suggested_file_name"`
 	StreamHash        string `json:"stream_hash"`
+	Blobs             []struct {
+		BlobHash string `json:"blob_hash,omitempty"`
+		IV       string `json:"iv"`
+		Length   int    `json:"length"`
+		BlobNum  int    `json:"blob_num"`
+	} `json:"blobs"`
 }
 
 type AccessTrackingLevel int
@@ -371,7 +371,7 @@ WHERE b.is_stored = 1 and b.hash IN (` + qt.Qs(len(batch)) + `)`
 			defer closeRows(rows)
 
 			for rows.Next() {
-				err := rows.Scan(&hash, &blobID, &streamID, &lastAccessedAt)
+				err = rows.Scan(&hash, &blobID, &streamID, &lastAccessedAt)
 				if err != nil {
 					return errors.Err(err)
 				}
@@ -489,7 +489,7 @@ func (s *SQL) GetBlocked() (map[string]bool, error) {
 
 	var hash string
 	for rows.Next() {
-		err := rows.Scan(&hash)
+		err = rows.Scan(&hash)
 		if err != nil {
 			return nil, errors.Err(err)
 		}
@@ -533,7 +533,7 @@ func (s *SQL) MissingBlobsForKnownStream(sdHash string) ([]string, error) {
 	var hash string
 
 	for rows.Next() {
-		err := rows.Scan(&hash)
+		err = rows.Scan(&hash)
 		if err != nil {
 			return nil, errors.Err(err)
 		}
@@ -636,7 +636,7 @@ func (s *SQL) GetStoredHashesInRange(ctx context.Context, start, end bits.Bitmap
 		var hash string
 	ScanLoop:
 		for rows.Next() {
-			err := rows.Scan(&hash)
+			err = rows.Scan(&hash)
 			if err != nil {
 				ech <- err
 				return

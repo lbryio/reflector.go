@@ -20,10 +20,10 @@ import (
 
 // HttpStore reads from an HTTP endpoint that simply expects the hash to be appended to the endpoint
 type HttpStore struct {
-	endpoint     string
 	httpClient   *http.Client
-	prefixLength int
+	endpoint     string
 	name         string
+	prefixLength int
 }
 
 type HttpParams struct {

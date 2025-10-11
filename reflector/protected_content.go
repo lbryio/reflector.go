@@ -28,9 +28,9 @@ func GetProtectedContent() (interface{}, error) {
 
 	method := "GET"
 	var r struct {
-		Success bool               `json:"success"`
 		Error   string             `json:"error"`
 		Data    []ProtectedContent `json:"data"`
+		Success bool               `json:"success"`
 	}
 
 	// Bound the request to avoid hanging the entire request path.

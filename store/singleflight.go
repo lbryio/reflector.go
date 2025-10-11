@@ -24,14 +24,13 @@ func WithSingleFlight(component string, origin BlobStore) BlobStore {
 
 type singleflightStore struct {
 	BlobStore
-
-	component string
 	sf        *singleflight.Group
+	component string
 }
 
 type SingleFlightConfig struct {
-	Component string `mapstructure:"component"`
 	Store     *viper.Viper
+	Component string `mapstructure:"component"`
 }
 
 func SingleFlightStoreFactory(config *viper.Viper) (BlobStore, error) {

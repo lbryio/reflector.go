@@ -154,7 +154,7 @@ store:
 
 ## Quick start
 1) Build
-- Requires Go 1.23+
+- Requires Go 1.24+
 - `make` (binaries in `dist/<platform>/prism-bin`)
 
 2) Run a local blobcache

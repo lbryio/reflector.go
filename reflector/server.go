@@ -35,14 +35,14 @@ var ErrBlobTooBig = errors.Base("blob must be at most %d bytes", maxBlobSize)
 
 // Server is and instance of the reflector server. It houses the blob store and listener.
 type Server struct {
+	store   store.BlobStore
+	grp     *stop.Group
 	Timeout time.Duration // timeout to read or write next message
 
 	EnableBlocklist bool // if true, blocklist checking and blob deletion will be enabled
 
 	//underlyingStore store.BlobStore
 	//outerStore      store.BlobStore
-	store store.BlobStore
-	grp   *stop.Group
 }
 
 func NewIngestionServer(store store.BlobStore) *Server {
@@ -151,7 +151,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		if errors.Is(err, io.EOF) || s.quitting() {
 			return
 		}
-		err := s.doError(conn, err)
+		err = s.doError(conn, err)
 		if err != nil {
 			log.Error(errors.Prefix("sending handshake error", err))
 		}
@@ -164,7 +164,7 @@ func (s *Server) handleConn(conn net.Conn) {
 			if errors.Is(err, io.EOF) || s.quitting() {
 				return
 			}
-			err := s.doError(conn, err)
+			err = s.doError(conn, err)
 			if err != nil {
 				log.Error(errors.Prefix("sending blob receive error", err))
 			}
@@ -205,7 +205,8 @@ func (s *Server) receiveBlob(conn net.Conn) error {
 			return err
 		}
 	} else {
-		blobExists, err := s.store.Has(blobHash)
+		var blobExists bool
+		blobExists, err = s.store.Has(blobHash)
 		if err != nil {
 			return err
 		}
@@ -428,8 +429,8 @@ type handshakeRequestResponse struct {
 
 type sendBlobRequest struct {
 	BlobHash   string `json:"blob_hash,omitempty"`
-	BlobSize   int    `json:"blob_size,omitempty"`
 	SdBlobHash string `json:"sd_blob_hash,omitempty"`
+	BlobSize   int    `json:"blob_size,omitempty"`
 	SdBlobSize int    `json:"sd_blob_size,omitempty"`
 }
 
@@ -438,8 +439,8 @@ type sendBlobResponse struct {
 }
 
 type sendSdBlobResponse struct {
-	SendSdBlob  bool     `json:"send_sd_blob"`
 	NeededBlobs []string `json:"needed_blobs,omitempty"`
+	SendSdBlob  bool     `json:"send_sd_blob"`
 }
 
 type blobTransferResponse struct {

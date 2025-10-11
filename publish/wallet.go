@@ -13,21 +13,21 @@ func LoadWallet(r io.Reader) (WalletFile, error) {
 
 type WalletFile struct {
 	Name        string      `json:"name"`
-	Version     int         `json:"version"`
-	Preferences WalletPrefs `json:"preferences"`
 	Accounts    []Account   `json:"accounts"`
+	Preferences WalletPrefs `json:"preferences"`
+	Version     int         `json:"version"`
 }
 
 type Account struct {
-	AddressGenerator AddressGenerator  `json:"address_generator"`
 	Certificates     map[string]string `json:"certificates"`
-	Encrypted        bool              `json:"encrypted"`
 	Ledger           string            `json:"ledger"`
-	ModifiedOn       float64           `json:"modified_on"`
 	Name             string            `json:"name"`
 	PrivateKey       string            `json:"private_key"`
 	PublicKey        string            `json:"public_key"`
 	Seed             string            `json:"seed"`
+	AddressGenerator AddressGenerator  `json:"address_generator"`
+	ModifiedOn       float64           `json:"modified_on"`
+	Encrypted        bool              `json:"encrypted"`
 }
 
 type AddressGenerator struct {
@@ -43,17 +43,17 @@ type AddressGenParams struct {
 
 type WalletPrefs struct {
 	Shared struct {
-		Ts    float64 `json:"ts"`
 		Value struct {
-			Type  string `json:"type"`
-			Value struct {
-				AppWelcomeVersion int           `json:"app_welcome_version"`
+			Type    string `json:"type"`
+			Version string `json:"version"`
+			Value   struct {
 				Blocked           []interface{} `json:"blocked"`
-				Sharing3P         bool          `json:"sharing_3P"`
 				Subscriptions     []string      `json:"subscriptions"`
 				Tags              []string      `json:"tags"`
+				AppWelcomeVersion int           `json:"app_welcome_version"`
+				Sharing3P         bool          `json:"sharing_3P"`
 			} `json:"value"`
-			Version string `json:"version"`
 		} `json:"value"`
+		Ts float64 `json:"ts"`
 	} `json:"shared"`
 }

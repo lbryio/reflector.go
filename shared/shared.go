@@ -10,9 +10,9 @@ import (
 )
 
 type BlobStack struct {
-	Timing     time.Duration `json:"timing"`
 	OriginName string        `json:"origin_name"`
 	HostName   string        `json:"host_name"`
+	Timing     time.Duration `json:"timing"`
 }
 type BlobTrace struct {
 	Stacks []BlobStack `json:"stacks"`

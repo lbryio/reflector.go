@@ -31,13 +31,12 @@ type Summary struct {
 type Uploader struct {
 	db                     *db.SQL
 	store                  store.BlobStore
+	stopper                *stop.Group
+	countChan              chan increment
+	count                  Summary
 	workers                int
 	skipExistsCheck        bool
 	deleteBlobsAfterUpload bool
-	stopper                *stop.Group
-	countChan              chan increment
-
-	count Summary
 }
 
 func NewUploader(db *db.SQL, store store.BlobStore, workers int, skipExistsCheck, deleteBlobsAfterUpload bool) *Uploader {
@@ -176,7 +175,7 @@ func (u *Uploader) uploadBlob(filepath string) (err error) {
 
 	if IsValidJSON(blob) {
 		log.Debugf("uploading SD blob %s", hash)
-		err := u.store.PutSD(hash, blob)
+		err = u.store.PutSD(hash, blob)
 		if err != nil {
 			return errors.Prefix("uploading SD blob "+hash, err)
 		}

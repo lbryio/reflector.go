@@ -30,22 +30,19 @@ var (
 )
 
 type response struct {
-	data []byte
 	err  error
+	data []byte
 }
 
 type Node struct {
-	transport *TCPTransport
-	nextId    atomic.Uint32
-	grp       *stop.Group
-
-	handlersMu *sync.RWMutex
-	handlers   map[uint32]chan response
-
+	transport      *TCPTransport
+	grp            *stop.Group
+	handlersMu     *sync.RWMutex
+	handlers       map[uint32]chan response
 	pushHandlersMu *sync.RWMutex
 	pushHandlers   map[string][]chan response
-
-	timeout time.Duration
+	nextId         atomic.Uint32
+	timeout        time.Duration
 }
 
 // NewNode creates a new node.
@@ -155,23 +152,23 @@ func (n *Node) listen() {
 			return
 		case bytes := <-n.transport.Responses():
 			msg := &struct {
-				Id     uint32 `json:"id"`
 				Method string `json:"method"`
 				Error  struct {
-					Code    int    `json:"code"`
 					Message string `json:"message"`
+					Code    int    `json:"code"`
 				} `json:"error"`
+				Id uint32 `json:"id"`
 			}{}
 			msg2 := &struct {
-				Id     uint32 `json:"id"`
 				Method string `json:"method"`
 				Error  struct {
-					Code    int `json:"code"`
 					Message struct {
-						Code    int    `json:"code"`
 						Message string `json:"message"`
+						Code    int    `json:"code"`
 					} `json:"message"`
+					Code int `json:"code"`
 				} `json:"error"`
+				Id uint32 `json:"id"`
 			}{}
 			r := response{}
 
@@ -231,9 +228,9 @@ func (n *Node) listen() {
 // request makes a request to the server and unmarshals the response into v.
 func (n *Node) request(method string, params []string, v interface{}) error {
 	msg := struct {
-		Id     uint32   `json:"id"`
 		Method string   `json:"method"`
 		Params []string `json:"params"`
+		Id     uint32   `json:"id"`
 	}{
 		Id:     n.nextId.Load(),
 		Method: method,

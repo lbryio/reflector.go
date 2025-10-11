@@ -32,9 +32,9 @@ const (
 // Server is an instance of a peer server that houses the listener and store.
 type Server struct {
 	store   store.BlobStore
-	closed  bool
 	grp     *stop.Group
 	address string
+	closed  bool
 }
 
 // NewServer returns an initialized Server pointer.
@@ -243,7 +243,8 @@ func (s *Server) handleCompositeRequest(data []byte) ([]byte, error) {
 			if reflector.IsProtected(blobHash) {
 				return nil, errors.Err("requested blob is protected")
 			}
-			exists, err := s.store.Has(blobHash)
+			var exists bool
+			exists, err = s.store.Has(blobHash)
 			if err != nil {
 				return nil, err
 			}
@@ -375,8 +376,8 @@ var errRequestTooLarge = errors.Base("request is too large")
 var errInvalidData = errors.Base("Invalid data")
 
 type availabilityRequest struct {
-	LbrycrdAddress bool     `json:"lbrycrd_address"`
 	RequestedBlobs []string `json:"requested_blobs"`
+	LbrycrdAddress bool     `json:"lbrycrd_address"`
 }
 
 type availabilityResponse struct {
@@ -402,20 +403,20 @@ type incomingBlob struct {
 	Length   int    `json:"length"`
 }
 type blobResponse struct {
-	IncomingBlob incomingBlob `json:"incoming_blob"`
 	RequestTrace *shared.BlobTrace
+	IncomingBlob incomingBlob `json:"incoming_blob"`
 }
 
 type compositeRequest struct {
-	LbrycrdAddress      bool     `json:"lbrycrd_address"`
-	RequestedBlobs      []string `json:"requested_blobs"`
 	BlobDataPaymentRate *float64 `json:"blob_data_payment_rate"`
 	RequestedBlob       string   `json:"requested_blob"`
+	RequestedBlobs      []string `json:"requested_blobs"`
+	LbrycrdAddress      bool     `json:"lbrycrd_address"`
 }
 
 type compositeResponse struct {
-	LbrycrdAddress      string        `json:"lbrycrd_address,omitempty"`
-	AvailableBlobs      []string      `json:"available_blobs"`
-	BlobDataPaymentRate string        `json:"blob_data_payment_rate,omitempty"`
 	IncomingBlob        *incomingBlob `json:"incoming_blob,omitempty"`
+	LbrycrdAddress      string        `json:"lbrycrd_address,omitempty"`
+	BlobDataPaymentRate string        `json:"blob_data_payment_rate,omitempty"`
+	AvailableBlobs      []string      `json:"available_blobs"`
 }

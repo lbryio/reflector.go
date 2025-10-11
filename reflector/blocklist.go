@@ -69,18 +69,18 @@ func blockedSdHashes(walletServers []string, stopper stop.Chan) (map[string]valO
 		return nil, errors.Err(err)
 	}
 	defer func() {
-		err := resp.Body.Close()
-		if err != nil {
-			log.Errorln(errors.Err(err))
+		closeErr := resp.Body.Close()
+		if closeErr != nil {
+			log.Errorln(errors.Err(closeErr))
 		}
 	}()
 
 	var r struct {
-		Success bool   `json:"success"`
-		Error   string `json:"error"`
-		Data    struct {
+		Error string `json:"error"`
+		Data  struct {
 			Outpoints []string `json:"outpoints"`
 		} `json:"data"`
+		Success bool `json:"success"`
 	}
 
 	if err = json.NewDecoder(resp.Body).Decode(&r); err != nil {
@@ -95,8 +95,8 @@ func blockedSdHashes(walletServers []string, stopper stop.Chan) (map[string]valO
 }
 
 type valOrErr struct {
-	Value string
 	Err   error
+	Value string
 }
 
 // sdHashesForOutpoints queries wallet server for the sd hashes in a given outpoints

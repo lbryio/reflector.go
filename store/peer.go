@@ -15,8 +15,8 @@ import (
 // PeerStore is a blob store that gets blobs from a peer.
 // It satisfies the BlobStore interface but cannot put or delete blobs.
 type PeerStore struct {
-	opts PeerParams
 	name string
+	opts PeerParams
 }
 
 // PeerParams allows to set options for a new PeerStore.

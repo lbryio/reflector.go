@@ -21,20 +21,16 @@ import (
 )
 
 type Config struct {
-	PeerPort      int
-	ReflectorPort int
-
-	DhtAddress   string
-	DhtSeedNodes []string
-
-	ClusterPort     int
-	ClusterSeedAddr string
-
-	// limit the range of hashes to announce. useful for testing
-	HashRange *bits.Range
-
-	DB    *db.SQL
 	Blobs store.BlobStore
+	// limit the range of hashes to announce. useful for testing
+	HashRange       *bits.Range
+	DB              *db.SQL
+	DhtAddress      string
+	ClusterSeedAddr string
+	DhtSeedNodes    []string
+	PeerPort        int
+	ReflectorPort   int
+	ClusterPort     int
 }
 
 // DefaultConf returns a default config

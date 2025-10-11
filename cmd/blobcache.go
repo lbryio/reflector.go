@@ -13,8 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ()
-
 func init() {
 	var cmd = &cobra.Command{
 		Use:   "blobcache",

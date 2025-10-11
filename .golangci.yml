@@ -1,0 +1,57 @@
+run:
+  timeout: 5m
+  tests: false
+  modules-download-mode: readonly
+
+linters-settings:
+  gci:
+    # Checks that no inline Comments are present.
+    # Default: false
+    no-inline-comments: false
+
+    # Checks that no prefix Comments(comment lines above an import) are present.
+    # Default: false
+    no-prefix-comments: false
+    
+    # Skip generated files
+    skip-generated: true
+    
+    # Use custom order
+    custom-order: true
+    
+    sections:
+      - standard
+      - prefix(github.com/lbryio/reflector.go)
+      - prefix(github.com/OdyseeTeam,github.com/lbryio)
+      - default
+  gofmt:
+    simplify: true
+  govet:
+    enable-all: true
+  misspell:
+    locale: US
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+  staticcheck:
+    checks: ["all"]
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - gci
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+    - unconvert
+    - whitespace
+    - typecheck
+  disable:
+    - unused
+    - unparam
+    - staticcheck

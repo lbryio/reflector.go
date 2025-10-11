@@ -23,36 +23,36 @@ import (
 type DBBackedStore struct {
 	blobs        BlobStore
 	db           *db.SQL
-	blockedMu    sync.RWMutex
 	blocked      map[string]bool
-	deleteOnMiss bool
-	maxSize      int
 	cleanerStop  *stop.Group
 	name         string
+	maxSize      int
+	blockedMu    sync.RWMutex
+	deleteOnMiss bool
 }
 
 type DBBackedParams struct {
-	Name         string    `mapstructure:"name"`
 	Store        BlobStore `mapstructure:"store"`
 	DB           *db.SQL   `mapstructure:"db"`
-	DeleteOnMiss bool      `mapstructure:"delete_on_miss"`
 	MaxSize      *int      `mapstructure:"max_size"`
+	Name         string    `mapstructure:"name"`
+	DeleteOnMiss bool      `mapstructure:"delete_on_miss"`
 }
 
 type DBBackedConfig struct {
-	Name           string `mapstructure:"name"`
 	Store          *viper.Viper
+	Database       string `mapstructure:"database"`
 	User           string `mapstructure:"user"`
 	Password       string `mapstructure:"password"`
 	Host           string `mapstructure:"host"`
+	Name           string `mapstructure:"name"`
+	MaxSize        string `mapstructure:"max_size"`
 	Port           int    `mapstructure:"port"`
-	Database       string `mapstructure:"database"`
-	DeleteOnMiss   bool   `mapstructure:"delete_on_miss"`
 	AccessTracking int    `mapstructure:"access_tracking"`
+	DeleteOnMiss   bool   `mapstructure:"delete_on_miss"`
 	SoftDeletes    bool   `mapstructure:"soft_deletes"`
 	LogQueries     bool   `mapstructure:"log_queries"`
 	HasCap         bool   `mapstructure:"has_cap"`
-	MaxSize        string `mapstructure:"max_size"`
 }
 
 // NewDBBackedStore returns an initialized store pointer.

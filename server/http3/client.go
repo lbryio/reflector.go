@@ -22,10 +22,10 @@ import (
 
 // Client is an instance of a client connected to a server.
 type Client struct {
-	Timeout      time.Duration
 	conn         *http.Client
 	roundTripper *http3.Transport
 	ServerAddr   string
+	Timeout      time.Duration
 }
 
 // Close closes the connection with the client.
@@ -100,7 +100,8 @@ func (c *Client) GetBlob(hash string) (stream.Blob, shared.BlobTrace, error) {
 	serialized := resp.Header.Get("Via")
 	trace := shared.NewBlobTrace(time.Since(start), "http3")
 	if serialized != "" {
-		parsedTrace, err := shared.Deserialize(serialized)
+		var parsedTrace *shared.BlobTrace
+		parsedTrace, err = shared.Deserialize(serialized)
 		if err != nil {
 			return nil, shared.NewBlobTrace(time.Since(start), "http3"), err
 		}

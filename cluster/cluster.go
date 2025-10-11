@@ -23,13 +23,12 @@ const (
 type Cluster struct {
 	OnMembershipChange func(n, total int)
 
+	s        *serf.Serf
+	eventCh  chan serf.Event
+	stop     *stop.Group
 	name     string
-	port     int
 	seedAddr string
-
-	s       *serf.Serf
-	eventCh chan serf.Event
-	stop    *stop.Group
+	port     int
 }
 
 // New returns a new Cluster instance that is not connected.

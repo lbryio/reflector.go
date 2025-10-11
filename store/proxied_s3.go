@@ -41,15 +41,15 @@ func (c *ProxiedS3Store) Wants(hash string) (bool, error) {
 }
 
 type ProxiedS3Params struct {
-	Name   string    `mapstructure:"name"`
 	Reader BlobStore `mapstructure:"reader"`
 	Writer BlobStore `mapstructure:"writer"`
+	Name   string    `mapstructure:"name"`
 }
 
 type ProxiedS3Config struct {
-	Name   string `mapstructure:"name"`
 	Reader *viper.Viper
 	Writer *viper.Viper
+	Name   string `mapstructure:"name"`
 }
 
 // NewProxiedS3Store returns an initialized ProxiedS3Store store pointer.

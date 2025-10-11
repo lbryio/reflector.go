@@ -3,7 +3,7 @@ dist: bionic
 language: go
 
 go:
-  - 1.23.x
+  - 1.24.x
 
 cache:
   directories:

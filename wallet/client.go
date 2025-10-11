@@ -69,22 +69,22 @@ func (n *Node) Resolve(url string) (*types.Output, error) {
 
 type GetClaimsInTxResp struct {
 	Jsonrpc string `json:"jsonrpc"`
-	ID      int    `json:"id"`
 	Result  []struct {
 		Name            string        `json:"name"`
 		ClaimID         string        `json:"claim_id"`
 		Txid            string        `json:"txid"`
+		Value           string        `json:"value"`
+		Address         string        `json:"address"`
+		Supports        []interface{} `json:"supports"` // TODO: finish me
 		Nout            int           `json:"nout"`
 		Amount          int           `json:"amount"`
 		Depth           int           `json:"depth"`
 		Height          int           `json:"height"`
-		Value           string        `json:"value"`
 		ClaimSequence   int           `json:"claim_sequence"`
-		Address         string        `json:"address"`
-		Supports        []interface{} `json:"supports"` // TODO: finish me
 		EffectiveAmount int           `json:"effective_amount"`
 		ValidAtHeight   int           `json:"valid_at_height"`
 	} `json:"result"`
+	ID int `json:"id"`
 }
 
 func (n *Node) GetClaimsInTx(txid string) (*GetClaimsInTxResp, error) {

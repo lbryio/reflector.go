@@ -32,8 +32,8 @@ import (
 type Server struct {
 	store              store.BlobStore
 	grp                *stop.Group
-	concurrentRequests int
 	address            string
+	concurrentRequests int
 }
 
 // NewServer returns an initialized Server pointer.
@@ -190,7 +190,8 @@ func (s *Server) HandleGetBlob(w http.ResponseWriter, r *http.Request) {
 	blob, trace, err := s.store.Get(requestedBlob)
 
 	if wantsTrace {
-		serialized, err := trace.Serialize()
+		var serialized string
+		serialized, err = trace.Serialize()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return

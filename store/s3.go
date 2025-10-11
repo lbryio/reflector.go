@@ -23,6 +23,7 @@ import (
 
 // S3Store is an S3 store
 type S3Store struct {
+	session      *session.Session
 	awsID        string
 	awsSecret    string
 	region       string
@@ -30,7 +31,6 @@ type S3Store struct {
 	endpoint     string
 	name         string
 	prefixLength int
-	session      *session.Session
 }
 
 type S3Params struct {

@@ -36,15 +36,15 @@ const (
 )
 
 type GcacheParams struct {
-	Name     string           `mapstructure:"name"`
 	Store    BlobStore        `mapstructure:"store"`
+	Name     string           `mapstructure:"name"`
 	MaxSize  int              `mapstructure:"max_size"`
 	Strategy EvictionStrategy `mapstructure:"strategy"`
 }
 
 type GcacheConfig struct {
-	Name     string `mapstructure:"name"`
 	Store    *viper.Viper
+	Name     string           `mapstructure:"name"`
 	MaxSize  int              `mapstructure:"max_size"`
 	Strategy EvictionStrategy `mapstructure:"strategy"`
 }

@@ -47,7 +47,7 @@ func sendCmd(cmd *cobra.Command, args []string) {
 	sdCachePath := ""
 	sdCacheDir := mustGetFlagString(cmd, "sd-cache")
 	if sdCacheDir != "" {
-		if _, err := os.Stat(sdCacheDir); os.IsNotExist(err) {
+		if _, statErr := os.Stat(sdCacheDir); os.IsNotExist(statErr) {
 			err = os.MkdirAll(sdCacheDir, 0777)
 			checkErr(err)
 		}
@@ -57,8 +57,9 @@ func sendCmd(cmd *cobra.Command, args []string) {
 	var enc *stream.Encoder
 
 	if sdCachePath != "" {
-		if _, err := os.Stat(sdCachePath); !os.IsNotExist(err) {
-			sdBlob, err := os.ReadFile(sdCachePath)
+		if _, statErr := os.Stat(sdCachePath); !os.IsNotExist(statErr) {
+			var sdBlob []byte
+			sdBlob, err = os.ReadFile(sdCachePath)
 			checkErr(err)
 			cachedSDBlob := &stream.SDBlob{}
 			err = cachedSDBlob.FromBlob(sdBlob)
@@ -87,7 +88,8 @@ func sendCmd(cmd *cobra.Command, args []string) {
 			break
 		}
 
-		b, err := enc.Next()
+		var b stream.Blob
+		b, err = enc.Next()
 		if errors.Is(err, io.EOF) {
 			break
 		}

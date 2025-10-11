@@ -20,15 +20,15 @@ type ITTTStore struct {
 }
 
 type ITTTParams struct {
-	Name string    `mapstructure:"name"`
 	This BlobStore `mapstructure:"this"`
 	That BlobStore `mapstructure:"that"`
+	Name string    `mapstructure:"name"`
 }
 
 type ITTTConfig struct {
-	Name string `mapstructure:"name"`
 	This *viper.Viper
 	That *viper.Viper
+	Name string `mapstructure:"name"`
 }
 
 // NewITTTStore returns a new instance of the IF THIS THAN THAT store

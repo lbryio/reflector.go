@@ -20,9 +20,9 @@ import (
 
 // Client is an instance of a client connected to a server.
 type Client struct {
-	Timeout   time.Duration
 	conn      net.Conn
 	buf       *bufio.Reader
+	Timeout   time.Duration
 	connected bool
 }
 

@@ -19,10 +19,10 @@ import (
 type Server struct {
 	store              store.BlobStore
 	grp                *stop.Group
-	concurrentRequests int
 	missesCache        gcache.Cache
 	edgeToken          string
 	address            string
+	concurrentRequests int
 }
 
 // NewServer returns an initialized Server pointer.

@@ -24,7 +24,8 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 	}
 	items := make([]fs.FileInfo, 0, len(entries))
 	for _, entry := range entries {
-		info, err := entry.Info()
+		var info fs.FileInfo
+		info, err = entry.Info()
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +91,7 @@ func AllFiles(startDir string, basename bool) ([]string, error) {
 				},
 			})
 			if err != nil {
-				logrus.Errorf(errors.FullTrace(err))
+				logrus.Error(errors.FullTrace(err))
 			}
 		}(item.Name())
 	}
