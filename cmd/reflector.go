@@ -26,9 +26,9 @@ var (
 
 func init() {
 	var cmd = &cobra.Command{
-		Use:   "reflector2",
+		Use:   "reflector",
 		Short: "Run reflector server",
-		Run:   reflector2Cmd,
+		Run:   reflectorCmd,
 	}
 
 	cmd.Flags().IntVar(&metricsPort, "metrics-port", 2112, "The port reflector will use for prometheus metrics")
@@ -38,7 +38,7 @@ func init() {
 	rootCmd.AddCommand(cmd)
 }
 
-func reflector2Cmd(cmd *cobra.Command, args []string) {
+func reflectorCmd(cmd *cobra.Command, args []string) {
 	store, err := config.LoadStores(conf, "reflector")
 	if err != nil {
 		log.Fatal(err)
