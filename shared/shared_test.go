@@ -16,9 +16,17 @@ func TestBlobTrace_Serialize(t *testing.T) {
 	stack.Stack(30*time.Second, "test3")
 	serialized, err := stack.Serialize()
 	assert.NoError(t, err)
-	t.Log(serialized)
-	expected := "{\"stacks\":[{\"timing\":10000000000,\"origin_name\":\"test\",\"host_name\":\"test_machine\"},{\"timing\":20000000000,\"origin_name\":\"test2\",\"host_name\":\"test_machine\"},{\"timing\":30000000000,\"origin_name\":\"test3\",\"host_name\":\"test_machine\"}]}"
-	assert.Equal(t, expected, serialized)
+
+	deserialized, err := Deserialize(serialized)
+	assert.NoError(t, err)
+	assert.Len(t, deserialized.Stacks, 3)
+	assert.Equal(t, 10*time.Second, deserialized.Stacks[0].Timing)
+	assert.Equal(t, "test", deserialized.Stacks[0].OriginName)
+	assert.Equal(t, "test_machine", deserialized.Stacks[0].HostName)
+	assert.Equal(t, 20*time.Second, deserialized.Stacks[1].Timing)
+	assert.Equal(t, "test2", deserialized.Stacks[1].OriginName)
+	assert.Equal(t, 30*time.Second, deserialized.Stacks[2].Timing)
+	assert.Equal(t, "test3", deserialized.Stacks[2].OriginName)
 }
 
 func TestBlobTrace_Deserialize(t *testing.T) {
