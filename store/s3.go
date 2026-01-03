@@ -2,6 +2,8 @@ package store
 
 import (
 	"bytes"
+	"context"
+	stderrors "errors"
 	"path"
 	"time"
 
@@ -11,19 +13,19 @@ import (
 	"github.com/lbryio/lbry.go/v2/extras/errors"
 	"github.com/lbryio/lbry.go/v2/stream"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
 // S3Store is an S3 store
 type S3Store struct {
-	session      *session.Session
+	client       *s3.Client
 	awsID        string
 	awsSecret    string
 	region       string
@@ -81,12 +83,15 @@ func (s *S3Store) Has(hash string) (bool, error) {
 		return false, err
 	}
 
-	_, err = s3.New(s.session).HeadObject(&s3.HeadObjectInput{
+	ctx := context.Background()
+	_, err = s.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.shardedPath(hash)),
 	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == s3.ErrCodeNoSuchKey {
+		var notFound *types.NotFound
+		var noSuchKey *types.NoSuchKey
+		if stderrors.As(err, &notFound) || stderrors.As(err, &noSuchKey) {
 			return false, nil
 		}
 		return false, errors.Err(err)
@@ -98,7 +103,6 @@ func (s *S3Store) Has(hash string) (bool, error) {
 // Get returns the blob slice if present or errors on S3.
 func (s *S3Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 	start := time.Now()
-	//Todo-Need to handle error for blob doesn't exist for consistency.
 	err := s.initOnce()
 	if err != nil {
 		return nil, shared.NewBlobTrace(time.Since(start), s.Name()), err
@@ -109,19 +113,21 @@ func (s *S3Store) Get(hash string) (stream.Blob, shared.BlobTrace, error) {
 		log.Debugf("Getting %s from %s took %s", hash[:8], s.Name(), time.Since(t).String())
 	}(start)
 
-	buf := &aws.WriteAtBuffer{}
-	_, err = s3manager.NewDownloader(s.session).Download(buf, &s3.GetObjectInput{
+	ctx := context.Background()
+	buf := manager.NewWriteAtBuffer([]byte{})
+	_, err = manager.NewDownloader(s.client).Download(ctx, buf, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.shardedPath(hash)),
 	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchBucket:
-				return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err("bucket %s does not exist", s.bucket)
-			case s3.ErrCodeNoSuchKey:
-				return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err(ErrBlobNotFound)
-			}
+		var noSuchBucket *types.NoSuchBucket
+		var noSuchKey *types.NoSuchKey
+		var notFound *types.NotFound
+		switch {
+		case stderrors.As(err, &noSuchBucket):
+			return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err("bucket %s does not exist", s.bucket)
+		case stderrors.As(err, &noSuchKey), stderrors.As(err, &notFound):
+			return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err(ErrBlobNotFound)
 		}
 		return nil, shared.NewBlobTrace(time.Since(start), s.Name()), errors.Err(err)
 	}
@@ -141,12 +147,12 @@ func (s *S3Store) Put(hash string, blob stream.Blob) error {
 		log.Debugf("Uploading %s took %s", hash[:8], time.Since(t).String())
 	}(time.Now())
 
-	_, err = s3manager.NewUploader(s.session).Upload(&s3manager.UploadInput{
+	ctx := context.Background()
+	_, err = manager.NewUploader(s.client).Upload(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.shardedPath(hash)),
 		Body:   bytes.NewBuffer(blob),
-		ACL:    aws.String("public-read"),
-		//StorageClass: aws.String(s3.StorageClassIntelligentTiering),
+		ACL:    types.ObjectCannedACLPublicRead,
 	})
 	if err != nil {
 		return errors.Err(err)
@@ -169,7 +175,8 @@ func (s *S3Store) Delete(hash string) error {
 
 	log.Debugf("Deleting %s from S3", hash[:8])
 
-	_, err = s3.New(s.session).DeleteObject(&s3.DeleteObjectInput{
+	ctx := context.Background()
+	_, err = s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(s.shardedPath(hash)),
 	})
@@ -178,21 +185,24 @@ func (s *S3Store) Delete(hash string) error {
 }
 
 func (s *S3Store) initOnce() error {
-	if s.session != nil {
+	if s.client != nil {
 		return nil
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Credentials:      credentials.NewStaticCredentials(s.awsID, s.awsSecret, ""),
-		Region:           aws.String(s.region),
-		Endpoint:         aws.String(s.endpoint),
-		S3ForcePathStyle: aws.Bool(true),
-	})
+	ctx := context.Background()
+	cfg, err := awsconfig.LoadDefaultConfig(ctx,
+		awsconfig.WithRegion(s.region),
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.awsID, s.awsSecret, "")),
+	)
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	s.session = sess
+	s.client = s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(s.endpoint)
+		o.UsePathStyle = true
+		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+	})
 	return nil
 }
 
